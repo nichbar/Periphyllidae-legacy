@@ -1,0 +1,192 @@
+package now.link.periphyllidae.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import now.link.periphyllidae.mvi.LoginIntent
+import now.link.periphyllidae.mvi.LoginState
+import now.link.periphyllidae.store.LoginStore
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginScreen(
+    viewModel: LoginStore,
+    onLoginSuccess: () -> Unit
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var passwordVisible by remember { mutableStateOf(false) }
+    
+    // Navigate on successful authentication
+    LaunchedEffect(state.isLoading) {
+        if (!state.isLoading && state.error == null && 
+            state.serverUrl.isNotBlank() && state.username.isNotBlank()) {
+            // Check if we just completed a successful login
+            val hasAllFields = state.serverUrl.isNotBlank() && 
+                             state.username.isNotBlank() && 
+                             state.password.isNotBlank()
+            if (hasAllFields) {
+                onLoginSuccess()
+            }
+        }
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // App Title
+        Text(
+            text = "Periphyllidae",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        Text(
+            text = "Subsonic Music Player",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            modifier = Modifier.padding(bottom = 48.dp)
+        )
+        
+        // Login Form
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Connect to Server",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                // Server URL Field
+                OutlinedTextField(
+                    value = state.serverUrl,
+                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdateServerUrl(it)) },
+                    label = { Text("Server URL") },
+                    placeholder = { Text("https://your-server.com") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isLoading
+                )
+                
+                // Username Field
+                OutlinedTextField(
+                    value = state.username,
+                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdateUsername(it)) },
+                    label = { Text("Username") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isLoading
+                )
+                
+                // Password Field
+                OutlinedTextField(
+                    value = state.password,
+                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdatePassword(it)) },
+                    label = { Text("Password") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { 
+                            if (canLogin(state)) {
+                                viewModel.handleIntent(LoginIntent.Login)
+                            }
+                        }
+                    ),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isLoading
+                )
+                
+                // Error Display
+                if (state.error != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = state.error,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                
+                // Login Button
+                Button(
+                    onClick = { viewModel.handleIntent(LoginIntent.Login) },
+                    enabled = canLogin(state) && !state.isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Connect")
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            text = "Enter your Subsonic server details to get started",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+private fun canLogin(state: LoginState): Boolean {
+    return state.serverUrl.isNotBlank() && 
+           state.username.isNotBlank() && 
+           state.password.isNotBlank()
+}

@@ -1,0 +1,84 @@
+CREATE TABLE IF NOT EXISTS Song (
+  id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  album TEXT NOT NULL,
+  duration INTEGER,
+  track INTEGER,
+  year INTEGER,
+  genre TEXT,
+  coverArt TEXT,
+  streamUrl TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Album (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  songCount INTEGER NOT NULL,
+  duration INTEGER,
+  year INTEGER,
+  genre TEXT,
+  coverArt TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Artist (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  albumCount INTEGER NOT NULL,
+  starred TEXT,
+  coverArt TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Playlist (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  comment TEXT,
+  songCount INTEGER NOT NULL,
+  duration INTEGER NOT NULL,
+  public INTEGER NOT NULL DEFAULT 0,
+  created TEXT NOT NULL,
+  changed TEXT NOT NULL,
+  coverArt TEXT
+);
+
+-- Queries
+selectAllSongs:
+SELECT * FROM Song;
+
+selectSongById:
+SELECT * FROM Song WHERE id = ?;
+
+insertSong:
+INSERT OR REPLACE INTO Song (id, title, artist, album, duration, track, year, genre, coverArt, streamUrl)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectAllAlbums:
+SELECT * FROM Album;
+
+selectAlbumById:
+SELECT * FROM Album WHERE id = ?;
+
+insertAlbum:
+INSERT OR REPLACE INTO Album (id, name, artist, songCount, duration, year, genre, coverArt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectAllArtists:
+SELECT * FROM Artist;
+
+selectArtistById:
+SELECT * FROM Artist WHERE id = ?;
+
+insertArtist:
+INSERT OR REPLACE INTO Artist (id, name, albumCount, starred, coverArt)
+VALUES (?, ?, ?, ?, ?);
+
+selectAllPlaylists:
+SELECT * FROM Playlist;
+
+selectPlaylistById:
+SELECT * FROM Playlist WHERE id = ?;
+
+insertPlaylist:
+INSERT OR REPLACE INTO Playlist (id, name, comment, songCount, duration, public, created, changed, coverArt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
