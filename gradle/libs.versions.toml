@@ -6,6 +6,7 @@ android-targetSdk = "35"
 androidx-activity = "1.10.1"
 androidx-appcompat = "1.7.1"
 androidx-core = "1.16.0"
+androidx-savedstate = "1.2.1"
 androidx-espresso = "3.6.1"
 androidx-lifecycle = "2.9.1"
 androidx-testExt = "1.2.1"
@@ -17,12 +18,12 @@ kotlinx-coroutines = "1.10.2"
 ktor = "3.0.3"
 koin = "4.1.0"
 sqldelight = "2.0.2"
+kotlinx-serialization = "1.7.3"
 kermit = "2.0.4"
 coil = "3.0.4"
 multiplatform-settings = "1.3.0"
-navigation-compose = "2.8.5"
-media3 = "1.5.0"
-vlcj = "4.8.3"
+navigation-compose = "2.9.0-beta04"
+mediamp = "0.0.23"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -67,13 +68,15 @@ coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.re
 
 # Settings
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
+multiplatform-settings-jvm = { module = "com.russhwolf:multiplatform-settings-jvm-preferences", version.ref = "multiplatform-settings" }
 
-# Media - Android
-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
-media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
-
-# Media - Desktop
-vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
+# MediaMP - Multiplatform Media Player
+mediamp-api = { module = "org.openani.mediamp:mediamp-api", version.ref = "mediamp" }
+mediamp-compose = { module = "org.openani.mediamp:mediamp-compose", version.ref = "mediamp" }
+mediamp-exoplayer = { module = "org.openani.mediamp:mediamp-exoplayer", version.ref = "mediamp" }
+mediamp-vlc = { module = "org.openani.mediamp:mediamp-vlc", version.ref = "mediamp" }
+mediamp-vlc-compose = { module = "org.openani.mediamp:mediamp-vlc-compose", version.ref = "mediamp" }
+mediamp-vlc-loader = { module = "org.openani.mediamp:mediamp-vlc-loader", version.ref = "mediamp" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

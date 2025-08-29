@@ -4,62 +4,139 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
 import now.link.periphyllidae.models.*
+import now.link.periphyllidae.models.subsonic.*
+import now.link.periphyllidae.utils.CryptoUtils
 import co.touchlab.kermit.Logger
 
+// JSON Response wrapper for Subsonic API
 @Serializable
-data class SubsonicResponse<T>(
-    val subsonic: SubsonicContainer<T>
+data class SubsonicJsonResponse(
+    @SerialName("subsonic-response") val subsonicResponse: SubsonicJsonContainer
 )
 
 @Serializable
-data class SubsonicContainer<T>(
+data class SubsonicJsonContainer(
     val status: String,
     val version: String,
     val type: String? = null,
     val serverVersion: String? = null,
     val openSubsonic: Boolean? = null,
     val error: SubsonicError? = null,
-    val data: T? = null
-)
-
-@Serializable
-data class SubsonicError(
-    val code: Int,
-    val message: String
+    val randomSongs: RandomSongs? = null,
+    val newestAlbums: AlbumList? = null,
+    val playlists: PlaylistList? = null,
+    val searchResult3: SearchResult3? = null,
+    val album: SubsonicAlbum? = null,
+    val playlist: SubsonicPlaylist? = null
 )
 
 class SubsonicRepositoryImpl(
     private val httpClient: HttpClient,
     private val json: Json,
-    private val logger: Logger
+    private val logger: Logger,
+    private val settingsRepository: SettingsRepository
 ) : SubsonicRepository {
     
     private var currentConfig: ServerConfig? = null
+    private var authSalt: String = ""
+    private var authToken: String = ""
+    
+    init {
+        // Load saved server configuration on initialization
+        loadSavedConfiguration()
+    }
+    
+    private fun loadSavedConfiguration() {
+        try {
+            currentConfig = settingsRepository.getServerConfig()
+            if (currentConfig != null) {
+                logger.i("Loaded saved server configuration: ${currentConfig?.url}")
+                // Note: We'll need to re-authenticate to get fresh tokens
+                // The auth tokens (salt/token) are not persisted for security reasons
+            }
+        } catch (e: Exception) {
+            logger.e("Failed to load saved configuration", e)
+        }
+    }
+    
+    private fun generateAuthParams(config: ServerConfig): Map<String, String> {
+        val salt = CryptoUtils.generateSalt()
+        val token = CryptoUtils.md5(config.password + salt)
+        
+        authSalt = salt
+        authToken = token
+        
+        return mapOf(
+            "u" to config.username,
+            "t" to token,
+            "s" to salt,
+            "v" to "1.16.1",
+            "c" to "Periphyllidae",
+            "f" to "json"
+        )
+    }
+    
+    private fun getAuthParams(): Map<String, String> {
+        val config = currentConfig ?: throw IllegalStateException("Not authenticated")
+        
+        // If we don't have auth tokens, try to re-authenticate with saved config
+        if (authToken.isEmpty() || authSalt.isEmpty()) {
+            regenerateAuthTokens(config)
+        }
+        
+        return mapOf(
+            "u" to config.username,
+            "t" to authToken,
+            "s" to authSalt,
+            "v" to "1.16.1",
+            "c" to "Periphyllidae",
+            "f" to "json"
+        )
+    }
+    
+    private fun regenerateAuthTokens(config: ServerConfig) {
+        val salt = CryptoUtils.generateSalt()
+        val token = CryptoUtils.md5(config.password + salt)
+        
+        authSalt = salt
+        authToken = token
+        
+        logger.d("Regenerated auth tokens for saved configuration")
+    }
     
     override suspend fun authenticate(serverConfig: ServerConfig): Result<Boolean> {
         return try {
             currentConfig = serverConfig
+            val authParams = generateAuthParams(serverConfig)
             
             val response = httpClient.get("${serverConfig.url}/rest/ping") {
-                parameter("u", serverConfig.username)
-                parameter("p", serverConfig.password)
-                parameter("v", "1.16.1")
-                parameter("c", "Periphyllidae")
-                parameter("f", "json")
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
             }
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
                 logger.d("Ping response: $responseBody")
-                // Simple check - if we get a valid response, assume success
-                Result.success(true)
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok") {
+                    logger.i("Authentication successful")
+                    Result.success(true)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Authentication failed"
+                    logger.e("Authentication failed: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
             } else {
                 logger.e("Authentication failed with status: ${response.status}")
-                Result.failure(Exception("Authentication failed"))
+                Result.failure(Exception("Authentication failed with status: ${response.status}"))
             }
         } catch (e: Exception) {
             logger.e("Authentication error", e)
@@ -70,25 +147,37 @@ class SubsonicRepositoryImpl(
     override suspend fun getRandomSongs(size: Int): Result<List<Song>> {
         return try {
             val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
             
-            // Return mock data for now since we don't have a real Subsonic server
-            val mockSongs = (1..size).map { i ->
-                Song(
-                    id = "song_$i",
-                    title = "Song $i",
-                    artist = "Artist $i",
-                    album = "Album $i",
-                    duration = 180 + i * 10,
-                    track = i,
-                    year = 2020 + (i % 5),
-                    genre = "Rock",
-                    coverArt = null,
-                    streamUrl = getStreamUrl("song_$i")
-                )
+            val response = httpClient.get("${config.url}/rest/getRandomSongs") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("size", size.toString())
             }
             
-            logger.i("Generated ${mockSongs.size} mock random songs")
-            Result.success(mockSongs)
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Random songs response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.randomSongs != null) {
+                    val songs = subsonicResponse.randomSongs.song.map { song ->
+                        song.toDomainModel(config.url).copy(streamUrl = getStreamUrl(song.id))
+                    }
+                    logger.i("Fetched ${songs.size} random songs")
+                    Result.success(songs)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch random songs"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Failed to fetch random songs with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch random songs"))
+            }
         } catch (e: Exception) {
             logger.e("Error fetching random songs", e)
             Result.failure(e)
@@ -97,22 +186,36 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getNewestAlbums(size: Int): Result<List<Album>> {
         return try {
-            // Return mock data for now
-            val mockAlbums = (1..size).map { i ->
-                Album(
-                    id = "album_$i",
-                    name = "Album $i",
-                    artist = "Artist $i",
-                    songCount = 10 + (i % 5),
-                    duration = 3600 + i * 200,
-                    year = 2020 + (i % 5),
-                    genre = "Rock",
-                    coverArt = null
-                )
+            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
+            
+            val response = httpClient.get("${config.url}/rest/getNewestAlbums") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("size", size.toString())
             }
             
-            logger.i("Generated ${mockAlbums.size} mock newest albums")
-            Result.success(mockAlbums)
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Newest albums response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.newestAlbums != null) {
+                    val albums = subsonicResponse.newestAlbums.album.map { it.toDomainModel(config.url) }
+                    logger.i("Fetched ${albums.size} newest albums")
+                    Result.success(albums)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch newest albums"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Failed to fetch newest albums with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch newest albums"))
+            }
         } catch (e: Exception) {
             logger.e("Error fetching newest albums", e)
             Result.failure(e)
@@ -121,23 +224,35 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getPlaylists(): Result<List<Playlist>> {
         return try {
-            // Return mock data for now
-            val mockPlaylists = (1..5).map { i ->
-                Playlist(
-                    id = "playlist_$i",
-                    name = "Playlist $i",
-                    comment = "A great playlist",
-                    songCount = 20 + i * 5,
-                    duration = 4800 + i * 600,
-                    public = i % 2 == 0,
-                    created = "2024-01-01T00:00:00Z",
-                    changed = "2024-01-01T00:00:00Z",
-                    coverArt = null
-                )
+            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
+            
+            val response = httpClient.get("${config.url}/rest/getPlaylists") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
             }
             
-            logger.i("Generated ${mockPlaylists.size} mock playlists")
-            Result.success(mockPlaylists)
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Playlists response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.playlists != null) {
+                    val playlists = subsonicResponse.playlists.playlist.map { it.toDomainModel(config.url) }
+                    logger.i("Fetched ${playlists.size} playlists")
+                    Result.success(playlists)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlists"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Failed to fetch playlists with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch playlists"))
+            }
         } catch (e: Exception) {
             logger.e("Error fetching playlists", e)
             Result.failure(e)
@@ -146,47 +261,44 @@ class SubsonicRepositoryImpl(
     
     override suspend fun search(query: String): Result<SearchResult> {
         return try {
-            // Return mock search results
-            val mockResult = SearchResult(
-                artists = listOf(
-                    Artist(
-                        id = "artist_1",
-                        name = "Artist matching '$query'",
-                        albumCount = 5,
-                        starred = null,
-                        coverArt = null
-                    )
-                ),
-                albums = listOf(
-                    Album(
-                        id = "album_1",
-                        name = "Album matching '$query'",
-                        artist = "Some Artist",
-                        songCount = 12,
-                        duration = 3600,
-                        year = 2023,
-                        genre = "Rock",
-                        coverArt = null
-                    )
-                ),
-                songs = (1..5).map { i ->
-                    Song(
-                        id = "search_song_$i",
-                        title = "Song $i matching '$query'",
-                        artist = "Artist $i",
-                        album = "Album $i",
-                        duration = 180 + i * 10,
-                        track = i,
-                        year = 2020 + (i % 5),
-                        genre = "Rock",
-                        coverArt = null,
-                        streamUrl = getStreamUrl("search_song_$i")
-                    )
-                }
-            )
+            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
             
-            logger.i("Generated mock search results for query: $query")
-            Result.success(mockResult)
+            val response = httpClient.get("${config.url}/rest/search3") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("query", query)
+                parameter("artistCount", "10")
+                parameter("albumCount", "20") 
+                parameter("songCount", "30")
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Search response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.searchResult3 != null) {
+                    val baseSearchResult = subsonicResponse.searchResult3.toDomainModel(config.url)
+                    val searchResult = baseSearchResult.copy(
+                        songs = baseSearchResult.songs.map { song ->
+                            song.copy(streamUrl = getStreamUrl(song.id))
+                        }
+                    )
+                    logger.i("Search completed for query: $query")
+                    Result.success(searchResult)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Search failed"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Search failed with status: ${response.status}")
+                Result.failure(Exception("Search failed"))
+            }
         } catch (e: Exception) {
             logger.e("Error searching", e)
             Result.failure(e)
@@ -195,34 +307,41 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getAlbum(id: String): Result<Album> {
         return try {
-            // Return mock album with songs
-            val mockAlbum = Album(
-                id = id,
-                name = "Album $id",
-                artist = "Artist Name",
-                songCount = 10,
-                duration = 3600,
-                year = 2023,
-                genre = "Rock",
-                coverArt = null,
-                songs = (1..10).map { i ->
-                    Song(
-                        id = "${id}_song_$i",
-                        title = "Track $i",
-                        artist = "Artist Name",
-                        album = "Album $id",
-                        duration = 180 + i * 10,
-                        track = i,
-                        year = 2023,
-                        genre = "Rock",
-                        coverArt = null,
-                        streamUrl = getStreamUrl("${id}_song_$i")
-                    )
-                }
-            )
+            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
             
-            logger.i("Generated mock album: $id")
-            Result.success(mockAlbum)
+            val response = httpClient.get("${config.url}/rest/getAlbum") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("id", id)
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Album response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.album != null) {
+                    val baseAlbum = subsonicResponse.album.toDomainModel(config.url)
+                    val album = baseAlbum.copy(
+                        songs = baseAlbum.songs.map { song ->
+                            song.copy(streamUrl = getStreamUrl(song.id))
+                        }
+                    )
+                    logger.i("Fetched album: $id")
+                    Result.success(album)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch album"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Failed to fetch album with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch album"))
+            }
         } catch (e: Exception) {
             logger.e("Error fetching album", e)
             Result.failure(e)
@@ -231,35 +350,41 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getPlaylist(id: String): Result<Playlist> {
         return try {
-            // Return mock playlist with songs
-            val mockPlaylist = Playlist(
-                id = id,
-                name = "Playlist $id",
-                comment = "A great playlist",
-                songCount = 15,
-                duration = 2700,
-                public = true,
-                created = "2024-01-01T00:00:00Z",
-                changed = "2024-01-01T00:00:00Z",
-                coverArt = null,
-                songs = (1..15).map { i ->
-                    Song(
-                        id = "${id}_song_$i",
-                        title = "Song $i",
-                        artist = "Artist $i",
-                        album = "Album $i",
-                        duration = 180,
-                        track = i,
-                        year = 2023,
-                        genre = "Rock",
-                        coverArt = null,
-                        streamUrl = getStreamUrl("${id}_song_$i")
-                    )
-                }
-            )
+            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val authParams = getAuthParams()
             
-            logger.i("Generated mock playlist: $id")
-            Result.success(mockPlaylist)
+            val response = httpClient.get("${config.url}/rest/getPlaylist") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("id", id)
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                logger.d("Playlist response: $responseBody")
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.playlist != null) {
+                    val basePlaylist = subsonicResponse.playlist.toDomainModel(config.url)
+                    val playlist = basePlaylist.copy(
+                        songs = basePlaylist.songs.map { song ->
+                            song.copy(streamUrl = getStreamUrl(song.id))
+                        }
+                    )
+                    logger.i("Fetched playlist: $id")
+                    Result.success(playlist)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlist"
+                    logger.e(errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                logger.e("Failed to fetch playlist with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch playlist"))
+            }
         } catch (e: Exception) {
             logger.e("Error fetching playlist", e)
             Result.failure(e)
@@ -268,7 +393,14 @@ class SubsonicRepositoryImpl(
     
     override fun getStreamUrl(songId: String): String {
         val config = currentConfig ?: throw IllegalStateException("Not authenticated")
-        // Return a mock stream URL - in real implementation this would be a valid Subsonic stream URL
-        return "${config.url}/rest/stream?id=$songId&u=${config.username}&p=${config.password}&v=1.16.1&c=Periphyllidae&f=json"
+        val authParams = getAuthParams()
+        
+        val urlBuilder = URLBuilder("${config.url}/rest/stream")
+        authParams.forEach { (key, value) ->
+            urlBuilder.parameters.append(key, value)
+        }
+        urlBuilder.parameters.append("id", songId)
+        
+        return urlBuilder.buildString()
     }
 }

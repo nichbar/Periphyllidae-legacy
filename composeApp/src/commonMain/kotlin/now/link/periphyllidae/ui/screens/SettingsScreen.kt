@@ -12,17 +12,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.mvi.AppTheme
-import now.link.periphyllidae.mvi.SettingsIntent
-import now.link.periphyllidae.store.SettingsStore
+import now.link.periphyllidae.mvi.AppIntent
+import now.link.periphyllidae.mvi.AuthIntent
+import now.link.periphyllidae.store.AuthStore
+import now.link.periphyllidae.store.AppStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsStore,
+    authStore: AuthStore,
+    appStore: AppStore,
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val authState by authStore.state.collectAsStateWithLifecycle()
+    val appState by appStore.state.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     
@@ -75,7 +79,7 @@ fun SettingsScreen(
                     )
                     
                     Text(
-                        text = "Version ${state.appVersion}",
+                        text = "Version ${appState.appVersion}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -99,7 +103,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Storage,
                     title = "Current Server",
-                    subtitle = state.currentServer?.let { "${it.name ?: it.url} (${it.username})" } ?: "Not connected",
+                    subtitle = authState.currentServer?.let { "${it.name ?: it.url} (${it.username})" } ?: "Not connected",
                     onClick = { /* TODO: Navigate to server selection */ }
                 )
                 
@@ -115,7 +119,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Palette,
                     title = "Theme",
-                    subtitle = when (state.theme) {
+                    subtitle = when (appState.theme) {
                         AppTheme.LIGHT -> "Light"
                         AppTheme.DARK -> "Dark"
                         AppTheme.SYSTEM -> "System default"
@@ -148,9 +152,9 @@ fun SettingsScreen(
     // Theme Selection Dialog
     if (showThemeDialog) {
         ThemeSelectionDialog(
-            currentTheme = state.theme,
+            currentTheme = appState.theme,
             onThemeSelected = { theme ->
-                viewModel.handleIntent(SettingsIntent.ChangeTheme(theme))
+                appStore.handleIntent(AppIntent.ChangeTheme(theme))
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
@@ -166,7 +170,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.handleIntent(SettingsIntent.Logout)
+                        authStore.handleIntent(AuthIntent.Logout)
                         showLogoutDialog = false
                         onLogout()
                     }

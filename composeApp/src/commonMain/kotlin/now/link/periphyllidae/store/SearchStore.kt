@@ -1,21 +1,23 @@
 package now.link.periphyllidae.store
 
-import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import androidx.lifecycle.viewModelScope
 import now.link.periphyllidae.mvi.*
 import now.link.periphyllidae.repository.SubsonicRepository
-import now.link.periphyllidae.platform.MusicPlayer
 import co.touchlab.kermit.Logger
 
 class SearchStore(
     private val subsonicRepository: SubsonicRepository,
-    private val musicPlayer: MusicPlayer,
+    private val musicStore: MusicStore,
     private val logger: Logger
-) : ViewModel() {
+) {
+    // Store-scoped coroutine scope
+    private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     private val _state = MutableStateFlow(SearchState())
     val state: StateFlow<SearchState> = _state.asStateFlow()
@@ -36,23 +38,12 @@ class SearchStore(
                 )
             }
             is SearchIntent.PlaySong -> {
-                musicPlayer.play(intent.song)
+                // Delegate to global music store
+                musicStore.handleIntent(MusicIntent.PlaySong(intent.song))
             }
             is SearchIntent.PlayAlbum -> {
-                viewModelScope.launch {
-                    try {
-                        val albumResult = subsonicRepository.getAlbum(intent.album.id)
-                        if (albumResult.isSuccess) {
-                            val albumWithSongs = albumResult.getOrThrow()
-                            if (albumWithSongs.songs.isNotEmpty()) {
-                                musicPlayer.setQueue(albumWithSongs.songs, 0)
-                                musicPlayer.resume()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        logger.e("Error playing album", e)
-                    }
-                }
+                // Delegate to global music store
+                musicStore.handleIntent(MusicIntent.PlayAlbum(intent.album))
             }
         }
     }
@@ -63,7 +54,7 @@ class SearchStore(
             return
         }
         
-        viewModelScope.launch {
+        storeScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             
             try {

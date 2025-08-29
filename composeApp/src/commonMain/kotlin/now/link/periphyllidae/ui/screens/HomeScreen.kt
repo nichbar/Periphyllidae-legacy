@@ -20,21 +20,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import now.link.periphyllidae.mvi.HomeIntent
+import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Playlist
-import now.link.periphyllidae.store.HomeStore
+import now.link.periphyllidae.store.MusicStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeStore,
+    store: MusicStore,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToNowPlaying: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by store.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        store.handleIntent(MusicIntent.LoadHomeContent)
+    }
     
     Scaffold(
         topBar = {
@@ -46,7 +50,7 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.handleIntent(HomeIntent.Refresh) }) {
+                    IconButton(onClick = { store.handleIntent(MusicIntent.RefreshHomeContent) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                     IconButton(onClick = onNavigateToSearch) {
@@ -59,7 +63,7 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
-        if (state.isLoading && state.recentAlbums.isEmpty()) {
+        if (state.isLoadingHome && state.newestAlbums.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -77,7 +81,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // Recent Albums Section
-                if (state.recentAlbums.isNotEmpty()) {
+                if (state.newestAlbums.isNotEmpty()) {
                     item {
                         Column {
                             Text(
@@ -90,10 +94,10 @@ fun HomeScreen(
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(state.recentAlbums) { album ->
+                                items(state.newestAlbums) { album ->
                                     AlbumCard(
                                         album = album,
-                                        onPlay = { viewModel.handleIntent(HomeIntent.PlayAlbum(album)) }
+                                        onPlay = { store.handleIntent(MusicIntent.PlayAlbum(album)) }
                                     )
                                 }
                             }
@@ -118,7 +122,7 @@ fun HomeScreen(
                                 state.randomSongs.take(10).forEach { song ->
                                     SongListItem(
                                         song = song,
-                                        onPlay = { viewModel.handleIntent(HomeIntent.PlaySong(song)) }
+                                        onPlay = { store.handleIntent(MusicIntent.PlaySong(song)) }
                                     )
                                 }
                             }
@@ -152,7 +156,7 @@ fun HomeScreen(
                 }
                 
                 // Error Display
-                if (state.error != null) {
+                if (state.homeError != null) {
                     item {
                         Card(
                             colors = CardDefaults.cardColors(
@@ -161,7 +165,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = state.error,
+                                text = state.homeError ?: "",
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(16.dp)

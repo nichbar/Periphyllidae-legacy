@@ -1,5 +1,7 @@
 # Periphyllidae - Subsonic Music Player
 
+**Still in early development! Not all features are implemented yet.**
+
 A modern, cross-platform music streaming application built with Compose Multiplatform that connects to Subsonic-compatible servers.
 
 ## Features
@@ -12,6 +14,18 @@ A modern, cross-platform music streaming application built with Compose Multipla
 - **Offline Support**: Local caching for improved performance
 - **MVI Architecture**: Predictable state management with unidirectional data flow
 
+## Media Playback
+
+Periphyllidae uses [MediaMP](https://github.com/open-ani/mediamp), a cross-platform media player library for Compose Multiplatform, providing:
+
+- **Unified API**: Same code for audio playback across all platforms
+- **High-Quality Backends**:
+  - Android: ExoPlayer for robust streaming and format support
+  - Desktop: VLC for extensive codec compatibility
+- **Streaming Optimized**: Direct URL streaming from Subsonic servers
+- **Format Support**: Wide range of audio formats (MP3, FLAC, M4A, OGG, etc.)
+- **Performance**: Native performance on each platform
+
 ## Architecture
 
 The application follows the Model-View-Intent (MVI) architectural pattern with:
@@ -20,7 +34,7 @@ The application follows the Model-View-Intent (MVI) architectural pattern with:
 - **Koin** for dependency injection
 - **Ktor** for networking
 - **SQLDelight** for local database
-- **Media3** (Android) and **VLCJ** (Desktop) for audio playback
+- **MediaMP** for cross-platform audio playback (ExoPlayer on Android, VLC on Desktop)
 - **Coil** for image loading
 - **Navigation Compose** for navigation
 
@@ -37,12 +51,13 @@ The application follows the Model-View-Intent (MVI) architectural pattern with:
 - Kermit for logging
 - Coil for image loading
 - MultiplatformSettings for preferences
+- MediaMP for cross-platform media playback
 - Subsonic API client library
 
 ### Platform-Specific
 
-- **Android**: Media3 for audio playback
-- **Desktop**: VLCJ for audio playback
+- **Android**: MediaMP with ExoPlayer backend for audio playback
+- **Desktop**: MediaMP with VLC backend for audio playback
 
 ## Requirements
 
@@ -135,10 +150,12 @@ composeApp/
 
 ### Music Playback
 
+- Cross-platform audio streaming using MediaMP
 - Play individual songs or entire albums
 - Queue management with shuffle and repeat
-- Background playback support
+- Background playback support (Android)
 - Seek controls and progress tracking
+- Support for various audio formats (MP3, FLAC, M4A, etc.)
 
 ### Discovery
 

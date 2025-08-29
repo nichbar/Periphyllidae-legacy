@@ -6,7 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import now.link.periphyllidae.ui.screens.*
-import org.koin.compose.viewmodel.koinViewModel
+import org.koin.compose.koinInject
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -27,7 +27,7 @@ fun AppNavigation(
     ) {
         composable(Screen.Login.route) {
             LoginScreen(
-                viewModel = koinViewModel(),
+                store = koinInject(),
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -38,7 +38,7 @@ fun AppNavigation(
         
         composable(Screen.Home.route) {
             HomeScreen(
-                viewModel = koinViewModel(),
+                store = koinInject(),
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
@@ -53,7 +53,7 @@ fun AppNavigation(
         
         composable(Screen.Search.route) {
             SearchScreen(
-                viewModel = koinViewModel(),
+                store = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -65,7 +65,8 @@ fun AppNavigation(
         
         composable(Screen.Settings.route) {
             SettingsScreen(
-                viewModel = koinViewModel(),
+                authStore = koinInject(),
+                appStore = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -79,7 +80,7 @@ fun AppNavigation(
         
         composable(Screen.NowPlaying.route) {
             NowPlayingScreen(
-                viewModel = koinViewModel(),
+                musicStore = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 }

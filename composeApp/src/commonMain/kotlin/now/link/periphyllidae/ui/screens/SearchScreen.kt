@@ -31,11 +31,11 @@ import now.link.periphyllidae.store.SearchStore
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: SearchStore,
+    store: SearchStore,
     onNavigateBack: () -> Unit,
     onNavigateToNowPlaying: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by store.state.collectAsStateWithLifecycle()
     
     Scaffold(
         topBar = {
@@ -57,9 +57,9 @@ fun SearchScreen(
             // Search Bar
             SearchTextField(
                 query = state.query,
-                onQueryChange = { viewModel.handleIntent(SearchIntent.UpdateQuery(it)) },
-                onSearch = { viewModel.handleIntent(SearchIntent.Search(it)) },
-                onClear = { viewModel.handleIntent(SearchIntent.ClearResults) },
+                onQueryChange = { store.handleIntent(SearchIntent.UpdateQuery(it)) },
+                onSearch = { store.handleIntent(SearchIntent.Search(it)) },
+                onClear = { store.handleIntent(SearchIntent.ClearResults) },
                 isLoading = state.isLoading,
                 modifier = Modifier.padding(16.dp)
             )
@@ -85,7 +85,7 @@ fun SearchScreen(
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = state.error,
+                            text = state.error ?: "",
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(16.dp)
@@ -94,11 +94,14 @@ fun SearchScreen(
                 }
                 
                 state.results != null -> {
-                    SearchResults(
-                        results = state.results,
-                        onPlaySong = { viewModel.handleIntent(SearchIntent.PlaySong(it)) },
-                        onPlayAlbum = { viewModel.handleIntent(SearchIntent.PlayAlbum(it)) }
-                    )
+                    val results = state.results
+                    if (results != null) {
+                        SearchResults(
+                            results = results,
+                            onPlaySong = { store.handleIntent(SearchIntent.PlaySong(it)) },
+                            onPlayAlbum = { store.handleIntent(SearchIntent.PlayAlbum(it)) }
+                        )
+                    }
                 }
                 
                 state.query.isEmpty() -> {

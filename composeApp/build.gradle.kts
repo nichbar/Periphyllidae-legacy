@@ -30,9 +30,8 @@ kotlin {
             // Networking - Android
             implementation(libs.ktor.client.okhttp)
             
-            // Media - Android
-            implementation(libs.media3.exoplayer)
-            implementation(libs.media3.session)
+            // MediaMP - ExoPlayer backend for Android
+            implementation(libs.mediamp.exoplayer)
             
             // Database - Android
             implementation(libs.sqldelight.android.driver)
@@ -41,11 +40,15 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            
+            // Navigation
+            implementation(libs.navigation.compose)
             
             // Networking
             implementation(libs.ktor.client.core)
@@ -69,6 +72,10 @@ kotlin {
             
             // Settings
             implementation(libs.multiplatform.settings)
+            
+            // MediaMP - Common API
+            implementation(libs.mediamp.api)
+            implementation(libs.mediamp.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -80,8 +87,10 @@ kotlin {
             // Networking - Desktop
             implementation(libs.ktor.client.java)
             
-            // Media - Desktop
-            implementation(libs.vlcj)
+            // MediaMP - VLC backend for JVM
+            implementation(libs.mediamp.vlc)
+            implementation(libs.mediamp.vlc.compose)
+            implementation(libs.mediamp.vlc.loader) // Automatically load VLC binaries
             
             // Database - Desktop
             implementation(libs.sqldelight.sqlite.driver)
@@ -120,6 +129,11 @@ dependencies {
     debugImplementation(compose.uiTooling)
 }
 
+// Configure development runs to use appResources for VLC binaries
+tasks.withType<JavaExec> {
+    systemProperty("compose.application.resources.dir", file("appResources").absolutePath)
+}
+
 sqldelight {
     databases {
         create("PeriphyllidaeDatabase") {
@@ -136,6 +150,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "now.link.periphyllidae"
             packageVersion = "1.0.0"
+            
+            // Configure appResources for VLC binaries
+            appResourcesRootDir.set(file("appResources"))
         }
     }
 }

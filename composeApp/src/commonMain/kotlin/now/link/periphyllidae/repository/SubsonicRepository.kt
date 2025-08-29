@@ -10,5 +10,5 @@ interface SubsonicRepository {
     suspend fun search(query: String): Result<SearchResult>
     suspend fun getAlbum(id: String): Result<Album>
     suspend fun getPlaylist(id: String): Result<Playlist>
-    suspend fun getStreamUrl(songId: String): String
+    fun getStreamUrl(songId: String): String
 }

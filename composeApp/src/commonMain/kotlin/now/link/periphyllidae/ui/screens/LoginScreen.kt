@@ -18,30 +18,23 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import now.link.periphyllidae.mvi.LoginIntent
-import now.link.periphyllidae.mvi.LoginState
-import now.link.periphyllidae.store.LoginStore
+import now.link.periphyllidae.mvi.AuthIntent
+import now.link.periphyllidae.mvi.AuthState
+import now.link.periphyllidae.store.AuthStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    viewModel: LoginStore,
+    store: AuthStore,
     onLoginSuccess: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by store.state.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
     
     // Navigate on successful authentication
-    LaunchedEffect(state.isLoading) {
-        if (!state.isLoading && state.error == null && 
-            state.serverUrl.isNotBlank() && state.username.isNotBlank()) {
-            // Check if we just completed a successful login
-            val hasAllFields = state.serverUrl.isNotBlank() && 
-                             state.username.isNotBlank() && 
-                             state.password.isNotBlank()
-            if (hasAllFields) {
-                onLoginSuccess()
-            }
+    LaunchedEffect(state.isAuthenticated) {
+        if (state.isAuthenticated) {
+            onLoginSuccess()
         }
     }
     
@@ -85,7 +78,7 @@ fun LoginScreen(
                 // Server URL Field
                 OutlinedTextField(
                     value = state.serverUrl,
-                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdateServerUrl(it)) },
+                    onValueChange = { store.handleIntent(AuthIntent.UpdateServerUrl(it)) },
                     label = { Text("Server URL") },
                     placeholder = { Text("https://your-server.com") },
                     keyboardOptions = KeyboardOptions(
@@ -99,7 +92,7 @@ fun LoginScreen(
                 // Username Field
                 OutlinedTextField(
                     value = state.username,
-                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdateUsername(it)) },
+                    onValueChange = { store.handleIntent(AuthIntent.UpdateUsername(it)) },
                     label = { Text("Username") },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -112,7 +105,7 @@ fun LoginScreen(
                 // Password Field
                 OutlinedTextField(
                     value = state.password,
-                    onValueChange = { viewModel.handleIntent(LoginIntent.UpdatePassword(it)) },
+                    onValueChange = { store.handleIntent(AuthIntent.UpdatePassword(it)) },
                     label = { Text("Password") },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
@@ -122,7 +115,7 @@ fun LoginScreen(
                     keyboardActions = KeyboardActions(
                         onDone = { 
                             if (canLogin(state)) {
-                                viewModel.handleIntent(LoginIntent.Login)
+                                store.handleIntent(AuthIntent.Login)
                             }
                         }
                     ),
@@ -147,7 +140,7 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = state.error,
+                            text = state.error ?: "",
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(12.dp),
@@ -158,7 +151,7 @@ fun LoginScreen(
                 
                 // Login Button
                 Button(
-                    onClick = { viewModel.handleIntent(LoginIntent.Login) },
+                    onClick = { store.handleIntent(AuthIntent.Login) },
                     enabled = canLogin(state) && !state.isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -185,7 +178,7 @@ fun LoginScreen(
     }
 }
 
-private fun canLogin(state: LoginState): Boolean {
+private fun canLogin(state: AuthState): Boolean {
     return state.serverUrl.isNotBlank() && 
            state.username.isNotBlank() && 
            state.password.isNotBlank()

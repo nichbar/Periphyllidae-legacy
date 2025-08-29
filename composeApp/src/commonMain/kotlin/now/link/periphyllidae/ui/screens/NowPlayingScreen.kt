@@ -14,17 +14,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import now.link.periphyllidae.mvi.NowPlayingIntent
-import now.link.periphyllidae.store.NowPlayingStore
+import now.link.periphyllidae.mvi.MusicIntent
+import now.link.periphyllidae.store.MusicStore
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
-    viewModel: NowPlayingStore,
+    musicStore: MusicStore,
     onNavigateBack: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by musicStore.state.collectAsStateWithLifecycle()
     
     Scaffold(
         topBar = {
@@ -79,8 +79,8 @@ fun NowPlayingScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     AsyncImage(
-                        model = state.currentSong.coverArt,
-                        contentDescription = "Album cover for ${state.currentSong.title}",
+                        model = state.currentSong?.coverArt,
+                        contentDescription = "Album cover for ${state.currentSong?.title ?: ""}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -93,7 +93,7 @@ fun NowPlayingScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = state.currentSong.title,
+                        text = state.currentSong?.title ?: "",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -104,7 +104,7 @@ fun NowPlayingScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = state.currentSong.artist,
+                        text = state.currentSong?.artist ?: "",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
@@ -113,7 +113,7 @@ fun NowPlayingScreen(
                     )
                     
                     Text(
-                        text = state.currentSong.album,
+                        text = state.currentSong?.album ?: "",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         textAlign = TextAlign.Center,
@@ -132,7 +132,7 @@ fun NowPlayingScreen(
                         } else 0f,
                         onValueChange = { progress ->
                             val newPosition = (progress * state.duration).toLong()
-                            viewModel.handleIntent(NowPlayingIntent.SeekTo(newPosition))
+                            musicStore.handleIntent(MusicIntent.SeekTo(newPosition))
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -163,7 +163,7 @@ fun NowPlayingScreen(
                 ) {
                     // Shuffle
                     IconButton(
-                        onClick = { viewModel.handleIntent(NowPlayingIntent.ToggleShuffle) }
+                        onClick = { musicStore.handleIntent(MusicIntent.ToggleShuffle) }
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
@@ -178,7 +178,7 @@ fun NowPlayingScreen(
                     
                     // Previous
                     IconButton(
-                        onClick = { viewModel.handleIntent(NowPlayingIntent.Previous) },
+                        onClick = { musicStore.handleIntent(MusicIntent.Previous) },
                         enabled = state.currentIndex > 0
                     ) {
                         Icon(
@@ -192,9 +192,9 @@ fun NowPlayingScreen(
                     FloatingActionButton(
                         onClick = {
                             if (state.isPlaying) {
-                                viewModel.handleIntent(NowPlayingIntent.Pause)
+                                musicStore.handleIntent(MusicIntent.Pause)
                             } else {
-                                viewModel.handleIntent(NowPlayingIntent.Play)
+                                musicStore.handleIntent(MusicIntent.Play)
                             }
                         },
                         modifier = Modifier.size(64.dp)
@@ -208,7 +208,7 @@ fun NowPlayingScreen(
                     
                     // Next
                     IconButton(
-                        onClick = { viewModel.handleIntent(NowPlayingIntent.Next) },
+                        onClick = { musicStore.handleIntent(MusicIntent.Next) },
                         enabled = state.currentIndex < state.queue.size - 1
                     ) {
                         Icon(
@@ -220,7 +220,7 @@ fun NowPlayingScreen(
                     
                     // Repeat
                     IconButton(
-                        onClick = { viewModel.handleIntent(NowPlayingIntent.ToggleRepeat) }
+                        onClick = { musicStore.handleIntent(MusicIntent.ToggleRepeat) }
                     ) {
                         Icon(
                             imageVector = Icons.Default.Repeat,

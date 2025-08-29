@@ -1,6 +1,5 @@
 package now.link.periphyllidae.di
 
-import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import com.russhwolf.settings.Settings
 import co.touchlab.kermit.Logger
@@ -12,10 +11,10 @@ import io.ktor.serialization.kotlinx.json.*
 import now.link.periphyllidae.repository.*
 import now.link.periphyllidae.store.*
 import now.link.periphyllidae.platform.MusicPlayer
+import now.link.periphyllidae.viewmodels.*
 
 val commonModule = module {
     // Settings and Configuration
-    single<Settings> { Settings() }
     single<Json> {
         Json {
             ignoreUnknownKeys = true
@@ -40,14 +39,23 @@ val commonModule = module {
     
     // Repositories
     single<SettingsRepository> { SettingsRepositoryImpl(get(), get()) }
-    single<SubsonicRepository> { SubsonicRepositoryImpl(get(), get(), get()) }
+    single<SubsonicRepository> { SubsonicRepositoryImpl(get(), get(), get(), get()) }
     
-    // Stores/ViewModels
-    viewModel { LoginStore(get(), get(), get()) }
-    viewModel { HomeStore(get(), get(), get()) }
-    viewModel { SearchStore(get(), get(), get()) }
-    viewModel { NowPlayingStore(get(), get()) }
-    viewModel { SettingsStore(get(), get()) }
+    // Media Player (MediaMP) - Uses factory pattern to avoid expect/actual issues
+    single<MusicPlayer> { MusicPlayer(get()) }
+    
+    // Global Stores (App-scoped state containers)
+    single<AuthStore> { AuthStore(get(), get(), get()) }
+    single<MusicStore> { MusicStore(get(), get()) }
+    single<AppStore> { AppStore(get()) }
+    single<SearchStore> { SearchStore(get(), get(), get()) } // SearchStore as singleton for now
+    
+    // Page-scoped ViewModels (Factory pattern for proper lifecycle management)
+    factory<HomeViewModel> { HomeViewModel(get()) }
+    factory<LoginViewModel> { LoginViewModel(get()) }
+    factory<SearchViewModel> { SearchViewModel(get(), get()) }
+    factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
+    factory<SettingsViewModel> { SettingsViewModel(get(), get()) }
 }
 
 // Platform-specific modules will be defined in platform-specific files
