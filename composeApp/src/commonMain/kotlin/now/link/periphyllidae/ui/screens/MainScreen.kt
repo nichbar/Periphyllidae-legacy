@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.ui.components.FloatingMusicBar
+import now.link.periphyllidae.viewmodels.HomeViewModel
 import now.link.periphyllidae.viewmodels.SearchViewModel
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.store.MusicStore
@@ -36,6 +37,11 @@ fun MainScreen(
 ) {
     val musicStore: MusicStore = koinInject()
     val musicState by musicStore.state.collectAsStateWithLifecycle()
+    
+    // Inject ViewModels once and remember them to prevent recomposition
+    val homeViewModel: HomeViewModel = koinInject()
+    val searchViewModel: SearchViewModel = koinInject()
+    val settingsViewModel: SettingsViewModel = koinInject()
     
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     
@@ -95,10 +101,9 @@ fun MainScreen(
         ) {
             when (selectedTabIndex) {
                 0 -> {
-                    HomeScreen()
+                    HomeScreen(viewModel = homeViewModel)
                 }
                 1 -> {
-                    val searchViewModel: SearchViewModel = koinInject()
                     SearchScreen(
                         viewModel = searchViewModel,
                         onNavigateBack = { /* Not needed in tab */ },
@@ -110,7 +115,6 @@ fun MainScreen(
                     PlaylistsScreen()
                 }
                 3 -> {
-                    val settingsViewModel: SettingsViewModel = koinInject()
                     SettingsScreen(
                         viewModel = settingsViewModel,
                         onNavigateBack = { /* Not needed in tab */ },

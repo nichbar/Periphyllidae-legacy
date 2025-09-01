@@ -25,9 +25,9 @@ import now.link.periphyllidae.models.Song
 
 @Composable
 fun HomeScreen(
+    viewModel: HomeViewModel = koinInject(),
     modifier: Modifier = Modifier
 ) {
-    val viewModel: HomeViewModel = koinInject()
     val state by viewModel.state.collectAsState()
 
     Column(
