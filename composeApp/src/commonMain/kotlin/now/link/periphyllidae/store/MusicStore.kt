@@ -44,6 +44,7 @@ class MusicStore(
             is MusicIntent.ToggleShuffle -> toggleShuffle()
             is MusicIntent.LoadHomeContent -> loadHomeContent()
             is MusicIntent.RefreshHomeContent -> refreshHomeContent()
+            is MusicIntent.PlayRandomSong -> playRandomSong()
             is MusicIntent.PlaySong -> playSong(intent.song)
             is MusicIntent.PlayAlbum -> playAlbum(intent.album)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
@@ -141,6 +142,33 @@ class MusicStore(
 
     private fun refreshHomeContent() {
         loadHomeContent()
+    }
+
+    private fun playRandomSong() {
+        val randomSongs = _state.value.randomSongs
+        if (randomSongs.isNotEmpty()) {
+            val randomSong = randomSongs.random()
+            playSong(randomSong)
+        } else {
+            // If no random songs loaded, try to get some first
+            storeScope.launch {
+                try {
+                    val result = subsonicRepository.getRandomSongs(50)
+                    if (result.isSuccess) {
+                        val songs = result.getOrNull() ?: emptyList()
+                        if (songs.isNotEmpty()) {
+                            _state.value = _state.value.copy(randomSongs = songs)
+                            val randomSong = songs.random()
+                            playSong(randomSong)
+                        }
+                    }
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(
+                        homeError = "Failed to load random songs: ${e.message}"
+                    )
+                }
+            }
+        }
     }
 
     private fun playSong(song: Song) {

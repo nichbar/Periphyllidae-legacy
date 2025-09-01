@@ -50,4 +50,10 @@ class HomeViewModel(
             musicStore.handleIntent(MusicIntent.PlaySong(song))
         }
     }
+    
+    fun playRandomSong() {
+        viewModelScope.launch {
+            musicStore.handleIntent(MusicIntent.PlayRandomSong)
+        }
+    }
 }

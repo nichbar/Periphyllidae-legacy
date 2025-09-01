@@ -79,6 +79,7 @@ sealed interface MusicIntent : Intent {
     // Music loading
     object LoadHomeContent : MusicIntent
     object RefreshHomeContent : MusicIntent
+    object PlayRandomSong : MusicIntent
     data class PlaySong(val song: Song) : MusicIntent
     data class PlayAlbum(val album: Album) : MusicIntent
     data class SetQueue(val songs: List<Song>, val startIndex: Int = 0) : MusicIntent

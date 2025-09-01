@@ -42,18 +42,7 @@ fun AppNavigation(
         }
         
         composable(Screen.Home.route) {
-            HomeScreen(
-                viewModel = koinInject(),
-                onNavigateToSearch = {
-                    navController.navigate(Screen.Search.route)
-                },
-                onNavigateToSettings = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                onNavigateToNowPlaying = {
-                    navController.navigate(Screen.NowPlaying.route)
-                }
-            )
+            HomeScreen()
         }
         
         composable(Screen.Search.route) {
