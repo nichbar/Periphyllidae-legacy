@@ -49,7 +49,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
-                        
+
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -64,8 +64,8 @@ fun HomeScreen(
                 }
             }
 
-            // Most Played Section (using random songs for now)
-            if (state.randomSongs.isNotEmpty()) {
+            // Most Played Section
+            if (state.mostPlayedAlbums.isNotEmpty()) {
                 item {
                     Column {
                         Text(
@@ -74,14 +74,39 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
-                        
+
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(state.randomSongs.take(10)) { song ->
-                                MostPlayedCard(
-                                    song = song,
-                                    onPlay = { viewModel.playSong(song) }
+                            items(state.mostPlayedAlbums.take(10)) { album ->
+                                AlbumCard(
+                                    album = album,
+                                    onPlay = { viewModel.playAlbum(album) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recently Played Section
+            if (state.recentlyPlayedAlbums.isNotEmpty()) {
+                item {
+                    Column {
+                        Text(
+                            text = "Recently Played",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.recentlyPlayedAlbums.take(10)) { album ->
+                                AlbumCard(
+                                    album = album,
+                                    onPlay = { viewModel.playAlbum(album) }
                                 )
                             }
                         }

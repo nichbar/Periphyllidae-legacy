@@ -30,6 +30,7 @@ data class SubsonicJsonContainer(
     val error: SubsonicError? = null,
     val randomSongs: RandomSongs? = null,
     val newestAlbums: AlbumList? = null,
+    val albumList: AlbumList? = null,  // Add albumList for getAlbumList endpoint
     val playlists: PlaylistList? = null,
     val searchResult3: SearchResult3? = null,
     val album: SubsonicAlbum? = null,
@@ -189,7 +190,8 @@ class SubsonicRepositoryImpl(
                 authParams.forEach { (key, value) ->
                     parameter(key, value)
                 }
-                parameter("size", size.toString())
+                // Ensure size is within reasonable limits (some servers have max limits)
+                parameter("size", size.coerceAtMost(500).toString())
             }
             
             if (response.status.isSuccess()) {
@@ -219,45 +221,58 @@ class SubsonicRepositoryImpl(
             Result.failure(e)
         }
     }
+
+    override suspend fun getMostPlayedAlbums(size: Int): Result<List<Album>> {
+        return getAlbumList("frequent", size)
+    }
+
+    override suspend fun getRecentlyPlayedAlbums(size: Int): Result<List<Album>> {
+        return getAlbumList("recent", size)
+    }
     
     override suspend fun getNewestAlbums(size: Int): Result<List<Album>> {
+        return getAlbumList("newest", size)
+    }
+
+    private suspend fun getAlbumList(type: String, size: Int): Result<List<Album>> {
         return try {
             val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
-            
-            val response = httpClient.get("${config.url}/rest/getNewestAlbums") {
+
+            val response = httpClient.get("${config.url}/rest/getAlbumList") {
                 authParams.forEach { (key, value) ->
                     parameter(key, value)
                 }
+                parameter("type", type)
                 parameter("size", size.toString())
             }
-            
+
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Newest albums response: $responseBody")
-                
+                logger.d("Album list ($type) response: $responseBody")
+
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
-                
-                if (subsonicResponse.status == "ok" && subsonicResponse.newestAlbums != null) {
-                    val albums = subsonicResponse.newestAlbums.album.map { it.toDomainModel(this) }
-                    logger.i("Fetched ${albums.size} newest albums")
+
+                if (subsonicResponse.status == "ok" && subsonicResponse.albumList != null) {
+                    val albums = subsonicResponse.albumList.album.map { it.toDomainModel(this) }
+                    logger.i("Fetched ${albums.size} albums for type: $type")
                     Result.success(albums)
                 } else {
-                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch newest albums"
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch albums"
                     logger.e(errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch newest albums with status: ${response.status}")
-                Result.failure(Exception("Failed to fetch newest albums"))
+                logger.e("Failed to fetch albums with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch albums"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching newest albums", e)
+            logger.e("Error fetching albums", e)
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getPlaylists(): Result<List<Playlist>> {
         return try {
             val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
@@ -276,8 +291,9 @@ class SubsonicRepositoryImpl(
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
-                if (subsonicResponse.status == "ok" && subsonicResponse.playlists != null) {
-                    val playlists = subsonicResponse.playlists.playlist.map { it.toDomainModel(this) }
+                if (subsonicResponse.status == "ok") {
+                    // Handle case where playlists might be null or empty
+                    val playlists = subsonicResponse.playlists?.playlist?.map { it.toDomainModel(this) } ?: emptyList()
                     logger.i("Fetched ${playlists.size} playlists")
                     Result.success(playlists)
                 } else {
@@ -308,6 +324,10 @@ class SubsonicRepositoryImpl(
                 parameter("artistCount", "10")
                 parameter("albumCount", "20") 
                 parameter("songCount", "30")
+                // Add offset parameter if supported
+                parameter("artistOffset", "0")
+                parameter("albumOffset", "0")
+                parameter("songOffset", "0")
             }
             
             if (response.status.isSuccess()) {

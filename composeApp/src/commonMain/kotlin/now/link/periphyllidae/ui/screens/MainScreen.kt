@@ -15,10 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.ui.components.FloatingMusicBar
-import now.link.periphyllidae.viewmodels.HomeViewModel
 import now.link.periphyllidae.viewmodels.SearchViewModel
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.store.MusicStore

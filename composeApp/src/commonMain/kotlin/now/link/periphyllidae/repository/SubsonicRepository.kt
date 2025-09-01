@@ -5,6 +5,8 @@ import now.link.periphyllidae.models.*
 interface SubsonicRepository {
     suspend fun authenticate(serverConfig: ServerConfig): Result<Boolean>
     suspend fun getRandomSongs(size: Int = 20): Result<List<Song>>
+    suspend fun getRecentlyPlayedAlbums(size: Int = 20): Result<List<Album>>
+    suspend fun getMostPlayedAlbums(size: Int = 20): Result<List<Album>>
     suspend fun getNewestAlbums(size: Int = 20): Result<List<Album>>
     suspend fun getPlaylists(): Result<List<Playlist>>
     suspend fun search(query: String): Result<SearchResult>

@@ -29,7 +29,7 @@ private fun AppContent() {
     
     // Determine start destination based on authentication state
     val startDestination = if (settingsRepository.getIsAuthenticated()) {
-        Screen.Home.route
+        Screen.Main.route
     } else {
         Screen.Login.route
     }

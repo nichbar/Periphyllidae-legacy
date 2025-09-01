@@ -43,6 +43,8 @@ data class MusicState(
     val randomSongs: List<Song> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val newestAlbums: List<Album> = emptyList(),
+    val recentlyPlayedAlbums: List<Album> = emptyList(),
+    val mostPlayedAlbums: List<Album> = emptyList(),
     val isLoadingHome: Boolean = false,
     val homeError: String? = null
 ) : State

@@ -12,9 +12,7 @@ import org.koin.compose.koinInject
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
-    object Home : Screen("home")
-    object Search : Screen("search")
-    object Settings : Screen("settings")
+    object Main : Screen("main")
     object NowPlaying : Screen("now_playing")
     object ArtistDetail : Screen("artist_detail/{artistId}") {
         fun createRoute(artistId: String) = "artist_detail/$artistId"
@@ -34,41 +32,24 @@ fun AppNavigation(
             LoginScreen(
                 viewModel = koinInject(),
                 onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
             )
         }
         
-        composable(Screen.Home.route) {
-            HomeScreen()
-        }
-        
-        composable(Screen.Search.route) {
-            SearchScreen(
-                viewModel = koinInject(),
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+        composable(Screen.Main.route) {
+            MainScreen(
                 onNavigateToNowPlaying = {
                     navController.navigate(Screen.NowPlaying.route)
                 },
                 onNavigateToArtist = { artistId ->
                     navController.navigate(Screen.ArtistDetail.createRoute(artistId))
-                }
-            )
-        }
-        
-        composable(Screen.Settings.route) {
-            SettingsScreen(
-                viewModel = koinInject(),
-                onNavigateBack = {
-                    navController.popBackStack()
                 },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(Screen.Main.route) { inclusive = true }
                     }
                 }
             )

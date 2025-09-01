@@ -117,17 +117,22 @@ class MusicStore(
         storeScope.launch {
             try {
                 val playlistsResult = subsonicRepository.getPlaylists()
-                val randomSongsResult = subsonicRepository.getRandomSongs(20)
+                val recentlyPlayedResult = subsonicRepository.getRecentlyPlayedAlbums(10)
+                val mostPlayedResult = subsonicRepository.getMostPlayedAlbums(10)
                 val newestAlbumsResult = subsonicRepository.getNewestAlbums(10)
+                val randomSongsResult = subsonicRepository.getRandomSongs(20)
                 
                 val playlists = if (playlistsResult.isSuccess) playlistsResult.getOrNull() ?: emptyList() else emptyList()
-                val randomSongs = if (randomSongsResult.isSuccess) randomSongsResult.getOrNull() ?: emptyList() else emptyList()
+                val mostPlayedSongs = if (mostPlayedResult.isSuccess) mostPlayedResult.getOrNull() ?: emptyList() else emptyList()
+                val recentlyPlayedSongs = if (recentlyPlayedResult.isSuccess) recentlyPlayedResult.getOrNull() ?: emptyList() else emptyList()
                 val newestAlbums = if (newestAlbumsResult.isSuccess) newestAlbumsResult.getOrNull() ?: emptyList() else emptyList()
                 
                 _state.value = _state.value.copy(
                     isLoadingHome = false,
+                    randomSongs = if (randomSongsResult.isSuccess) randomSongsResult.getOrNull() ?: emptyList() else emptyList(),
                     playlists = playlists,
-                    randomSongs = randomSongs,
+                    mostPlayedAlbums = mostPlayedSongs,
+                    recentlyPlayedAlbums = recentlyPlayedSongs,
                     newestAlbums = newestAlbums,
                     homeError = null
                 )
