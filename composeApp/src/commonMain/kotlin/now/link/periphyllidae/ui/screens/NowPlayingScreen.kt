@@ -15,16 +15,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import now.link.periphyllidae.mvi.MusicIntent
-import now.link.periphyllidae.store.MusicStore
+import now.link.periphyllidae.viewmodels.NowPlayingViewModel
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
-    musicStore: MusicStore,
+    viewModel: NowPlayingViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val state by musicStore.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     
     Scaffold(
         topBar = {
@@ -132,7 +132,7 @@ fun NowPlayingScreen(
                         } else 0f,
                         onValueChange = { progress ->
                             val newPosition = (progress * state.duration).toLong()
-                            musicStore.handleIntent(MusicIntent.SeekTo(newPosition))
+                            viewModel.seekTo(newPosition)
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -163,7 +163,7 @@ fun NowPlayingScreen(
                 ) {
                     // Shuffle
                     IconButton(
-                        onClick = { musicStore.handleIntent(MusicIntent.ToggleShuffle) }
+                        onClick = { viewModel.toggleShuffle() }
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
@@ -178,7 +178,7 @@ fun NowPlayingScreen(
                     
                     // Previous
                     IconButton(
-                        onClick = { musicStore.handleIntent(MusicIntent.Previous) },
+                        onClick = { viewModel.skipPrevious() },
                         enabled = state.currentIndex > 0
                     ) {
                         Icon(
@@ -191,11 +191,7 @@ fun NowPlayingScreen(
                     // Play/Pause
                     FloatingActionButton(
                         onClick = {
-                            if (state.isPlaying) {
-                                musicStore.handleIntent(MusicIntent.Pause)
-                            } else {
-                                musicStore.handleIntent(MusicIntent.Play)
-                            }
+                            viewModel.togglePlayPause()
                         },
                         modifier = Modifier.size(64.dp)
                     ) {
@@ -208,7 +204,7 @@ fun NowPlayingScreen(
                     
                     // Next
                     IconButton(
-                        onClick = { musicStore.handleIntent(MusicIntent.Next) },
+                        onClick = { viewModel.skipNext() },
                         enabled = state.currentIndex < state.queue.size - 1
                     ) {
                         Icon(
@@ -220,7 +216,7 @@ fun NowPlayingScreen(
                     
                     // Repeat
                     IconButton(
-                        onClick = { musicStore.handleIntent(MusicIntent.ToggleRepeat) }
+                        onClick = { viewModel.toggleRepeat() }
                     ) {
                         Icon(
                             imageVector = Icons.Default.Repeat,

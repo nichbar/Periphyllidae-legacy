@@ -14,6 +14,8 @@ interface SettingsRepository {
     fun getTheme(): String
     fun saveIsAuthenticated(isAuthenticated: Boolean)
     fun getIsAuthenticated(): Boolean
+    fun saveServerSalt(serverKey: String, salt: String)
+    fun getServerSalt(serverKey: String): String?
 }
 
 class SettingsRepositoryImpl(
@@ -25,6 +27,7 @@ class SettingsRepositoryImpl(
         private const val KEY_SERVER_CONFIG = "server_config"
         private const val KEY_THEME = "theme"
         private const val KEY_IS_AUTHENTICATED = "is_authenticated"
+        private const val KEY_SERVER_SALT_PREFIX = "server_salt_"
     }
     
     override fun saveServerConfig(config: ServerConfig) {
@@ -59,5 +62,13 @@ class SettingsRepositoryImpl(
     
     override fun getIsAuthenticated(): Boolean {
         return settings.getBoolean(KEY_IS_AUTHENTICATED, false)
+    }
+    
+    override fun saveServerSalt(serverKey: String, salt: String) {
+        settings.putString(KEY_SERVER_SALT_PREFIX + serverKey, salt)
+    }
+    
+    override fun getServerSalt(serverKey: String): String? {
+        return settings.getStringOrNull(KEY_SERVER_SALT_PREFIX + serverKey)
     }
 }

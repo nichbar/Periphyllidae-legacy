@@ -26,16 +26,16 @@ import now.link.periphyllidae.mvi.SearchIntent
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
-import now.link.periphyllidae.store.SearchStore
+import now.link.periphyllidae.viewmodels.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    store: SearchStore,
+    viewModel: SearchViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToNowPlaying: () -> Unit
 ) {
-    val state by store.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     
     Scaffold(
         topBar = {
@@ -57,9 +57,9 @@ fun SearchScreen(
             // Search Bar
             SearchTextField(
                 query = state.query,
-                onQueryChange = { store.handleIntent(SearchIntent.UpdateQuery(it)) },
-                onSearch = { store.handleIntent(SearchIntent.Search(it)) },
-                onClear = { store.handleIntent(SearchIntent.ClearResults) },
+                onQueryChange = { viewModel.updateQuery(it) },
+                onSearch = { viewModel.performSearch(it) },
+                onClear = { viewModel.clearSearch() },
                 isLoading = state.isLoading,
                 modifier = Modifier.padding(16.dp)
             )
@@ -98,8 +98,8 @@ fun SearchScreen(
                     if (results != null) {
                         SearchResults(
                             results = results,
-                            onPlaySong = { store.handleIntent(SearchIntent.PlaySong(it)) },
-                            onPlayAlbum = { store.handleIntent(SearchIntent.PlayAlbum(it)) }
+                            onPlaySong = { viewModel.playSearchResult(it) },
+                            onPlayAlbum = { viewModel.playAlbum(it) }
                         )
                     }
                 }

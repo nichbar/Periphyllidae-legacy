@@ -20,24 +20,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Playlist
-import now.link.periphyllidae.store.MusicStore
+import now.link.periphyllidae.viewmodels.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    store: MusicStore,
+    viewModel: HomeViewModel,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToNowPlaying: () -> Unit
 ) {
-    val state by store.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        store.handleIntent(MusicIntent.LoadHomeContent)
+        viewModel.loadHomeContent()
     }
     
     Scaffold(
@@ -50,7 +49,7 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { store.handleIntent(MusicIntent.RefreshHomeContent) }) {
+                    IconButton(onClick = { viewModel.refreshContent() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                     IconButton(onClick = onNavigateToSearch) {
@@ -97,7 +96,7 @@ fun HomeScreen(
                                 items(state.newestAlbums) { album ->
                                     AlbumCard(
                                         album = album,
-                                        onPlay = { store.handleIntent(MusicIntent.PlayAlbum(album)) }
+                                        onPlay = { viewModel.playAlbum(album) }
                                     )
                                 }
                             }
@@ -122,7 +121,7 @@ fun HomeScreen(
                                 state.randomSongs.take(10).forEach { song ->
                                     SongListItem(
                                         song = song,
-                                        onPlay = { store.handleIntent(MusicIntent.PlaySong(song)) }
+                                        onPlay = { viewModel.playSong(song) }
                                     )
                                 }
                             }

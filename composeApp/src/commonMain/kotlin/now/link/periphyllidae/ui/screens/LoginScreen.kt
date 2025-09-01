@@ -20,15 +20,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.mvi.AuthIntent
 import now.link.periphyllidae.mvi.AuthState
-import now.link.periphyllidae.store.AuthStore
+import now.link.periphyllidae.viewmodels.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    store: AuthStore,
+    viewModel: LoginViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    val state by store.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
     
     // Navigate on successful authentication
@@ -78,7 +78,7 @@ fun LoginScreen(
                 // Server URL Field
                 OutlinedTextField(
                     value = state.serverUrl,
-                    onValueChange = { store.handleIntent(AuthIntent.UpdateServerUrl(it)) },
+                    onValueChange = { viewModel.handleIntent(AuthIntent.UpdateServerUrl(it)) },
                     label = { Text("Server URL") },
                     placeholder = { Text("https://your-server.com") },
                     keyboardOptions = KeyboardOptions(
@@ -92,7 +92,7 @@ fun LoginScreen(
                 // Username Field
                 OutlinedTextField(
                     value = state.username,
-                    onValueChange = { store.handleIntent(AuthIntent.UpdateUsername(it)) },
+                    onValueChange = { viewModel.handleIntent(AuthIntent.UpdateUsername(it)) },
                     label = { Text("Username") },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -105,7 +105,7 @@ fun LoginScreen(
                 // Password Field
                 OutlinedTextField(
                     value = state.password,
-                    onValueChange = { store.handleIntent(AuthIntent.UpdatePassword(it)) },
+                    onValueChange = { viewModel.handleIntent(AuthIntent.UpdatePassword(it)) },
                     label = { Text("Password") },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
@@ -115,7 +115,7 @@ fun LoginScreen(
                     keyboardActions = KeyboardActions(
                         onDone = { 
                             if (canLogin(state)) {
-                                store.handleIntent(AuthIntent.Login)
+                                viewModel.handleIntent(AuthIntent.Login)
                             }
                         }
                     ),
@@ -151,7 +151,7 @@ fun LoginScreen(
                 
                 // Login Button
                 Button(
-                    onClick = { store.handleIntent(AuthIntent.Login) },
+                    onClick = { viewModel.handleIntent(AuthIntent.Login) },
                     enabled = canLogin(state) && !state.isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {

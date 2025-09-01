@@ -20,7 +20,7 @@ class SearchViewModel(
     private val musicStore: MusicStore
 ) : ViewModel() {
     
-    val searchState: StateFlow<SearchState> = searchStore.state
+    val state: StateFlow<SearchState> = searchStore.state
     
     // Local UI state for search screen
     private val _isSearchBarFocused = MutableStateFlow(false)
@@ -53,6 +53,24 @@ class SearchViewModel(
     fun playSearchResult(song: now.link.periphyllidae.models.Song) {
         viewModelScope.launch {
             musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.PlaySong(song))
+        }
+    }
+    
+    fun updateQuery(query: String) {
+        viewModelScope.launch {
+            searchStore.handleIntent(SearchIntent.UpdateQuery(query))
+        }
+    }
+    
+    fun performSearch(query: String) {
+        viewModelScope.launch {
+            searchStore.handleIntent(SearchIntent.Search(query))
+        }
+    }
+    
+    fun playAlbum(album: now.link.periphyllidae.models.Album) {
+        viewModelScope.launch {
+            musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.PlayAlbum(album))
         }
     }
 }

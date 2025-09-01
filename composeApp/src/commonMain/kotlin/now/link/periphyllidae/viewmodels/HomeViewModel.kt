@@ -27,7 +27,7 @@ class HomeViewModel(
         musicStore.handleIntent(intent)
     }
     
-    private fun loadHomeContent() {
+    fun loadHomeContent() {
         viewModelScope.launch {
             musicStore.handleIntent(MusicIntent.LoadHomeContent)
         }
@@ -36,6 +36,18 @@ class HomeViewModel(
     fun refreshContent() {
         viewModelScope.launch {
             musicStore.handleIntent(MusicIntent.RefreshHomeContent)
+        }
+    }
+    
+    fun playAlbum(album: now.link.periphyllidae.models.Album) {
+        viewModelScope.launch {
+            musicStore.handleIntent(MusicIntent.PlayAlbum(album))
+        }
+    }
+    
+    fun playSong(song: now.link.periphyllidae.models.Song) {
+        viewModelScope.launch {
+            musicStore.handleIntent(MusicIntent.PlaySong(song))
         }
     }
 }

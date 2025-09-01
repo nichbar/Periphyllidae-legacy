@@ -27,7 +27,7 @@ fun AppNavigation(
     ) {
         composable(Screen.Login.route) {
             LoginScreen(
-                store = koinInject(),
+                viewModel = koinInject(),
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -38,7 +38,7 @@ fun AppNavigation(
         
         composable(Screen.Home.route) {
             HomeScreen(
-                store = koinInject(),
+                viewModel = koinInject(),
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
@@ -53,7 +53,7 @@ fun AppNavigation(
         
         composable(Screen.Search.route) {
             SearchScreen(
-                store = koinInject(),
+                viewModel = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -65,8 +65,7 @@ fun AppNavigation(
         
         composable(Screen.Settings.route) {
             SettingsScreen(
-                authStore = koinInject(),
-                appStore = koinInject(),
+                viewModel = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -80,7 +79,7 @@ fun AppNavigation(
         
         composable(Screen.NowPlaying.route) {
             NowPlayingScreen(
-                musicStore = koinInject(),
+                viewModel = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
                 }

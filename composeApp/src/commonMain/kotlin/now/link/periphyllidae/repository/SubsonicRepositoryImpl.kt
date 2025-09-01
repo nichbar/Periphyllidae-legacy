@@ -4,12 +4,14 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.URLBuilder
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import now.link.periphyllidae.models.*
 import now.link.periphyllidae.models.subsonic.*
 import now.link.periphyllidae.utils.CryptoUtils
+import now.link.periphyllidae.utils.generateFixedSalt
 import co.touchlab.kermit.Logger
 
 // JSON Response wrapper for Subsonic API
@@ -44,6 +46,7 @@ class SubsonicRepositoryImpl(
     private var currentConfig: ServerConfig? = null
     private var authSalt: String = ""
     private var authToken: String = ""
+    private var cachedAuthParams: Map<String, String>? = null
     
     init {
         // Load saved server configuration on initialization
@@ -64,13 +67,25 @@ class SubsonicRepositoryImpl(
     }
     
     private fun generateAuthParams(config: ServerConfig): Map<String, String> {
-        val salt = CryptoUtils.generateSalt()
+        // Generate a server-specific key for salt storage
+        val serverKey = CryptoUtils.md5("${config.url}:${config.username}")
+        
+        // Try to get existing fixed salt for this server, or generate and save a new one
+        val salt = settingsRepository.getServerSalt(serverKey) ?: run {
+            val newSalt = generateFixedSalt(config.url, config.username)
+            settingsRepository.saveServerSalt(serverKey, newSalt)
+            newSalt
+        }
+        
         val token = CryptoUtils.md5(config.password + salt)
         
         authSalt = salt
         authToken = token
         
-        return mapOf(
+        // Invalidate cached auth params since tokens changed
+        cachedAuthParams = null
+        
+        val params = mapOf(
             "u" to config.username,
             "t" to token,
             "s" to salt,
@@ -78,6 +93,10 @@ class SubsonicRepositoryImpl(
             "c" to "Periphyllidae",
             "f" to "json"
         )
+        
+        // Cache the new params
+        cachedAuthParams = params
+        return params
     }
     
     private fun getAuthParams(): Map<String, String> {
@@ -88,22 +107,39 @@ class SubsonicRepositoryImpl(
             regenerateAuthTokens(config)
         }
         
-        return mapOf(
-            "u" to config.username,
-            "t" to authToken,
-            "s" to authSalt,
-            "v" to "1.16.1",
-            "c" to "Periphyllidae",
-            "f" to "json"
-        )
+        // Return cached params if available, otherwise create and cache them
+        return cachedAuthParams ?: run {
+            val params = mapOf(
+                "u" to config.username,
+                "t" to authToken,
+                "s" to authSalt,
+                "v" to "1.16.1",
+                "c" to "Periphyllidae",
+                "f" to "json"
+            )
+            cachedAuthParams = params
+            params
+        }
     }
     
     private fun regenerateAuthTokens(config: ServerConfig) {
-        val salt = CryptoUtils.generateSalt()
+        // Generate a server-specific key for salt storage
+        val serverKey = CryptoUtils.md5("${config.url}:${config.username}")
+        
+        // Try to get existing fixed salt for this server, or generate and save a new one
+        val salt = settingsRepository.getServerSalt(serverKey) ?: run {
+            val newSalt = generateFixedSalt(config.url, config.username)
+            settingsRepository.saveServerSalt(serverKey, newSalt)
+            newSalt
+        }
+        
         val token = CryptoUtils.md5(config.password + salt)
         
         authSalt = salt
         authToken = token
+        
+        // Invalidate cached auth params since tokens changed
+        cachedAuthParams = null
         
         logger.d("Regenerated auth tokens for saved configuration")
     }
@@ -165,7 +201,7 @@ class SubsonicRepositoryImpl(
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.randomSongs != null) {
                     val songs = subsonicResponse.randomSongs.song.map { song ->
-                        song.toDomainModel(config.url).copy(streamUrl = getStreamUrl(song.id))
+                        song.toDomainModel(this)
                     }
                     logger.i("Fetched ${songs.size} random songs")
                     Result.success(songs)
@@ -204,7 +240,7 @@ class SubsonicRepositoryImpl(
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.newestAlbums != null) {
-                    val albums = subsonicResponse.newestAlbums.album.map { it.toDomainModel(config.url) }
+                    val albums = subsonicResponse.newestAlbums.album.map { it.toDomainModel(this) }
                     logger.i("Fetched ${albums.size} newest albums")
                     Result.success(albums)
                 } else {
@@ -241,7 +277,7 @@ class SubsonicRepositoryImpl(
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.playlists != null) {
-                    val playlists = subsonicResponse.playlists.playlist.map { it.toDomainModel(config.url) }
+                    val playlists = subsonicResponse.playlists.playlist.map { it.toDomainModel(this) }
                     logger.i("Fetched ${playlists.size} playlists")
                     Result.success(playlists)
                 } else {
@@ -282,12 +318,7 @@ class SubsonicRepositoryImpl(
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.searchResult3 != null) {
-                    val baseSearchResult = subsonicResponse.searchResult3.toDomainModel(config.url)
-                    val searchResult = baseSearchResult.copy(
-                        songs = baseSearchResult.songs.map { song ->
-                            song.copy(streamUrl = getStreamUrl(song.id))
-                        }
-                    )
+                    val searchResult = subsonicResponse.searchResult3.toDomainModel(this)
                     logger.i("Search completed for query: $query")
                     Result.success(searchResult)
                 } else {
@@ -325,12 +356,7 @@ class SubsonicRepositoryImpl(
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.album != null) {
-                    val baseAlbum = subsonicResponse.album.toDomainModel(config.url)
-                    val album = baseAlbum.copy(
-                        songs = baseAlbum.songs.map { song ->
-                            song.copy(streamUrl = getStreamUrl(song.id))
-                        }
-                    )
+                    val album = subsonicResponse.album.toDomainModel(this)
                     logger.i("Fetched album: $id")
                     Result.success(album)
                 } else {
@@ -368,12 +394,7 @@ class SubsonicRepositoryImpl(
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.playlist != null) {
-                    val basePlaylist = subsonicResponse.playlist.toDomainModel(config.url)
-                    val playlist = basePlaylist.copy(
-                        songs = basePlaylist.songs.map { song ->
-                            song.copy(streamUrl = getStreamUrl(song.id))
-                        }
-                    )
+                    val playlist = subsonicResponse.playlist.toDomainModel(this)
                     logger.i("Fetched playlist: $id")
                     Result.success(playlist)
                 } else {
@@ -400,6 +421,19 @@ class SubsonicRepositoryImpl(
             urlBuilder.parameters.append(key, value)
         }
         urlBuilder.parameters.append("id", songId)
+        
+        return urlBuilder.buildString()
+    }
+    
+    override fun getCoverArtUrl(coverArtId: String): String {
+        val config = currentConfig ?: throw IllegalStateException("Not authenticated")
+        val authParams = getAuthParams()
+        
+        val urlBuilder = URLBuilder("${config.url}/rest/getCoverArt")
+        authParams.forEach { (key, value) ->
+            urlBuilder.parameters.append(key, value)
+        }
+        urlBuilder.parameters.append("id", coverArtId)
         
         return urlBuilder.buildString()
     }

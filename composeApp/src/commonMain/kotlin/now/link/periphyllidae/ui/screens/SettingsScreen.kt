@@ -12,21 +12,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.mvi.AppTheme
-import now.link.periphyllidae.mvi.AppIntent
-import now.link.periphyllidae.mvi.AuthIntent
-import now.link.periphyllidae.store.AuthStore
-import now.link.periphyllidae.store.AppStore
+import now.link.periphyllidae.viewmodels.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    authStore: AuthStore,
-    appStore: AppStore,
+    viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val authState by authStore.state.collectAsStateWithLifecycle()
-    val appState by appStore.state.collectAsStateWithLifecycle()
+    val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val appState by viewModel.appState.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     
@@ -154,7 +150,7 @@ fun SettingsScreen(
         ThemeSelectionDialog(
             currentTheme = appState.theme,
             onThemeSelected = { theme ->
-                appStore.handleIntent(AppIntent.ChangeTheme(theme))
+                viewModel.changeTheme(theme)
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
@@ -170,7 +166,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        authStore.handleIntent(AuthIntent.Logout)
+                        viewModel.logout()
                         showLogoutDialog = false
                         onLogout()
                     }

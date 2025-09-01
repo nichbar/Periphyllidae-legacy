@@ -1,6 +1,7 @@
 package now.link.periphyllidae.models.subsonic
 
 import now.link.periphyllidae.models.*
+import now.link.periphyllidae.repository.SubsonicRepository
 
 fun SubsonicArtist.toDomainModel(): Artist {
     return Artist(
@@ -12,7 +13,7 @@ fun SubsonicArtist.toDomainModel(): Artist {
     )
 }
 
-fun SubsonicAlbum.toDomainModel(baseUrl: String): Album {
+fun SubsonicAlbum.toDomainModel(repository: SubsonicRepository): Album {
     return Album(
         id = this.id,
         name = this.name,
@@ -21,12 +22,12 @@ fun SubsonicAlbum.toDomainModel(baseUrl: String): Album {
         duration = this.duration ?: 0,
         year = this.year,
         genre = this.genre,
-        coverArt = this.coverArt?.let { getCoverArtUrl(baseUrl, it) },
-        songs = this.song.map { it.toDomainModel(baseUrl) }
+        coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        songs = this.song.map { it.toDomainModel(repository) }
     )
 }
 
-fun SubsonicSong.toDomainModel(baseUrl: String): Song {
+fun SubsonicSong.toDomainModel(repository: SubsonicRepository): Song {
     return Song(
         id = this.id,
         title = this.title,
@@ -36,42 +37,44 @@ fun SubsonicSong.toDomainModel(baseUrl: String): Song {
         track = this.track,
         year = this.year,
         genre = this.genre,
-        coverArt = this.coverArt?.let { getCoverArtUrl(baseUrl, it) },
-        streamUrl = this.id // We'll set the full URL later when we have auth params
+        coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        streamUrl = repository.getStreamUrl(this.id)
     )
 }
 
-fun SubsonicPlaylist.toDomainModel(baseUrl: String): Playlist {
+fun SubsonicPlaylist.toDomainModel(repository: SubsonicRepository): Playlist {
+    val songs = this.entry?.map { song ->
+        // Create a SubsonicSong from the entry
+        SubsonicSong(
+            id = song.id,
+            title = song.title,
+            artist = song.artist,
+            album = song.album,
+            duration = song.duration,
+            track = song.track,
+            year = song.year,
+            genre = song.genre,
+            coverArt = song.coverArt
+        ).toDomainModel(repository)
+    } ?: emptyList()
+
     return Playlist(
         id = this.id,
         name = this.name,
-        comment = this.comment,
-        songCount = this.songCount ?: this.entry.size,
+        songCount = this.songCount ?: songs.size,
         duration = this.duration ?: 0,
         public = this.public ?: false,
         created = this.created ?: "",
         changed = this.changed ?: "",
-        coverArt = this.coverArt?.let { getCoverArtUrl(baseUrl, it) },
-        songs = this.entry.map { song ->
-            song.copy(id = song.id).toDomainModel(baseUrl)
-        }
+        coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        songs = songs
     )
 }
 
-fun SearchResult3.toDomainModel(baseUrl: String): SearchResult {
+fun SearchResult3.toDomainModel(repository: SubsonicRepository): SearchResult {
     return SearchResult(
         artists = this.artist.map { it.toDomainModel() },
-        albums = this.album.map { it.toDomainModel(baseUrl) },
-        songs = this.song.map { it.toDomainModel(baseUrl) }
+        albums = this.album.map { it.toDomainModel(repository) },
+        songs = this.song.map { it.toDomainModel(repository) }
     )
 }
-
-private fun getCoverArtUrl(baseUrl: String, coverArtId: String): String {
-    // Note: This will need authentication parameters added by the repository
-    return "$baseUrl/rest/getCoverArt?id=$coverArtId"
-}
-
-// This function is no longer needed since we handle stream URLs in the repository
-// private fun getStreamUrl(baseUrl: String, songId: String): String {
-//     return "$baseUrl/rest/stream?id=$songId"
-// }
