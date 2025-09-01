@@ -3,7 +3,9 @@ package now.link.periphyllidae.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,7 +36,8 @@ import now.link.periphyllidae.viewmodels.SearchViewModel
 fun SearchScreen(
     viewModel: SearchViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToNowPlaying: () -> Unit
+    onNavigateToNowPlaying: () -> Unit,
+    onNavigateToArtist: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     
@@ -99,7 +103,8 @@ fun SearchScreen(
                         SearchResults(
                             results = results,
                             onPlaySong = { viewModel.playSearchResult(it) },
-                            onPlayAlbum = { viewModel.playAlbum(it) }
+                            onPlayAlbum = { viewModel.playAlbum(it) },
+                            onArtistClick = { artist -> onNavigateToArtist(artist.id) }
                         )
                     }
                 }
@@ -170,7 +175,8 @@ private fun SearchTextField(
 private fun SearchResults(
     results: now.link.periphyllidae.models.SearchResult,
     onPlaySong: (Song) -> Unit,
-    onPlayAlbum: (Album) -> Unit
+    onPlayAlbum: (Album) -> Unit,
+    onArtistClick: (Artist) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -185,8 +191,18 @@ private fun SearchResults(
                     fontWeight = FontWeight.Bold
                 )
             }
-            items(results.artists) { artist ->
-                ArtistListItem(artist = artist)
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(results.artists) { artist ->
+                        ArtistIconItem(
+                            artist = artist,
+                            onArtistClick = { onArtistClick(artist) }
+                        )
+                    }
+                }
             }
         }
         
@@ -281,6 +297,42 @@ private fun ArtistListItem(artist: Artist) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ArtistIconItem(
+    artist: Artist,
+    onArtistClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable { onArtistClick() }
+            .width(80.dp)
+    ) {
+        Card(
+            modifier = Modifier.size(64.dp),
+            shape = CircleShape
+        ) {
+            AsyncImage(
+                model = artist.coverArt,
+                contentDescription = "Artist ${artist.name}",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = artist.name,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

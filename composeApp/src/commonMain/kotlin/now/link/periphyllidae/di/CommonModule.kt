@@ -46,7 +46,7 @@ val commonModule = module {
     
     // Global Stores (App-scoped state containers)
     single<AuthStore> { AuthStore(get(), get(), get()) }
-    single<MusicStore> { MusicStore(get(), get()) }
+    single<MusicStore> { MusicStore(get(), get(), get()) }
     single<AppStore> { AppStore(get()) }
     single<SearchStore> { SearchStore(get(), get(), get()) } // SearchStore as singleton for now
     
@@ -56,6 +56,7 @@ val commonModule = module {
     factory<SearchViewModel> { SearchViewModel(get(), get()) }
     factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
     factory<SettingsViewModel> { SettingsViewModel(get(), get()) }
+    factory<ArtistDetailViewModel> { ArtistDetailViewModel(get(), get()) }
 }
 
 // Platform-specific modules will be defined in platform-specific files

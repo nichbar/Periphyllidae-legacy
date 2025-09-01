@@ -10,6 +10,9 @@ interface SubsonicRepository {
     suspend fun search(query: String): Result<SearchResult>
     suspend fun getAlbum(id: String): Result<Album>
     suspend fun getPlaylist(id: String): Result<Playlist>
+    suspend fun getArtist(id: String): Result<Artist>
+    suspend fun getTopSongs(artistId: String, limit: Int = 10): Result<List<Song>>
+    suspend fun getAlbumSongs(albumId: String): Result<List<Song>>
     fun getStreamUrl(songId: String): String
     fun getCoverArtUrl(coverArtId: String): String
 }

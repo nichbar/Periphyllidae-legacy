@@ -10,13 +10,15 @@ import kotlinx.coroutines.launch
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.mvi.MusicState
 import now.link.periphyllidae.repository.SubsonicRepository
+import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.platform.MusicPlayer
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Album
 
 class MusicStore(
     private val subsonicRepository: SubsonicRepository,
-    private val musicPlayer: MusicPlayer
+    private val musicPlayer: MusicPlayer,
+    private val settingsRepository: SettingsRepository
 ) {
     // App-scoped coroutine scope for the store
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -27,6 +29,8 @@ class MusicStore(
     init {
         // Listen to music player state changes
         observePlayerState()
+        // Load persisted queue
+        loadPersistedQueue()
     }
 
     fun handleIntent(intent: MusicIntent) {
@@ -170,6 +174,8 @@ class MusicStore(
             queue = songs,
             currentIndex = startIndex
         )
+        // Persist the queue
+        persistQueue()
     }
 
     private fun playSpecificSong(song: Song, index: Int) {
@@ -181,6 +187,35 @@ class MusicStore(
             currentPosition = 0L,
             duration = song.duration?.times(1000L) ?: 0L
         )
+        // Persist current state
+        persistPlaybackState()
+    }
+    
+    private fun loadPersistedQueue() {
+        val savedQueue = settingsRepository.getPlaybackQueue()
+        val savedIndex = settingsRepository.getCurrentSongIndex()
+        val savedPosition = settingsRepository.getCurrentSongPosition()
+        
+        if (savedQueue != null && savedQueue.isNotEmpty()) {
+            _state.value = _state.value.copy(
+                queue = savedQueue,
+                currentIndex = savedIndex.coerceIn(0, savedQueue.size - 1),
+                currentSong = savedQueue.getOrNull(savedIndex),
+                currentPosition = savedPosition
+            )
+        }
+    }
+    
+    private fun persistQueue() {
+        val currentState = _state.value
+        settingsRepository.savePlaybackQueue(currentState.queue)
+        settingsRepository.saveCurrentSongIndex(currentState.currentIndex)
+    }
+    
+    private fun persistPlaybackState() {
+        val currentState = _state.value
+        settingsRepository.saveCurrentSongIndex(currentState.currentIndex)
+        settingsRepository.saveCurrentSongPosition(currentState.currentPosition)
     }
 
     private fun observePlayerState() {

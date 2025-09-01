@@ -437,4 +437,26 @@ class SubsonicRepositoryImpl(
         
         return urlBuilder.buildString()
     }
+    
+    override suspend fun getArtist(artistId: String): Result<Artist> {
+        // TODO: Implement actual API call
+        return Result.success(
+            Artist(
+                id = artistId,
+                name = "Unknown Artist",
+                albumCount = 0,
+                starred = null,
+                coverArt = null
+            )
+        )
+    }
+    
+    override suspend fun getTopSongs(artistId: String, count: Int): Result<List<Song>> {
+        // TODO: Implement actual API call
+        return Result.success(emptyList())
+    }
+    
+    override suspend fun getAlbumSongs(albumId: String): Result<List<Song>> {
+        return getAlbum(albumId).map { album -> album.songs }
+    }
 }

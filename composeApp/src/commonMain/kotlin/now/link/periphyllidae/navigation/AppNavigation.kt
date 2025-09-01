@@ -2,9 +2,11 @@ package now.link.periphyllidae.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import now.link.periphyllidae.ui.screens.*
 import org.koin.compose.koinInject
 
@@ -14,6 +16,9 @@ sealed class Screen(val route: String) {
     object Search : Screen("search")
     object Settings : Screen("settings")
     object NowPlaying : Screen("now_playing")
+    object ArtistDetail : Screen("artist_detail/{artistId}") {
+        fun createRoute(artistId: String) = "artist_detail/$artistId"
+    }
 }
 
 @Composable
@@ -59,6 +64,9 @@ fun AppNavigation(
                 },
                 onNavigateToNowPlaying = {
                     navController.navigate(Screen.NowPlaying.route)
+                },
+                onNavigateToArtist = { artistId ->
+                    navController.navigate(Screen.ArtistDetail.createRoute(artistId))
                 }
             )
         }
@@ -82,6 +90,23 @@ fun AppNavigation(
                 viewModel = koinInject(),
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(
+            route = "artist_detail/{artistId}",
+            arguments = listOf(navArgument("artistId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val artistId = "test-artist" // TODO: Fix parameter extraction
+            ArtistDetailScreen(
+                artistId = artistId,
+                viewModel = koinInject(),
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToNowPlaying = {
+                    navController.navigate(Screen.NowPlaying.route)
                 }
             )
         }

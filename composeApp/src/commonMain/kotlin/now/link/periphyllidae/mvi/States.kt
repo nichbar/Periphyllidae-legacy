@@ -99,3 +99,19 @@ data class SearchState(
     val results: SearchResult? = null,
     val error: String? = null
 ) : State
+
+// Artist Detail State
+data class ArtistDetailState(
+    val artist: Artist? = null,
+    val topSongs: List<Song> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+) : State
+
+// Artist Detail Intents
+sealed interface ArtistDetailIntent : Intent {
+    data class LoadArtistDetail(val artistId: String) : ArtistDetailIntent
+    object PlayAllSongs : ArtistDetailIntent
+    data class PlayAlbum(val album: Album) : ArtistDetailIntent
+    data class PlaySong(val song: Song) : ArtistDetailIntent
+}
