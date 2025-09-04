@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,157 +23,172 @@ import now.link.periphyllidae.viewmodels.HomeViewModel
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = koinInject(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Main Content
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Home") },
+                actions = {
+                    IconButton(onClick = { viewModel.refreshContent() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
         ) {
-            // Recently Added Section
-            if (state.newestAlbums.isNotEmpty()) {
-                item {
-                    Column {
-                        Text(
-                            text = "Recently Added",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
+            // Main Content
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Recently Added Section
+                if (state.newestAlbums.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "Recently Added",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
 
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.newestAlbums) { album ->
-                                AlbumCard(
-                                    album = album,
-                                    onPlay = { viewModel.playAlbum(album) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Most Played Section
-            if (state.mostPlayedAlbums.isNotEmpty()) {
-                item {
-                    Column {
-                        Text(
-                            text = "Most Played",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.mostPlayedAlbums.take(10)) { album ->
-                                AlbumCard(
-                                    album = album,
-                                    onPlay = { viewModel.playAlbum(album) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Recently Played Section
-            if (state.recentlyPlayedAlbums.isNotEmpty()) {
-                item {
-                    Column {
-                        Text(
-                            text = "Recently Played",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.recentlyPlayedAlbums.take(10)) { album ->
-                                AlbumCard(
-                                    album = album,
-                                    onPlay = { viewModel.playAlbum(album) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Playlists Section
-            if (state.playlists.isNotEmpty()) {
-                item {
-                    Column {
-                        Text(
-                            text = "Your Playlists",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            state.playlists.forEach { playlist ->
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { /* TODO: Navigate to playlist detail */ }
-                                ) {
-                                    Text(
-                                        text = playlist.name,
-                                        modifier = Modifier.padding(16.dp)
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.newestAlbums) { album ->
+                                    AlbumCard(
+                                        album = album,
+                                        onPlay = { viewModel.playAlbum(album) }
                                     )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Loading State
-            if (state.isLoadingHome) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+                // Most Played Section
+                if (state.mostPlayedAlbums.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "Most Played",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.mostPlayedAlbums.take(10)) { album ->
+                                    AlbumCard(
+                                        album = album,
+                                        onPlay = { viewModel.playAlbum(album) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            // Error Display
-            if (state.homeError != null) {
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = state.homeError ?: "",
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                // Recently Played Section
+                if (state.recentlyPlayedAlbums.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "Recently Played",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.recentlyPlayedAlbums.take(10)) { album ->
+                                    AlbumCard(
+                                        album = album,
+                                        onPlay = { viewModel.playAlbum(album) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Playlists Section
+                if (state.playlists.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "Your Playlists",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                state.playlists.forEach { playlist ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { /* TODO: Navigate to playlist detail */ }
+                                    ) {
+                                        Text(
+                                            text = playlist.name,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Loading State
+                if (state.isLoadingHome) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+
+                // Error Display
+                if (state.homeError != null) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = state.homeError ?: "",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -185,7 +200,7 @@ fun HomeScreen(
 @Composable
 fun AlbumCard(
     album: Album,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -202,7 +217,7 @@ fun AlbumCard(
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                 contentScale = ContentScale.Crop
             )
-            
+
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
@@ -213,7 +228,7 @@ fun AlbumCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Text(
                     text = album.artist,
                     style = MaterialTheme.typography.bodySmall,
@@ -230,7 +245,7 @@ fun AlbumCard(
 @Composable
 fun MostPlayedCard(
     song: Song,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -247,7 +262,7 @@ fun MostPlayedCard(
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                 contentScale = ContentScale.Crop
             )
-            
+
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
@@ -258,7 +273,7 @@ fun MostPlayedCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodySmall,

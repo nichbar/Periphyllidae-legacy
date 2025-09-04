@@ -14,6 +14,7 @@ import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.platform.MusicPlayer
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Album
+import now.link.periphyllidae.models.HomeContentCache
 import now.link.periphyllidae.utils.LogManager
 
 class MusicStore(
@@ -33,6 +34,8 @@ class MusicStore(
         observePlayerState()
         // Load persisted queue
         loadPersistedQueue()
+        // Load cached home content immediately for fast startup
+        loadCachedHomeContent()
         LogManager.d("MusicStore", "MusicStore initialization completed")
     }
 
@@ -117,6 +120,24 @@ class MusicStore(
         LogManager.i("MusicStore", "Shuffle mode changed to: $newShuffle")
     }
 
+    private fun loadCachedHomeContent() {
+        LogManager.d("MusicStore", "Loading cached home content for immediate display")
+        val cachedContent = settingsRepository.getHomeContentCache()
+        if (cachedContent != null) {
+            LogManager.d("MusicStore", "Found cached home content from ${System.currentTimeMillis() - cachedContent.timestamp}ms ago")
+            _state.value = _state.value.copy(
+                randomSongs = cachedContent.randomSongs,
+                playlists = cachedContent.playlists,
+                mostPlayedAlbums = cachedContent.mostPlayedAlbums,
+                recentlyPlayedAlbums = cachedContent.recentlyPlayedAlbums,
+                newestAlbums = cachedContent.newestAlbums
+            )
+            LogManager.i("MusicStore", "Cached home content loaded successfully")
+        } else {
+            LogManager.d("MusicStore", "No cached home content found")
+        }
+    }
+
     private fun loadHomeContent() {
         if (_state.value.isLoadingHome) {
             LogManager.w("MusicStore", "Home content loading already in progress, skipping")
@@ -124,6 +145,24 @@ class MusicStore(
         }
         
         LogManager.i("MusicStore", "Loading home content")
+        
+        // Try to load cached content first
+        val cachedContent = settingsRepository.getHomeContentCache()
+        if (cachedContent != null) {
+            LogManager.d("MusicStore", "Found cached home content from ${System.currentTimeMillis() - cachedContent.timestamp}ms ago")
+            _state.value = _state.value.copy(
+                isLoadingHome = false,
+                randomSongs = cachedContent.randomSongs,
+                playlists = cachedContent.playlists,
+                mostPlayedAlbums = cachedContent.mostPlayedAlbums,
+                recentlyPlayedAlbums = cachedContent.recentlyPlayedAlbums,
+                newestAlbums = cachedContent.newestAlbums,
+                homeError = null
+            )
+            LogManager.i("MusicStore", "Loaded cached home content successfully")
+        }
+        
+        // Load fresh content from network
         _state.value = _state.value.copy(isLoadingHome = true, homeError = null)
         
         storeScope.launch {
@@ -180,6 +219,7 @@ class MusicStore(
                     emptyList()
                 }
                 
+                // Update state with fresh content
                 _state.value = _state.value.copy(
                     isLoadingHome = false,
                     randomSongs = randomSongs,
@@ -190,7 +230,18 @@ class MusicStore(
                     homeError = null
                 )
                 
-                LogManager.i("MusicStore", "Home content loaded successfully")
+                // Cache the fresh content
+                val newCache = HomeContentCache(
+                    randomSongs = randomSongs,
+                    playlists = playlists,
+                    mostPlayedAlbums = mostPlayedSongs,
+                    recentlyPlayedAlbums = recentlyPlayedSongs,
+                    newestAlbums = newestAlbums,
+                    timestamp = System.currentTimeMillis()
+                )
+                settingsRepository.saveHomeContentCache(newCache)
+                
+                LogManager.i("MusicStore", "Home content loaded and cached successfully")
             } catch (e: Exception) {
                 LogManager.e("MusicStore", "Failed to load home content", e)
                 _state.value = _state.value.copy(

@@ -3,6 +3,7 @@ package now.link.periphyllidae.repository
 import com.russhwolf.settings.Settings
 import now.link.periphyllidae.models.ServerConfig
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.models.HomeContentCache
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -25,6 +26,9 @@ interface SettingsRepository {
     fun getCurrentSongPosition(): Long
     fun saveLogEnabled(enabled: Boolean)
     fun getLogEnabled(): Boolean
+    fun saveHomeContentCache(cache: HomeContentCache)
+    fun getHomeContentCache(): HomeContentCache?
+    fun clearHomeContentCache()
 }
 
 class SettingsRepositoryImpl(
@@ -41,6 +45,7 @@ class SettingsRepositoryImpl(
         private const val KEY_CURRENT_SONG_INDEX = "current_song_index"
         private const val KEY_CURRENT_SONG_POSITION = "current_song_position"
         private const val KEY_LOG_ENABLED = "log_enabled"
+        private const val KEY_HOME_CONTENT_CACHE = "home_content_cache"
     }
     
     override fun saveServerConfig(config: ServerConfig) {
@@ -121,5 +126,27 @@ class SettingsRepositoryImpl(
     
     override fun getLogEnabled(): Boolean {
         return settings.getBoolean(KEY_LOG_ENABLED, false)
+    }
+    
+    override fun saveHomeContentCache(cache: HomeContentCache) {
+        try {
+            settings.putString(KEY_HOME_CONTENT_CACHE, json.encodeToString(cache))
+        } catch (e: Exception) {
+            // Handle serialization error silently
+        }
+    }
+    
+    override fun getHomeContentCache(): HomeContentCache? {
+        return try {
+            val cacheString = settings.getStringOrNull(KEY_HOME_CONTENT_CACHE)
+            cacheString?.let { json.decodeFromString<HomeContentCache>(it) }
+        } catch (e: Exception) {
+            // Handle deserialization error, return null for invalid cache
+            null
+        }
+    }
+    
+    override fun clearHomeContentCache() {
+        settings.remove(KEY_HOME_CONTENT_CACHE)
     }
 }
