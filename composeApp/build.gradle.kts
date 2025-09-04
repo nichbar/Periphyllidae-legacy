@@ -156,6 +156,8 @@ compose.desktop {
             
             // Configure appResources for VLC binaries
             appResourcesRootDir.set(file("appResources"))
+
+            modules("java.net.http")
         }
     }
 }

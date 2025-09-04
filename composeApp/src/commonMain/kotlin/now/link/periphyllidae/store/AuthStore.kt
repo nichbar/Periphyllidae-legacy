@@ -78,6 +78,8 @@ class AuthStore(
                     // Save configuration
                     settingsRepository.saveServerConfig(serverConfig)
 
+                    settingsRepository.saveIsAuthenticated(true)
+
                     _state.value = currentState.copy(
                         isLoading = false,
                         isAuthenticated = true,
@@ -101,6 +103,7 @@ class AuthStore(
 
     private fun logout() {
         storeScope.launch {
+            settingsRepository.saveIsAuthenticated(false)
             settingsRepository.clearServerConfig()
             settingsRepository.clearHomeContentCache() // Clear cached home content on logout
             _state.value = AuthState() // Reset to default state
