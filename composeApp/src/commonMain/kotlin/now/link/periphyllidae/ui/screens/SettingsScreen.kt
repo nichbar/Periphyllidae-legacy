@@ -19,12 +19,14 @@ import now.link.periphyllidae.viewmodels.SettingsViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToLogs: () -> Unit,
     onLogout: () -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var isLogEnabled by remember { mutableStateOf(viewModel.isLogEnabled()) }
     
     Scaffold(
         topBar = {
@@ -122,6 +124,37 @@ fun SettingsScreen(
                     },
                     onClick = { showThemeDialog = true }
                 )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Debugging Section
+                Text(
+                    text = "Debugging",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                
+                SettingsToggleItem(
+                    icon = Icons.Default.BugReport,
+                    title = "Debug Logging",
+                    subtitle = if (isLogEnabled) "Logging enabled" else "Logging disabled",
+                    checked = isLogEnabled,
+                    onCheckedChange = { enabled ->
+                        isLogEnabled = enabled
+                        viewModel.toggleLogEnabled()
+                    }
+                )
+                
+                if (isLogEnabled) {
+                    SettingsItem(
+                        icon = Icons.Default.List,
+                        title = "View Logs",
+                        subtitle = "View captured debug logs",
+                        onClick = onNavigateToLogs
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -239,6 +272,56 @@ private fun SettingsItem(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsToggleItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.size(24.dp)
+            )
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
             )
         }
     }

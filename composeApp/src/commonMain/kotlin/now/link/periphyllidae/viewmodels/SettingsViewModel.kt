@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.mvi.AppIntent
 import now.link.periphyllidae.mvi.AppState
 import now.link.periphyllidae.mvi.AppTheme
@@ -50,4 +51,14 @@ class SettingsViewModel(
             authStore.handleIntent(AuthIntent.TestConnection)
         }
     }
+    
+    fun toggleLogEnabled() {
+        viewModelScope.launch {
+            val newValue = !LogManager.isLogEnabled()
+            LogManager.setLogEnabled(newValue)
+            LogManager.i("SettingsViewModel", "Logging ${if (newValue) "enabled" else "disabled"}")
+        }
+    }
+    
+    fun isLogEnabled(): Boolean = LogManager.isLogEnabled()
 }

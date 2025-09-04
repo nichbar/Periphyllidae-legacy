@@ -14,6 +14,8 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Main : Screen("main")
     object NowPlaying : Screen("now_playing")
+    object Settings : Screen("settings")
+    object Logs : Screen("logs")
     object ArtistDetail : Screen("artist_detail/{artistId}") {
         fun createRoute(artistId: String) = "artist_detail/$artistId"
     }
@@ -47,6 +49,9 @@ fun AppNavigation(
                 onNavigateToArtist = { artistId ->
                     navController.navigate(Screen.ArtistDetail.createRoute(artistId))
                 },
+                onNavigateToLogs = {
+                    navController.navigate(Screen.Logs.route)
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }
@@ -59,6 +64,14 @@ fun AppNavigation(
             NowPlayingScreen(
                 viewModel = koinInject(),
                 onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(Screen.Logs.route) {
+            LogsScreen(
+                onBackClick = {
                     navController.popBackStack()
                 }
             )

@@ -66,6 +66,9 @@ kotlin {
             // Logging
             implementation(libs.kermit)
             
+            // Date/Time
+            implementation(libs.kotlinx.datetime)
+            
             // Image Loading
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)

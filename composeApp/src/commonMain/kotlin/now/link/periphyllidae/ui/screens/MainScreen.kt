@@ -33,6 +33,7 @@ data class TabItem(
 fun MainScreen(
     onNavigateToNowPlaying: () -> Unit,
     onNavigateToArtist: (String) -> Unit,
+    onNavigateToLogs: () -> Unit,
     onLogout: () -> Unit
 ) {
     val musicStore: MusicStore = koinInject()
@@ -118,6 +119,7 @@ fun MainScreen(
                     SettingsScreen(
                         viewModel = settingsViewModel,
                         onNavigateBack = { /* Not needed in tab */ },
+                        onNavigateToLogs = onNavigateToLogs,
                         onLogout = onLogout
                     )
                 }

@@ -9,12 +9,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.mvi.*
 import now.link.periphyllidae.repository.SubsonicRepository
-import co.touchlab.kermit.Logger
+import now.link.periphyllidae.utils.LogManager
 
 class SearchStore(
     private val subsonicRepository: SubsonicRepository,
-    private val musicStore: MusicStore,
-    private val logger: Logger
+    private val musicStore: MusicStore
 ) {
     // Store-scoped coroutine scope
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -65,7 +64,7 @@ class SearchStore(
                         results = result.getOrThrow(),
                         error = null
                     )
-                    logger.i("Search completed for query: $query")
+                    LogManager.i("SearchStore", "Search completed for query: $query")
                 } else {
                     _state.value = _state.value.copy(
                         isLoading = false,
@@ -73,7 +72,7 @@ class SearchStore(
                     )
                 }
             } catch (e: Exception) {
-                logger.e("Search error", e)
+                LogManager.e("SearchStore", "Search error", e)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Search failed. Please check your connection."

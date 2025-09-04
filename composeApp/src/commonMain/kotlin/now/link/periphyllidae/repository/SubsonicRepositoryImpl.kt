@@ -12,7 +12,7 @@ import now.link.periphyllidae.models.*
 import now.link.periphyllidae.models.subsonic.*
 import now.link.periphyllidae.utils.CryptoUtils
 import now.link.periphyllidae.utils.generateFixedSalt
-import co.touchlab.kermit.Logger
+import now.link.periphyllidae.utils.LogManager
 
 // JSON Response wrapper for Subsonic API
 @Serializable
@@ -40,7 +40,6 @@ data class SubsonicJsonContainer(
 class SubsonicRepositoryImpl(
     private val httpClient: HttpClient,
     private val json: Json,
-    private val logger: Logger,
     private val settingsRepository: SettingsRepository
 ) : SubsonicRepository {
     
@@ -58,12 +57,12 @@ class SubsonicRepositoryImpl(
         try {
             currentConfig = settingsRepository.getServerConfig()
             if (currentConfig != null) {
-                logger.i("Loaded saved server configuration: ${currentConfig?.url}")
+                LogManager.i("SubsonicRepository", "Loaded saved server configuration: ${currentConfig?.url}")
                 // Note: We'll need to re-authenticate to get fresh tokens
                 // The auth tokens (salt/token) are not persisted for security reasons
             }
         } catch (e: Exception) {
-            logger.e("Failed to load saved configuration", e)
+            LogManager.e("SubsonicRepository", "Failed to load saved configuration", e)
         }
     }
     
@@ -142,7 +141,7 @@ class SubsonicRepositoryImpl(
         // Invalidate cached auth params since tokens changed
         cachedAuthParams = null
         
-        logger.d("Regenerated auth tokens for saved configuration")
+        LogManager.d("SubsonicRepository", "Regenerated auth tokens for saved configuration")
     }
     
     override suspend fun authenticate(serverConfig: ServerConfig): Result<Boolean> {
@@ -158,25 +157,25 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Ping response: $responseBody")
+                LogManager.d("SubsonicRepository", "Ping response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok") {
-                    logger.i("Authentication successful")
+                    LogManager.i("SubsonicRepository", "Authentication successful")
                     Result.success(true)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Authentication failed"
-                    logger.e("Authentication failed: $errorMsg")
+                    LogManager.e("SubsonicRepository", "Authentication failed: $errorMsg")
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Authentication failed with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Authentication failed with status: ${response.status}")
                 Result.failure(Exception("Authentication failed with status: ${response.status}"))
             }
         } catch (e: Exception) {
-            logger.e("Authentication error", e)
+            LogManager.e("SubsonicRepository", "Authentication error", e)
             Result.failure(e)
         }
     }
@@ -196,7 +195,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Random songs response: $responseBody")
+                LogManager.d("SubsonicRepository", "Random songs response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -205,19 +204,19 @@ class SubsonicRepositoryImpl(
                     val songs = subsonicResponse.randomSongs.song.map { song ->
                         song.toDomainModel(this)
                     }
-                    logger.i("Fetched ${songs.size} random songs")
+                    LogManager.i("SubsonicRepository", "Fetched ${songs.size} random songs")
                     Result.success(songs)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch random songs"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch random songs with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Failed to fetch random songs with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch random songs"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching random songs", e)
+            LogManager.e("SubsonicRepository", "Error fetching random songs", e)
             Result.failure(e)
         }
     }
@@ -249,26 +248,26 @@ class SubsonicRepositoryImpl(
 
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Album list ($type) response: $responseBody")
+                LogManager.d("SubsonicRepository", "Album list ($type) response: $responseBody")
 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
 
                 if (subsonicResponse.status == "ok" && subsonicResponse.albumList != null) {
                     val albums = subsonicResponse.albumList.album.map { it.toDomainModel(this) }
-                    logger.i("Fetched ${albums.size} albums for type: $type")
+                    LogManager.i("SubsonicRepository", "Fetched ${albums.size} albums for type: $type")
                     Result.success(albums)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch albums"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch albums with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Failed to fetch albums with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch albums"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching albums", e)
+            LogManager.e("SubsonicRepository", "Error fetching albums", e)
             Result.failure(e)
         }
     }
@@ -286,7 +285,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Playlists response: $responseBody")
+                LogManager.d("SubsonicRepository", "Playlists response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -294,19 +293,19 @@ class SubsonicRepositoryImpl(
                 if (subsonicResponse.status == "ok") {
                     // Handle case where playlists might be null or empty
                     val playlists = subsonicResponse.playlists?.playlist?.map { it.toDomainModel(this) } ?: emptyList()
-                    logger.i("Fetched ${playlists.size} playlists")
+                    LogManager.i("SubsonicRepository", "Fetched ${playlists.size} playlists")
                     Result.success(playlists)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlists"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch playlists with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Failed to fetch playlists with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch playlists"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching playlists", e)
+            LogManager.e("SubsonicRepository", "Error fetching playlists", e)
             Result.failure(e)
         }
     }
@@ -332,26 +331,26 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Search response: $responseBody")
+                LogManager.d("SubsonicRepository", "Search response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.searchResult3 != null) {
                     val searchResult = subsonicResponse.searchResult3.toDomainModel(this)
-                    logger.i("Search completed for query: $query")
+                    LogManager.i("SubsonicRepository", "Search completed for query: $query")
                     Result.success(searchResult)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Search failed"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Search failed with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Search failed with status: ${response.status}")
                 Result.failure(Exception("Search failed"))
             }
         } catch (e: Exception) {
-            logger.e("Error searching", e)
+            LogManager.e("SubsonicRepository", "Error searching", e)
             Result.failure(e)
         }
     }
@@ -370,26 +369,26 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Album response: $responseBody")
+                LogManager.d("SubsonicRepository", "Album response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.album != null) {
                     val album = subsonicResponse.album.toDomainModel(this)
-                    logger.i("Fetched album: $id")
+                    LogManager.i("SubsonicRepository", "Fetched album: $id")
                     Result.success(album)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch album"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch album with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Failed to fetch album with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch album"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching album", e)
+            LogManager.e("SubsonicRepository", "Error fetching album", e)
             Result.failure(e)
         }
     }
@@ -408,26 +407,26 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                logger.d("Playlist response: $responseBody")
+                LogManager.d("SubsonicRepository", "Playlist response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.playlist != null) {
                     val playlist = subsonicResponse.playlist.toDomainModel(this)
-                    logger.i("Fetched playlist: $id")
+                    LogManager.i("SubsonicRepository", "Fetched playlist: $id")
                     Result.success(playlist)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlist"
-                    logger.e(errorMsg)
+                    LogManager.e("SubsonicRepository", errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                logger.e("Failed to fetch playlist with status: ${response.status}")
+                LogManager.e("SubsonicRepository", "Failed to fetch playlist with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch playlist"))
             }
         } catch (e: Exception) {
-            logger.e("Error fetching playlist", e)
+            LogManager.e("SubsonicRepository", "Error fetching playlist", e)
             Result.failure(e)
         }
     }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.navigation.compose.rememberNavController
 import org.koin.compose.KoinApplication
+import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.di.commonModule
 import now.link.periphyllidae.di.platformModule
 import now.link.periphyllidae.repository.SettingsRepository
@@ -26,6 +27,12 @@ fun App() {
 private fun AppContent() {
     val settingsRepository = koinInject<SettingsRepository>()
     val navController = rememberNavController()
+    
+    // Initialize LogManager with settings repository
+    LaunchedEffect(Unit) {
+        LogManager.initialize(settingsRepository)
+        LogManager.i("App", "Application started")
+    }
     
     // Determine start destination based on authentication state
     val startDestination = if (settingsRepository.getIsAuthenticated()) {

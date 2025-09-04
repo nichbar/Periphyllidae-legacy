@@ -23,6 +23,8 @@ interface SettingsRepository {
     fun getCurrentSongIndex(): Int
     fun saveCurrentSongPosition(position: Long)
     fun getCurrentSongPosition(): Long
+    fun saveLogEnabled(enabled: Boolean)
+    fun getLogEnabled(): Boolean
 }
 
 class SettingsRepositoryImpl(
@@ -38,6 +40,7 @@ class SettingsRepositoryImpl(
         private const val KEY_PLAYBACK_QUEUE = "playback_queue"
         private const val KEY_CURRENT_SONG_INDEX = "current_song_index"
         private const val KEY_CURRENT_SONG_POSITION = "current_song_position"
+        private const val KEY_LOG_ENABLED = "log_enabled"
     }
     
     override fun saveServerConfig(config: ServerConfig) {
@@ -110,5 +113,13 @@ class SettingsRepositoryImpl(
     
     override fun getCurrentSongPosition(): Long {
         return settings.getLong(KEY_CURRENT_SONG_POSITION, 0L)
+    }
+    
+    override fun saveLogEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_LOG_ENABLED, enabled)
+    }
+    
+    override fun getLogEnabled(): Boolean {
+        return settings.getBoolean(KEY_LOG_ENABLED, false)
     }
 }
