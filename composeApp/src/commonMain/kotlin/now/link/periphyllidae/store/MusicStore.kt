@@ -62,76 +62,44 @@ class MusicStore(
         val currentState = _state.value
         currentState.currentSong?.let { song ->
             logger.i("Playing song: ${song.title} by ${song.artist}")
-            musicPlayer.play(song)
-            _state.value = currentState.copy(isPlaying = true)
+            if (musicPlayer.canResume()) {
+                // Resume paused playback
+                logger.d("Resuming paused playback")
+                musicPlayer.resume()
+            } else {
+                // Start playing the current song
+                logger.d("Starting fresh playback")
+                musicPlayer.play(song)
+            }
+            // State will be updated automatically through observers
         } ?: logger.w("Play requested but no current song available")
     }
 
     private fun pause() {
         logger.d("Pause requested")
         musicPlayer.pause()
-        _state.value = _state.value.copy(isPlaying = false)
+        // State will be updated automatically through observers
         logger.i("Playback paused")
     }
 
     private fun next() {
         logger.d("Next song requested")
-        val currentState = _state.value
-        
-        if (currentState.queue.isEmpty()) {
-            logger.w("Next requested but queue is empty")
-            return
-        }
-        
-        val nextIndex = if (currentState.isShuffle) {
-            val randomIndex = currentState.queue.indices.random()
-            logger.d("Shuffle enabled, selecting random index: $randomIndex")
-            randomIndex
-        } else {
-            val nextIndex = (currentState.currentIndex + 1) % currentState.queue.size
-            logger.d("Sequential play, next index: $nextIndex")
-            nextIndex
-        }
-        
-        if (nextIndex < currentState.queue.size) {
-            val nextSong = currentState.queue[nextIndex]
-            logger.i("Playing next song: ${nextSong.title} (index: $nextIndex)")
-            playSpecificSong(nextSong, nextIndex)
-        } else {
-            logger.w("Next index $nextIndex is out of bounds for queue size ${currentState.queue.size}")
-        }
+        musicPlayer.next()
+        // State will be updated automatically through observers
+        logger.d("Next song initiated")
     }
 
     private fun previous() {
         logger.d("Previous song requested")
-        val currentState = _state.value
-        
-        if (currentState.queue.isEmpty()) {
-            logger.w("Previous requested but queue is empty")
-            return
-        }
-        
-        val prevIndex = if (currentState.currentIndex > 0) {
-            currentState.currentIndex - 1
-        } else {
-            currentState.queue.size - 1
-        }
-        
-        logger.d("Previous index calculated: $prevIndex")
-        
-        if (prevIndex >= 0 && prevIndex < currentState.queue.size) {
-            val prevSong = currentState.queue[prevIndex]
-            logger.i("Playing previous song: ${prevSong.title} (index: $prevIndex)")
-            playSpecificSong(prevSong, prevIndex)
-        } else {
-            logger.w("Previous index $prevIndex is out of bounds for queue size ${currentState.queue.size}")
-        }
+        musicPlayer.previous()
+        // State will be updated automatically through observers
+        logger.d("Previous song initiated")
     }
 
     private fun seekTo(position: Long) {
         logger.d("Seek requested to position: ${position}ms")
         musicPlayer.seekTo(position)
-        _state.value = _state.value.copy(currentPosition = position)
+        // State will be updated automatically through observers
         logger.i("Seeked to position: ${position}ms")
     }
 
@@ -315,26 +283,17 @@ class MusicStore(
 
     private fun setQueue(songs: List<Song>, startIndex: Int) {
         logger.i("Setting queue with ${songs.size} songs, starting at index $startIndex")
-        _state.value = _state.value.copy(
-            queue = songs,
-            currentIndex = startIndex
-        )
+        musicPlayer.setQueue(songs, startIndex)
         // Persist the queue
         persistQueue()
-        logger.d("Queue persisted with ${songs.size} songs")
+        logger.d("Queue set in music player and persisted")
     }
 
     private fun playSpecificSong(song: Song, index: Int) {
         logger.i("Playing specific song: ${song.title} at index $index")
-        musicPlayer.play(song)
-        _state.value = _state.value.copy(
-            currentSong = song,
-            currentIndex = index,
-            isPlaying = true,
-            currentPosition = 0L,
-            duration = song.duration?.times(1000L) ?: 0L
-        )
-        logger.d("Song duration set to: ${song.duration?.times(1000L) ?: 0L}ms")
+        musicPlayer.playAtIndex(index)
+        // State will be updated automatically through observers
+        logger.d("Song playback started at index $index")
         // Persist current state
         persistPlaybackState()
     }
@@ -346,13 +305,22 @@ class MusicStore(
         val savedPosition = settingsRepository.getCurrentSongPosition()
         
         if (savedQueue != null && savedQueue.isNotEmpty()) {
-            logger.i("Restored queue with ${savedQueue.size} songs, index: $savedIndex, position: ${savedPosition}ms")
-            _state.value = _state.value.copy(
-                queue = savedQueue,
-                currentIndex = savedIndex.coerceIn(0, savedQueue.size - 1),
-                currentSong = savedQueue.getOrNull(savedIndex),
-                currentPosition = savedPosition
-            )
+            logger.i("Restoring queue with ${savedQueue.size} songs, index: $savedIndex, position: ${savedPosition}ms")
+            val validIndex = savedIndex.coerceIn(0, savedQueue.size - 1)
+            
+            // Set queue in music player without auto-playing
+            musicPlayer.setQueue(savedQueue, validIndex)
+            
+            // Restore position if valid
+            if (savedPosition > 0) {
+                musicPlayer.setCurrentPosition(savedPosition)
+            }
+            
+            // Sync shuffle and repeat states with the current store state
+            musicPlayer.setShuffle(_state.value.isShuffle)
+            musicPlayer.setRepeat(_state.value.isRepeat)
+            
+            logger.d("Persisted state restored successfully")
         } else {
             logger.d("No persisted queue found")
         }
@@ -377,9 +345,55 @@ class MusicStore(
     private fun observePlayerState() {
         logger.d("Starting player state observation")
         storeScope.launch {
-            // This would ideally observe the actual music player state
-            // For now, we'll update state manually in the methods above
-            logger.v("Player state observer started")
+            // Observe music player state changes and sync with store state
+            musicPlayer.isPlaying.collect { isPlaying ->
+                logger.v("Player state changed: isPlaying=$isPlaying")
+                _state.value = _state.value.copy(isPlaying = isPlaying)
+            }
         }
+        
+        storeScope.launch {
+            // Observe current position changes
+            musicPlayer.currentPosition.collect { position ->
+                _state.value = _state.value.copy(currentPosition = position)
+                // Persist position periodically (every 10 seconds to avoid too frequent writes)
+                if (position % 10000 < 1000) { // roughly every 10 seconds
+                    persistPlaybackState()
+                }
+            }
+        }
+        
+        storeScope.launch {
+            // Observe duration changes
+            musicPlayer.duration.collect { duration ->
+                _state.value = _state.value.copy(duration = duration)
+            }
+        }
+        
+        storeScope.launch {
+            // Observe current song changes
+            musicPlayer.currentSong.collect { song ->
+                logger.v("Current song changed: ${song?.title}")
+                _state.value = _state.value.copy(currentSong = song)
+            }
+        }
+        
+        storeScope.launch {
+            // Observe queue changes
+            musicPlayer.queue.collect { queue ->
+                logger.v("Queue changed: ${queue.size} songs")
+                _state.value = _state.value.copy(queue = queue)
+            }
+        }
+        
+        storeScope.launch {
+            // Observe current index changes
+            musicPlayer.currentIndex.collect { index ->
+                logger.v("Current index changed: $index")
+                _state.value = _state.value.copy(currentIndex = index)
+            }
+        }
+        
+        logger.d("Player state observers started")
     }
 }
