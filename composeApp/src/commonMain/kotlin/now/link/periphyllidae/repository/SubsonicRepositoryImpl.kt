@@ -195,7 +195,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Random songs response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Random songs response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -248,7 +248,7 @@ class SubsonicRepositoryImpl(
 
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Album list ($type) response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Album list ($type) response: $responseBody")
 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -285,7 +285,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Playlists response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Playlists response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -331,7 +331,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Search response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Search response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -369,7 +369,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Album response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Album response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
@@ -407,7 +407,7 @@ class SubsonicRepositoryImpl(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Playlist response: $responseBody")
+//                LogManager.d("SubsonicRepository", "Playlist response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
