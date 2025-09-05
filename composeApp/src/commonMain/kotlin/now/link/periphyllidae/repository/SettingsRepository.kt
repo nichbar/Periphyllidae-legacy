@@ -29,6 +29,16 @@ interface SettingsRepository {
     fun saveHomeContentCache(cache: HomeContentCache)
     fun getHomeContentCache(): HomeContentCache?
     fun clearHomeContentCache()
+    fun saveWindowWidth(width: Int)
+    fun getWindowWidth(): Int
+    fun saveWindowHeight(height: Int)
+    fun getWindowHeight(): Int
+    fun saveWindowPosX(x: Int)
+    fun getWindowPosX(): Int
+    fun saveWindowPosY(y: Int)
+    fun getWindowPosY(): Int
+    fun saveVolume(volume: Float)
+    fun getVolume(): Float
 }
 
 class SettingsRepositoryImpl(
@@ -46,6 +56,11 @@ class SettingsRepositoryImpl(
         private const val KEY_CURRENT_SONG_POSITION = "current_song_position"
         private const val KEY_LOG_ENABLED = "log_enabled"
         private const val KEY_HOME_CONTENT_CACHE = "home_content_cache"
+        private const val KEY_WINDOW_WIDTH = "window_width"
+        private const val KEY_WINDOW_HEIGHT = "window_height"
+        private const val KEY_WINDOW_POS_X = "window_pos_x"
+        private const val KEY_WINDOW_POS_Y = "window_pos_y"
+        private const val KEY_VOLUME = "volume"
     }
     
     override fun saveServerConfig(config: ServerConfig) {
@@ -148,5 +163,45 @@ class SettingsRepositoryImpl(
     
     override fun clearHomeContentCache() {
         settings.remove(KEY_HOME_CONTENT_CACHE)
+    }
+    
+    override fun saveWindowWidth(width: Int) {
+        settings.putInt(KEY_WINDOW_WIDTH, width)
+    }
+    
+    override fun getWindowWidth(): Int {
+        return settings.getInt(KEY_WINDOW_WIDTH, 450) // Default width
+    }
+    
+    override fun saveWindowHeight(height: Int) {
+        settings.putInt(KEY_WINDOW_HEIGHT, height)
+    }
+    
+    override fun getWindowHeight(): Int {
+        return settings.getInt(KEY_WINDOW_HEIGHT, 800) // Default height
+    }
+    
+    override fun saveWindowPosX(x: Int) {
+        settings.putInt(KEY_WINDOW_POS_X, x)
+    }
+    
+    override fun getWindowPosX(): Int {
+        return settings.getInt(KEY_WINDOW_POS_X, -1) // -1 means center
+    }
+    
+    override fun saveWindowPosY(y: Int) {
+        settings.putInt(KEY_WINDOW_POS_Y, y)
+    }
+    
+    override fun getWindowPosY(): Int {
+        return settings.getInt(KEY_WINDOW_POS_Y, -1) // -1 means center
+    }
+    
+    override fun saveVolume(volume: Float) {
+        settings.putFloat(KEY_VOLUME, volume)
+    }
+    
+    override fun getVolume(): Float {
+        return settings.getFloat(KEY_VOLUME, 0.7f) // Default volume 70%
     }
 }

@@ -25,6 +25,9 @@ class MusicStore(
     // App-scoped coroutine scope for the store
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // Track which song IDs have been scrobbled in this session
+    private val scrobbledSongIds = mutableSetOf<String>()
+
     private val _state = MutableStateFlow(MusicState())
     val state: StateFlow<MusicState> = _state.asStateFlow()
 
@@ -36,6 +39,8 @@ class MusicStore(
         loadPersistedQueue()
         // Load cached home content immediately for fast startup
         loadCachedHomeContent()
+        // Load persisted volume
+        loadPersistedVolume()
         LogManager.d("MusicStore", "MusicStore initialization completed")
     }
 
@@ -49,6 +54,7 @@ class MusicStore(
             is MusicIntent.SeekTo -> seekTo(intent.position)
             is MusicIntent.ToggleRepeat -> toggleRepeat()
             is MusicIntent.ToggleShuffle -> toggleShuffle()
+            is MusicIntent.SetVolume -> setVolume(intent.volume)
             is MusicIntent.LoadHomeContent -> loadHomeContent()
             is MusicIntent.RefreshHomeContent -> refreshHomeContent()
             is MusicIntent.PlayRandomSong -> playRandomSong()
@@ -102,6 +108,16 @@ class MusicStore(
         musicPlayer.seekTo(position)
         // State will be updated automatically through observers
         LogManager.i("MusicStore", "Seeked to position: ${position}ms")
+    }
+
+    private fun setVolume(volume: Float) {
+        val clampedVolume = volume.coerceIn(0f, 1f)
+        LogManager.d("MusicStore", "Setting volume to: $clampedVolume")
+        musicPlayer.setVolume(clampedVolume)
+        _state.value = _state.value.copy(volume = clampedVolume)
+        // Save volume to settings for persistence
+        settingsRepository.saveVolume(clampedVolume)
+        LogManager.i("MusicStore", "Volume changed to: $clampedVolume and saved to settings")
     }
 
     private fun toggleRepeat() {
@@ -172,7 +188,7 @@ class MusicStore(
                 val recentlyPlayedResult = subsonicRepository.getRecentlyPlayedAlbums(10)
                 val mostPlayedResult = subsonicRepository.getMostPlayedAlbums(10)
                 val newestAlbumsResult = subsonicRepository.getNewestAlbums(10)
-                val randomSongsResult = subsonicRepository.getRandomSongs(20)
+                val randomSongsResult = subsonicRepository.getRandomSongs(100)
                 
                 val playlists = if (playlistsResult.isSuccess) {
                     val result = playlistsResult.getOrNull() ?: emptyList()
@@ -262,22 +278,25 @@ class MusicStore(
         val randomSongs = _state.value.randomSongs
         if (randomSongs.isNotEmpty()) {
             val randomSong = randomSongs.random()
+            val randomIndex = randomSongs.indexOf(randomSong)
             LogManager.i("MusicStore", "Playing random song from cache: ${randomSong.title} by ${randomSong.artist}")
-            playSong(randomSong)
+            setQueue(randomSongs, randomIndex)
+            playSpecificSong(randomSong, randomIndex)
         } else {
             LogManager.d("MusicStore", "No random songs in cache, fetching from server")
             // If no random songs loaded, try to get some first
             storeScope.launch {
                 try {
-                    val result = subsonicRepository.getRandomSongs(50)
+                    val result = subsonicRepository.getRandomSongs(100)
                     if (result.isSuccess) {
                         val songs = result.getOrNull() ?: emptyList()
                         LogManager.d("MusicStore", "Fetched ${songs.size} random songs from server")
                         if (songs.isNotEmpty()) {
                             _state.value = _state.value.copy(randomSongs = songs)
-                            val randomSong = songs.random()
-                            LogManager.i("MusicStore", "Playing random song from server: ${randomSong.title} by ${randomSong.artist}")
-                            playSong(randomSong)
+                            val firstSong = songs.first()
+                            LogManager.i("MusicStore", "Playing random song from server: ${firstSong.title} by ${firstSong.artist}")
+                            setQueue(songs, 0)
+                            playSpecificSong(firstSong, 0)
                         } else {
                             LogManager.w("MusicStore", "No random songs available from server")
                         }
@@ -341,8 +360,8 @@ class MusicStore(
     private fun setQueue(songs: List<Song>, startIndex: Int) {
         LogManager.i("MusicStore", "Setting queue with ${songs.size} songs, starting at index $startIndex")
         musicPlayer.setQueue(songs, startIndex)
-        // Persist the queue
-        persistQueue()
+        // Persist the queue with the actual values we just set
+        persistQueue(songs, startIndex)
         LogManager.d("MusicStore", "Queue set in music player and persisted")
     }
 
@@ -383,20 +402,43 @@ class MusicStore(
         }
     }
     
-    private fun persistQueue() {
+    private fun persistQueue(songs: List<Song>? = null, startIndex: Int? = null) {
         LogManager.d("MusicStore", "Persisting playback queue")
         val currentState = _state.value
-        settingsRepository.savePlaybackQueue(currentState.queue)
-        settingsRepository.saveCurrentSongIndex(currentState.currentIndex)
-        LogManager.v("MusicStore", "Queue persisted: ${currentState.queue.size} songs, index: ${currentState.currentIndex}")
+        
+        // Use provided values if available (immediate persistence), otherwise use current state
+        val queueToSave = songs ?: currentState.queue
+        val indexToSave = startIndex ?: currentState.currentIndex
+        
+        settingsRepository.savePlaybackQueue(queueToSave)
+        settingsRepository.saveCurrentSongIndex(indexToSave)
+        LogManager.v("MusicStore", "Queue persisted: ${queueToSave.size} songs, index: $indexToSave")
     }
     
     private fun persistPlaybackState() {
-        LogManager.d("MusicStore", "Persisting playback state")
+//        LogManager.d("MusicStore", "Persisting playback state")
         val currentState = _state.value
         settingsRepository.saveCurrentSongIndex(currentState.currentIndex)
         settingsRepository.saveCurrentSongPosition(currentState.currentPosition)
-        LogManager.v("MusicStore", "Playback state persisted: index=${currentState.currentIndex}, position=${currentState.currentPosition}ms")
+//        LogManager.v("MusicStore", "Playback state persisted: index=${currentState.currentIndex}, position=${currentState.currentPosition}ms")
+    }
+    
+    private fun loadPersistedVolume() {
+        LogManager.d("MusicStore", "Loading persisted volume")
+        try {
+            val savedVolume = settingsRepository.getVolume()
+            LogManager.i("MusicStore", "Restoring volume: $savedVolume")
+            
+            // Update state with persisted volume
+            _state.value = _state.value.copy(volume = savedVolume)
+            
+            // Apply volume to music player directly (without triggering persistence)
+            musicPlayer.setVolumeWithoutPersistence(savedVolume)
+            
+            LogManager.d("MusicStore", "Volume restored successfully")
+        } catch (e: Exception) {
+            LogManager.e("MusicStore", "Failed to load persisted volume", e)
+        }
     }
 
     private fun observePlayerState() {
@@ -417,6 +459,25 @@ class MusicStore(
                 if (position % 10000 < 1000) { // roughly every 10 seconds
                     persistPlaybackState()
                 }
+
+                // Scrobble logic: report to Subsonic if >60% played and not yet reported
+                val state = _state.value
+                val song = state.currentSong
+                val duration = state.duration
+                if (song != null && duration > 0) {
+                    val progress = position.toDouble() / duration
+                    if (progress > 0.6 && !scrobbledSongIds.contains(song.id)) {
+                        scrobbledSongIds.add(song.id)
+                        storeScope.launch {
+                            try {
+                                subsonicRepository.scrobbleSong(song.id)
+                                LogManager.i("MusicStore", "Scrobbled song: ${song.title} (${song.id}) at >60% played")
+                            } catch (e: Exception) {
+                                LogManager.w("MusicStore", "Failed to scrobble song: ${song.title} (${song.id}): $e")
+                            }
+                        }
+                    }
+                }
             }
         }
         
@@ -432,6 +493,9 @@ class MusicStore(
             musicPlayer.currentSong.collect { song ->
                 LogManager.v("MusicStore", "Current song changed: ${song?.title}")
                 _state.value = _state.value.copy(currentSong = song)
+
+                // Reset scrobble state for new song
+                song?.let { if (!scrobbledSongIds.contains(it.id)) scrobbledSongIds.removeAll { id -> id != it.id } }
             }
         }
         
@@ -440,6 +504,10 @@ class MusicStore(
             musicPlayer.queue.collect { queue ->
                 LogManager.v("MusicStore", "Queue changed: ${queue.size} songs")
                 _state.value = _state.value.copy(queue = queue)
+                // Persist queue when it changes
+                if (queue.isNotEmpty()) {
+                    persistQueue()
+                }
             }
         }
         
@@ -448,6 +516,8 @@ class MusicStore(
             musicPlayer.currentIndex.collect { index ->
                 LogManager.v("MusicStore", "Current index changed: $index")
                 _state.value = _state.value.copy(currentIndex = index)
+                // Persist index when it changes
+                persistQueue()
             }
         }
         

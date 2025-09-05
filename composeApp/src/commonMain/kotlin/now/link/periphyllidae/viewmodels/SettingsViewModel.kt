@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.utils.LogManager
+import now.link.periphyllidae.utils.NetworkUtils
 import now.link.periphyllidae.mvi.AppIntent
 import now.link.periphyllidae.mvi.AppState
 import now.link.periphyllidae.mvi.AppTheme
@@ -50,6 +51,15 @@ class SettingsViewModel(
         viewModelScope.launch {
             authStore.handleIntent(AuthIntent.TestConnection)
         }
+    }
+    
+    /**
+     * Measures latency to the current server using a simple ping-like request
+     * @param serverUrl The server URL to test
+     * @return Latency in milliseconds, or -1 if connection failed
+     */
+    suspend fun measureServerLatency(serverUrl: String): Long {
+        return NetworkUtils.measureLatency(serverUrl)
     }
     
     fun toggleLogEnabled() {

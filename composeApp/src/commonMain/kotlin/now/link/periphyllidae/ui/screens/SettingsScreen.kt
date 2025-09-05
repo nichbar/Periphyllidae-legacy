@@ -5,6 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,8 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.viewmodels.SettingsViewModel
+import now.link.periphyllidae.utils.NetworkUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +34,17 @@ fun SettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isLogEnabled by remember { mutableStateOf(viewModel.isLogEnabled()) }
+    var latency by remember { mutableLongStateOf(-1L) }
+    
+    // Measure latency every 30 seconds
+    LaunchedEffect(authState.currentServer?.url) {
+        while (true) {
+            authState.currentServer?.url?.let { serverUrl ->
+                latency = viewModel.measureServerLatency(serverUrl)
+            }
+            delay(30_000) // 30 seconds
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -36,7 +52,7 @@ fun SettingsScreen(
                 title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -52,36 +68,44 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = "App icon",
-                        modifier = Modifier.size(64.dp),
+                        modifier = Modifier.size(72.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     
                     Text(
                         text = "Periphyllidae",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
                         text = "Subsonic Music Player",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
                     Text(
                         text = "Version ${appState.appVersion}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
@@ -104,7 +128,11 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Storage,
                     title = "Current Server",
-                    subtitle = authState.currentServer?.let { "${it.name ?: it.url} (${it.username})" } ?: "Not connected",
+                    subtitle = authState.currentServer?.let { 
+                        val serverInfo = "${it.name ?: it.url} (${it.username})"
+                        val latencyInfo = if (latency >= 0) " • ${NetworkUtils.formatLatency(latency)}" else ""
+                        "$serverInfo in $latencyInfo"
+                    } ?: "Not connected",
                     onClick = { /* TODO: Navigate to server selection */ }
                 )
                 
@@ -152,7 +180,7 @@ fun SettingsScreen(
                 
                 if (isLogEnabled) {
                     SettingsItem(
-                        icon = Icons.Default.List,
+                        icon = Icons.AutoMirrored.Filled.List,
                         title = "View Logs",
                         subtitle = "View captured debug logs",
                         onClick = onNavigateToLogs
@@ -171,7 +199,7 @@ fun SettingsScreen(
                 )
                 
                 SettingsItem(
-                    icon = Icons.Default.ExitToApp,
+                    icon = Icons.AutoMirrored.Filled.ExitToApp,
                     title = "Sign Out",
                     subtitle = "Sign out of your account",
                     onClick = { showLogoutDialog = true },

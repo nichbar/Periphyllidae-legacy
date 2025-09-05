@@ -52,6 +52,29 @@ class SubsonicRepositoryImpl(
         // Load saved server configuration on initialization
         loadSavedConfiguration()
     }
+
+    override suspend fun scrobbleSong(songId: String) {
+        val config = currentConfig ?: throw IllegalStateException("No server config")
+        val authParams = getAuthParams()
+
+        try {
+            val response = httpClient.get("${config.url}/rest/scrobble") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("id", songId)
+                parameter("time", System.currentTimeMillis())
+            }
+
+            if (response.status.isSuccess()) {
+                LogManager.i("SubsonicRepository", "Scrobbled song $songId successfully")
+            } else {
+                LogManager.w("SubsonicRepository", "Failed to scrobble song $songId: ${response.status}")
+            }
+        } catch (e: Exception) {
+            LogManager.e("SubsonicRepository", "Error scrobbling song $songId: $e")
+        }
+    }
     
     private fun loadSavedConfiguration() {
         try {

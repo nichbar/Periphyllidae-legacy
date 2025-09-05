@@ -12,13 +12,16 @@ import kotlinx.coroutines.launch
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import org.openani.mediamp.MediampPlayer
+import org.openani.mediamp.features.AudioLevelController
 import org.openani.mediamp.playUri
 
 enum class PlaybackState {
     IDLE, PLAYING, PAUSED, BUFFERING, ERROR
 }
 
-class MusicPlayer(private val playerFactory: MediampPlayerFactory) {
+class MusicPlayer(
+    private val playerFactory: MediampPlayerFactory
+) {
     private val mediaPlayer: MediampPlayer by lazy { 
         LogManager.d("MusicPlayer", "Creating MediaMP player instance")
         playerFactory.createPlayer()
@@ -66,7 +69,7 @@ class MusicPlayer(private val playerFactory: MediampPlayerFactory) {
                 
                 // Map MediaMP state to our PlaybackState enum
                 val newState = when (mediaState) {
-                    org.openani.mediamp.PlaybackState.PAUSED -> PlaybackState.IDLE
+                    org.openani.mediamp.PlaybackState.PAUSED -> PlaybackState.PAUSED
                     org.openani.mediamp.PlaybackState.PAUSED_BUFFERING -> PlaybackState.BUFFERING
                     org.openani.mediamp.PlaybackState.READY -> {
                         // When ready, check if we should be playing or paused
@@ -79,6 +82,10 @@ class MusicPlayer(private val playerFactory: MediampPlayerFactory) {
                             handlePlaybackEnded()
                         }
                         PlaybackState.IDLE
+                    }
+                    org.openani.mediamp.PlaybackState.PLAYING -> {
+                        LogManager.d("MusicPlayer", "MediaMP is playing")
+                        PlaybackState.PLAYING
                     }
                     else -> {
                         LogManager.w("MusicPlayer", "Unknown MediaMP state: $mediaState")
@@ -258,6 +265,28 @@ class MusicPlayer(private val playerFactory: MediampPlayerFactory) {
         } catch (e: Exception) {
             LogManager.e("MusicPlayer", "Failed to seek to position: ${position}ms", e)
             _playbackState.value = PlaybackState.ERROR
+        }
+    }
+    
+    fun setVolume(volume: Float) {
+        val clampedVolume = volume.coerceIn(0f, 1f)
+        LogManager.d("MusicPlayer", "Setting volume to: $clampedVolume")
+        try {
+            mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
+            LogManager.i("MusicPlayer", "Volume set to: $clampedVolume")
+        } catch (e: Exception) {
+            LogManager.e("MusicPlayer", "Failed to set volume to: $clampedVolume", e)
+        }
+    }
+    
+    fun setVolumeWithoutPersistence(volume: Float) {
+        val clampedVolume = volume.coerceIn(0f, 1f)
+        LogManager.d("MusicPlayer", "Setting volume to: $clampedVolume (without persistence)")
+        try {
+            mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
+            LogManager.i("MusicPlayer", "Volume set to: $clampedVolume")
+        } catch (e: Exception) {
+            LogManager.e("MusicPlayer", "Failed to set volume to: $clampedVolume", e)
         }
     }
     

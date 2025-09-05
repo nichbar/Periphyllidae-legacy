@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,157 +26,176 @@ import now.link.periphyllidae.models.Song
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = koinInject(),
     modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsState()
 
-    Scaffold { paddingValues ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            // Main Content
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+    BoxWithConstraints {
+        val box = this
+        val isLandscape = box.maxWidth > box.maxHeight
+
+        Scaffold(
+            floatingActionButton = {
+                FloatingActionButton(
+                    modifier = modifier,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        viewModel.playRandomSong()
+                    }) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = "Play Random Song"
+                    )
+                }
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
             ) {
-                // Recently Added Section
-                if (state.newestAlbums.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "Recently Added",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
+                // Main Content
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(if (isLandscape) 32.dp else 24.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    // Recently Added Section
+                    if (state.newestAlbums.isNotEmpty()) {
+                        item {
+                            Column {
+                                Text(
+                                    text = "Recently Added",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
 
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.newestAlbums) { album ->
-                                    AlbumCard(
-                                        album = album,
-                                        onPlay = { viewModel.playAlbum(album) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Most Played Section
-                if (state.mostPlayedAlbums.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "Most Played",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.mostPlayedAlbums.take(10)) { album ->
-                                    AlbumCard(
-                                        album = album,
-                                        onPlay = { viewModel.playAlbum(album) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Recently Played Section
-                if (state.recentlyPlayedAlbums.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "Recently Played",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.recentlyPlayedAlbums.take(10)) { album ->
-                                    AlbumCard(
-                                        album = album,
-                                        onPlay = { viewModel.playAlbum(album) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Playlists Section
-                if (state.playlists.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "Your Playlists",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                state.playlists.forEach { playlist ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { /* TODO: Navigate to playlist detail */ }
-                                    ) {
-                                        Text(
-                                            text = playlist.name,
-                                            modifier = Modifier.padding(16.dp)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                ) {
+                                    items(state.newestAlbums) { album ->
+                                        AlbumCard(
+                                            album = album,
+                                            onPlay = { viewModel.playAlbum(album) },
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // Loading State
-                if (state.isLoadingHome) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                    // Most Played Album Section
+                    if (state.mostPlayedAlbums.isNotEmpty()) {
+                        item {
+                            Column {
+                                Text(
+                                    text = "Most Played",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                ) {
+                                    items(state.mostPlayedAlbums.take(10)) { album ->
+                                        AlbumCard(
+                                            album = album,
+                                            onPlay = { viewModel.playAlbum(album) },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
-                }
 
-                // Error Display
-                if (state.homeError != null) {
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = state.homeError ?: "",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(16.dp)
-                            )
+                    // Recently Played Section
+                    if (state.recentlyPlayedAlbums.isNotEmpty()) {
+                        item {
+                            Column {
+                                Text(
+                                    text = "Recently Played",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                ) {
+                                    items(state.recentlyPlayedAlbums.take(10)) { album ->
+                                        AlbumCard(
+                                            album = album,
+                                            onPlay = { viewModel.playAlbum(album) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Playlists Section
+                    if (state.playlists.isNotEmpty()) {
+                        item {
+                            Column {
+                                Text(
+                                    text = "Your Playlists",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    state.playlists.forEach { playlist ->
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { /* TODO: Navigate to playlist detail */ }
+                                        ) {
+                                            Text(
+                                                text = playlist.name,
+                                                modifier = Modifier.padding(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Loading State
+                    if (state.isLoadingHome) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                    }
+
+                    // Error Display
+                    if (state.homeError != null) {
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = state.homeError ?: "",
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
                         }
                     }
                 }

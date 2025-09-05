@@ -26,17 +26,16 @@ fun FloatingMusicBar(
     onBarClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(72.dp)
             .clickable { onBarClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        shape = RoundedCornerShape(0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
@@ -53,9 +52,9 @@ fun FloatingMusicBar(
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
-            
+
             Spacer(modifier = Modifier.width(12.dp))
-            
+
             // Song Info
             Column(
                 modifier = Modifier.weight(1f),
@@ -76,9 +75,9 @@ fun FloatingMusicBar(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             // Controls
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -94,7 +93,7 @@ fun FloatingMusicBar(
                         modifier = Modifier.size(32.dp)
                     )
                 }
-                
+
                 IconButton(
                     onClick = onNextClick,
                     modifier = Modifier.size(48.dp)

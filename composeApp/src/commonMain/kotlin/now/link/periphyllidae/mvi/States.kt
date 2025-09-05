@@ -38,6 +38,7 @@ data class MusicState(
     val duration: Long = 0L,
     val isRepeat: Boolean = false,
     val isShuffle: Boolean = false,
+    val volume: Float = 0.7f,
     val queue: List<Song> = emptyList(),
     val currentIndex: Int = 0,
     val randomSongs: List<Song> = emptyList(),
@@ -77,6 +78,7 @@ sealed interface MusicIntent : Intent {
     data class SeekTo(val position: Long) : MusicIntent
     object ToggleRepeat : MusicIntent
     object ToggleShuffle : MusicIntent
+    data class SetVolume(val volume: Float) : MusicIntent
     
     // Music loading
     object LoadHomeContent : MusicIntent

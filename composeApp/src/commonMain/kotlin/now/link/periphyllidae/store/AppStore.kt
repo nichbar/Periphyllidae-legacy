@@ -18,12 +18,16 @@ class AppStore(
     // App-scoped coroutine scope for the store
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private val _state = MutableStateFlow(AppState())
+    private val _state = MutableStateFlow(
+        AppState(
+            theme = try {
+                AppTheme.valueOf(settingsRepository.getTheme())
+            } catch (e: Exception) {
+                AppTheme.SYSTEM
+            }
+        )
+    )
     val state: StateFlow<AppState> = _state.asStateFlow()
-
-    init {
-        loadSavedTheme()
-    }
 
     fun handleIntent(intent: AppIntent) {
         when (intent) {
@@ -34,18 +38,6 @@ class AppStore(
     private fun changeTheme(theme: AppTheme) {
         storeScope.launch {
             settingsRepository.saveTheme(theme.name)
-            _state.value = _state.value.copy(theme = theme)
-        }
-    }
-
-    private fun loadSavedTheme() {
-        storeScope.launch {
-            val savedTheme = settingsRepository.getTheme()
-            val theme = try {
-                AppTheme.valueOf(savedTheme)
-            } catch (e: Exception) {
-                AppTheme.SYSTEM
-            }
             _state.value = _state.value.copy(theme = theme)
         }
     }
