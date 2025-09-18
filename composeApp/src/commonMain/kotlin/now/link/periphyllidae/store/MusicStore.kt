@@ -3,6 +3,7 @@ package now.link.periphyllidae.store
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +42,8 @@ class MusicStore(
         loadCachedHomeContent()
         // Load persisted volume
         loadPersistedVolume()
+        // Load persisted shuffle and repeat states
+        loadPersistedPlaybackModes()
         LogManager.d("MusicStore", "MusicStore initialization completed")
     }
 
@@ -73,8 +76,18 @@ class MusicStore(
                 // Resume paused playback
                 LogManager.d("MusicStore", "Resuming paused playback")
                 musicPlayer.resume()
+            } else if (currentState.currentPosition > 0 && !musicPlayer.isCurrentlyPlaying()) {
+                // We have a saved position (likely from app restart), start playback and seek to saved position
+                LogManager.d("MusicStore", "Starting playback with saved position: ${currentState.currentPosition}ms")
+                musicPlayer.play(song)
+                // Seek to saved position after a short delay to allow media to load
+                storeScope.launch {
+                    delay(1000) // Wait for media to load
+                    musicPlayer.seekTo(currentState.currentPosition)
+                    LogManager.i("MusicStore", "Resumed from saved position: ${currentState.currentPosition}ms")
+                }
             } else {
-                // Start playing the current song
+                // Start playing the current song from the beginning
                 LogManager.d("MusicStore", "Starting fresh playback")
                 musicPlayer.play(song)
             }
@@ -125,7 +138,9 @@ class MusicStore(
         LogManager.d("MusicStore", "Toggling repeat mode: $newRepeat")
         musicPlayer.setRepeat(newRepeat)
         _state.value = _state.value.copy(isRepeat = newRepeat)
-        LogManager.i("MusicStore", "Repeat mode changed to: $newRepeat")
+        // Save repeat state for persistence
+        settingsRepository.saveRepeat(newRepeat)
+        LogManager.i("MusicStore", "Repeat mode changed to: $newRepeat and saved to settings")
     }
 
     private fun toggleShuffle() {
@@ -133,7 +148,9 @@ class MusicStore(
         LogManager.d("MusicStore", "Toggling shuffle mode: $newShuffle")
         musicPlayer.setShuffle(newShuffle)
         _state.value = _state.value.copy(isShuffle = newShuffle)
-        LogManager.i("MusicStore", "Shuffle mode changed to: $newShuffle")
+        // Save shuffle state for persistence
+        settingsRepository.saveShuffle(newShuffle)
+        LogManager.i("MusicStore", "Shuffle mode changed to: $newShuffle and saved to settings")
     }
 
     private fun loadCachedHomeContent() {
@@ -392,7 +409,17 @@ class MusicStore(
                 musicPlayer.setCurrentPosition(savedPosition)
             }
             
-            // Sync shuffle and repeat states with the current store state
+            // Update store state with restored data
+            val currentSong = savedQueue.getOrNull(validIndex)
+            _state.value = _state.value.copy(
+                queue = savedQueue,
+                currentIndex = validIndex,
+                currentSong = currentSong,
+                currentPosition = savedPosition
+            )
+            
+            // Apply shuffle and repeat states to music player 
+            // (they should already be loaded by loadPersistedPlaybackModes)
             musicPlayer.setShuffle(_state.value.isShuffle)
             musicPlayer.setRepeat(_state.value.isRepeat)
             
@@ -438,6 +465,29 @@ class MusicStore(
             LogManager.d("MusicStore", "Volume restored successfully")
         } catch (e: Exception) {
             LogManager.e("MusicStore", "Failed to load persisted volume", e)
+        }
+    }
+    
+    private fun loadPersistedPlaybackModes() {
+        LogManager.d("MusicStore", "Loading persisted playback modes")
+        try {
+            val savedShuffle = settingsRepository.getShuffle()
+            val savedRepeat = settingsRepository.getRepeat()
+            LogManager.i("MusicStore", "Restoring playback modes: shuffle=$savedShuffle, repeat=$savedRepeat")
+            
+            // Update state with persisted playback modes
+            _state.value = _state.value.copy(
+                isShuffle = savedShuffle,
+                isRepeat = savedRepeat
+            )
+            
+            // Apply modes to music player
+            musicPlayer.setShuffle(savedShuffle)
+            musicPlayer.setRepeat(savedRepeat)
+            
+            LogManager.d("MusicStore", "Playback modes restored successfully")
+        } catch (e: Exception) {
+            LogManager.e("MusicStore", "Failed to load persisted playback modes", e)
         }
     }
 

@@ -39,6 +39,10 @@ interface SettingsRepository {
     fun getWindowPosY(): Int
     fun saveVolume(volume: Float)
     fun getVolume(): Float
+    fun saveShuffle(enabled: Boolean)
+    fun getShuffle(): Boolean
+    fun saveRepeat(enabled: Boolean)
+    fun getRepeat(): Boolean
 }
 
 class SettingsRepositoryImpl(
@@ -61,6 +65,8 @@ class SettingsRepositoryImpl(
         private const val KEY_WINDOW_POS_X = "window_pos_x"
         private const val KEY_WINDOW_POS_Y = "window_pos_y"
         private const val KEY_VOLUME = "volume"
+        private const val KEY_SHUFFLE = "shuffle"
+        private const val KEY_REPEAT = "repeat"
     }
     
     override fun saveServerConfig(config: ServerConfig) {
@@ -203,5 +209,21 @@ class SettingsRepositoryImpl(
     
     override fun getVolume(): Float {
         return settings.getFloat(KEY_VOLUME, 0.7f) // Default volume 70%
+    }
+    
+    override fun saveShuffle(enabled: Boolean) {
+        settings.putBoolean(KEY_SHUFFLE, enabled)
+    }
+    
+    override fun getShuffle(): Boolean {
+        return settings.getBoolean(KEY_SHUFFLE, false) // Default shuffle off
+    }
+    
+    override fun saveRepeat(enabled: Boolean) {
+        settings.putBoolean(KEY_REPEAT, enabled)
+    }
+    
+    override fun getRepeat(): Boolean {
+        return settings.getBoolean(KEY_REPEAT, false) // Default repeat off
     }
 }

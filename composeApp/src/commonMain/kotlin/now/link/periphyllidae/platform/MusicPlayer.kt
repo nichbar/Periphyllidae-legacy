@@ -152,11 +152,7 @@ class MusicPlayer(
     fun play(song: Song) {
         LogManager.i("MusicPlayer", "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
         _currentSong.value = song
-        val streamUrl = song.streamUrl ?: run {
-            LogManager.e("MusicPlayer", "No stream URL available for song: ${song.title}")
-            _playbackState.value = PlaybackState.ERROR
-            return
-        }
+        val streamUrl = song.streamUrl
         
         LogManager.d("MusicPlayer", "Stream URL: $streamUrl")
         
