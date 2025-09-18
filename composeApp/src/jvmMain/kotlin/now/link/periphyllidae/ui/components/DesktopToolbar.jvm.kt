@@ -11,9 +11,6 @@ import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Minimize
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.LightMode
-import androidx.compose.material.icons.rounded.SettingsSystemDaydream
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,14 +20,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowScope
 import androidx.compose.ui.window.WindowState
-import kotlinx.coroutines.launch
-import now.link.periphyllidae.mvi.AppIntent
-import now.link.periphyllidae.mvi.AppTheme
-import now.link.periphyllidae.store.AppStore
-import org.koin.compose.koinInject
 
 @Composable
-actual fun WindowScope.DesktopToolbarContent(
+actual fun DesktopToolbarContent(
+    windowScope: Any?,
+    windowState: Any?,
+    onCloseRequest: () -> Unit,
+) {
+    // Cast to proper types on JVM platform
+    val scope = windowScope as? WindowScope ?: return
+    val state = windowState as? WindowState ?: return
+    
+    with(scope) {
+        DesktopToolbarContentImpl(state, onCloseRequest)
+    }
+}
+
+@Composable
+private fun WindowScope.DesktopToolbarContentImpl(
     windowState: WindowState,
     onCloseRequest: () -> Unit,
 ) {

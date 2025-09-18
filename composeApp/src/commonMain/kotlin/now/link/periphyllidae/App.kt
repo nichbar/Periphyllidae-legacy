@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.window.WindowScope
 import org.koin.compose.KoinApplication
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.di.commonModule
@@ -20,8 +19,8 @@ import org.koin.compose.koinInject
 
 @Composable
 fun App(
-    windowScope: WindowScope? = null,
-    windowState: androidx.compose.ui.window.WindowState? = null,
+    windowScope: Any? = null,
+    windowState: Any? = null,
     onCloseRequest: (() -> Unit)? = null,
     showDesktopToolbar: Boolean = false
 ) {
@@ -39,8 +38,8 @@ fun App(
 
 @Composable
 private fun AppContent(
-    windowScope: WindowScope? = null,
-    windowState: androidx.compose.ui.window.WindowState? = null,
+    windowScope: Any? = null,
+    windowState: Any? = null,
     onCloseRequest: (() -> Unit)? = null,
     showDesktopToolbar: Boolean = false
 ) {
@@ -74,8 +73,9 @@ private fun AppContent(
         Column(modifier = Modifier.fillMaxSize()) {
             // Show desktop toolbar only on desktop platforms when requested
             if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
-                // Import the desktop toolbar here with an expect/actual pattern
-                windowScope?.DesktopToolbarContent(
+                // Use expect/actual pattern to handle platform-specific toolbar
+                DesktopToolbarContent(
+                    windowScope = windowScope,
                     windowState = windowState,
                     onCloseRequest = onCloseRequest
                 )
