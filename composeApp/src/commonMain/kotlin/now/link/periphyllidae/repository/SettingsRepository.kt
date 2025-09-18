@@ -6,12 +6,15 @@ import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.HomeContentCache
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 
 interface SettingsRepository {
-    fun saveServerConfig(config: ServerConfig)
-    fun getServerConfig(): ServerConfig?
-    fun clearServerConfig()
+    fun addServerConfig(config: ServerConfig)
+    fun removeServerConfig(config: ServerConfig)
+    fun removeAllServerConfigs()
+    fun setSelectedServerConfig(config: ServerConfig)
+    fun getSelectedServerConfig(): ServerConfig?
+    fun saveServerConfigs(configs: List<ServerConfig>)
+    fun getServerConfigs(): List<ServerConfig>
     fun saveTheme(theme: String)
     fun getTheme(): String
     fun saveIsAuthenticated(isAuthenticated: Boolean)
@@ -51,7 +54,7 @@ class SettingsRepositoryImpl(
 ) : SettingsRepository {
     
     companion object {
-        private const val KEY_SERVER_CONFIG = "server_config"
+        private const val KEY_SERVER_CONFIGS = "server_configs"
         private const val KEY_THEME = "theme"
         private const val KEY_IS_AUTHENTICATED = "is_authenticated"
         private const val KEY_SERVER_SALT_PREFIX = "server_salt_"
@@ -68,23 +71,73 @@ class SettingsRepositoryImpl(
         private const val KEY_SHUFFLE = "shuffle"
         private const val KEY_REPEAT = "repeat"
     }
-    
-    override fun saveServerConfig(config: ServerConfig) {
-        settings.putString(KEY_SERVER_CONFIG, json.encodeToString(config))
+
+    override fun addServerConfig(config: ServerConfig) {
+        // Also add to the list of saved servers
+        val existingConfigs = getServerConfigs().toMutableList()
+        val existingIndex = existingConfigs.indexOfFirst { it.url == config.url && it.username == config.username }
+        if (existingIndex >= 0) {
+            existingConfigs[existingIndex] = config
+        } else {
+            existingConfigs.add(config)
+        }
+        saveServerConfigs(existingConfigs)
     }
-    
-    override fun getServerConfig(): ServerConfig? {
-        return settings.getStringOrNull(KEY_SERVER_CONFIG)?.let { configString ->
+
+    override fun removeServerConfig(config: ServerConfig) {
+        val existingConfigs = getServerConfigs().toMutableList()
+        val updatedConfigs = existingConfigs.filterNot { it.url == config.url && it.username == config.username }.toMutableList()
+
+        val hasSelectedConfig = updatedConfigs.any { it.isSelected }
+
+        // Ensure one config is always selected
+        if (!hasSelectedConfig && updatedConfigs.isNotEmpty()) {
+            // If the removed config was selected, select the first one in the updated list
+            updatedConfigs[0] = updatedConfigs[0].copy(isSelected = true)
+        }
+
+        saveServerConfigs(updatedConfigs)
+    }
+
+    override fun removeAllServerConfigs() {
+        settings.remove(KEY_SERVER_CONFIGS)
+    }
+
+    override fun getSelectedServerConfig(): ServerConfig? {
+        return settings.getStringOrNull(KEY_SERVER_CONFIGS)?.let { configsString ->
             try {
-                json.decodeFromString<ServerConfig>(configString)
+                json.decodeFromString<List<ServerConfig>>(configsString)
+                    .firstOrNull { it.isSelected }
             } catch (e: Exception) {
                 null
             }
         }
     }
+
+    override fun setSelectedServerConfig(config: ServerConfig) {
+        val existingConfigs = getServerConfigs().toMutableList()
+        val updatedConfigs = existingConfigs.map {
+            if (it.url == config.url && it.username == config.username) {
+                it.copy(isSelected = true)
+            } else {
+                it.copy(isSelected = false)
+            }
+        }
+        saveServerConfigs(updatedConfigs)
+    }
+
+    override fun saveServerConfigs(configs: List<ServerConfig>) {
+        settings.putString(KEY_SERVER_CONFIGS, json.encodeToString(configs))
+    }
     
-    override fun clearServerConfig() {
-        settings.remove(KEY_SERVER_CONFIG)
+    override fun getServerConfigs(): List<ServerConfig> {
+        return settings.getStringOrNull(KEY_SERVER_CONFIGS)?.let { configsString ->
+            try {
+                json.decodeFromString<List<ServerConfig>>(configsString)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
     }
     
     override fun saveTheme(theme: String) {

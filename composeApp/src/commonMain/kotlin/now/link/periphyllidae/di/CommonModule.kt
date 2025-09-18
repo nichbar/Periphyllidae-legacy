@@ -49,9 +49,10 @@ val commonModule = module {
     // Page-scoped ViewModels (Singleton pattern for state preservation across tab navigation)
     single<HomeViewModel> { HomeViewModel(get()) }
     factory<LoginViewModel> { LoginViewModel(get()) }
+    factory<AddServerViewModel> { AddServerViewModel(get(), get()) }
     single<SearchViewModel> { SearchViewModel(get(), get()) }
     factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
-    single<SettingsViewModel> { SettingsViewModel(get(), get()) }
+    single<SettingsViewModel> { SettingsViewModel(get(), get(), get()) }
     factory<ArtistDetailViewModel> { ArtistDetailViewModel(get(), get()) }
 }
 

@@ -14,6 +14,8 @@ interface MainComponent {
     fun onNavigateToNowPlaying()
     fun onNavigateToArtist(artistId: String)
     fun onNavigateToLogs()
+    fun onNavigateToServerManagement()
+    fun onNavigateToLogin()
     fun onLogout()
     
     sealed class TabChild {
@@ -29,6 +31,8 @@ class DefaultMainComponent(
     private val onNavigateToNowPlaying: () -> Unit,
     private val onNavigateToArtist: (String) -> Unit,
     private val onNavigateToLogs: () -> Unit,
+    private val onNavigateToServerManagement: () -> Unit,
+    private val onNavigateToLogin: () -> Unit,
     private val onLogout: () -> Unit
 ) : MainComponent, ComponentContext by componentContext {
     
@@ -62,6 +66,8 @@ class DefaultMainComponent(
                 DefaultSettingsTabComponent(
                     componentContext = componentContext,
                     onNavigateToLogs = onNavigateToLogs,
+                    onNavigateToServerManagement = onNavigateToServerManagement,
+                    onNavigateToLogin = onNavigateToLogin,
                     onLogout = onLogout
                 )
             )
@@ -91,6 +97,14 @@ class DefaultMainComponent(
     
     override fun onNavigateToLogs() {
         onNavigateToLogs.invoke()
+    }
+    
+    override fun onNavigateToServerManagement() {
+        onNavigateToServerManagement.invoke()
+    }
+    
+    override fun onNavigateToLogin() {
+        onNavigateToLogin.invoke()
     }
     
     override fun onLogout() {
@@ -148,17 +162,29 @@ class DefaultPlaylistsTabComponent(
 
 interface SettingsTabComponent {
     fun onNavigateToLogs()
+    fun onNavigateToServerManagement()
+    fun onNavigateToLogin()
     fun onLogout()
 }
 
 class DefaultSettingsTabComponent(
     componentContext: ComponentContext,
     private val onNavigateToLogs: () -> Unit,
+    private val onNavigateToServerManagement: () -> Unit,
+    private val onNavigateToLogin: () -> Unit,
     private val onLogout: () -> Unit
 ) : SettingsTabComponent, ComponentContext by componentContext {
     
     override fun onNavigateToLogs() {
         onNavigateToLogs.invoke()
+    }
+    
+    override fun onNavigateToServerManagement() {
+        onNavigateToServerManagement.invoke()
+    }
+    
+    override fun onNavigateToLogin() {
+        onNavigateToLogin.invoke()
     }
     
     override fun onLogout() {

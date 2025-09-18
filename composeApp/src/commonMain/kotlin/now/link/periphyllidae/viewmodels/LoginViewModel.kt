@@ -21,20 +21,5 @@ class LoginViewModel(
     fun handleIntent(intent: AuthIntent) {
         authStore.handleIntent(intent)
     }
-    
-    fun login(serverUrl: String, username: String, password: String) {
-        viewModelScope.launch {
-            authStore.handleIntent(AuthIntent.UpdateServerUrl(serverUrl))
-            authStore.handleIntent(AuthIntent.UpdateUsername(username))
-            authStore.handleIntent(AuthIntent.UpdatePassword(password))
-            authStore.handleIntent(AuthIntent.Login)
-        }
-    }
-    
-    fun testConnection(serverUrl: String) {
-        viewModelScope.launch {
-            authStore.handleIntent(AuthIntent.UpdateServerUrl(serverUrl))
-            authStore.handleIntent(AuthIntent.TestConnection)
-        }
-    }
+
 }

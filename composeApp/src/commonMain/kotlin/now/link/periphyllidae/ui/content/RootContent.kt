@@ -25,6 +25,8 @@ fun RootContent(
             is RootComponent.Child.MainChild -> MainContent(child.component)
             is RootComponent.Child.NowPlayingChild -> NowPlayingContent(child.component)
             is RootComponent.Child.LogsChild -> LogsContent(child.component)
+            is RootComponent.Child.ServerManagementChild -> ServerManagementContent(child.component)
+            is RootComponent.Child.AddServerChild -> AddServerContent(child.component)
             is RootComponent.Child.ArtistDetailChild -> ArtistDetailContent(child.component)
         }
     }
@@ -62,5 +64,23 @@ private fun ArtistDetailContent(component: now.link.periphyllidae.components.Art
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
         onNavigateToNowPlaying = component::onNavigateToNowPlaying
+    )
+}
+
+@Composable
+private fun ServerManagementContent(component: now.link.periphyllidae.components.ServerManagementComponent) {
+    ServerManagementScreen(
+        viewModel = koinInject(),
+        onNavigateBack = component::onNavigateBack,
+        onNavigateToAddServer = component::onNavigateToAddServer
+    )
+}
+
+@Composable
+private fun AddServerContent(component: now.link.periphyllidae.components.AddServerComponent) {
+    AddServerScreen(
+        viewModel = koinInject(),
+        onServerAdded = component::onServerAdded,
+        onNavigateBack = component::onNavigateBack
     )
 }

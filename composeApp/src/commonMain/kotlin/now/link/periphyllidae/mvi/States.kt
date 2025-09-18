@@ -26,6 +26,8 @@ data class AuthState(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",
+    val alias: String = "",
+    val savedServers: List<ServerConfig> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 ) : State
@@ -60,12 +62,13 @@ sealed interface AuthIntent : Intent {
     data class UpdateServerUrl(val url: String) : AuthIntent
     data class UpdateUsername(val username: String) : AuthIntent
     data class UpdatePassword(val password: String) : AuthIntent
+    data class UpdateAlias(val alias: String) : AuthIntent
     object Login : AuthIntent
     object Logout : AuthIntent
     object ClearError : AuthIntent
+    object RefreshSavedServers : AuthIntent
     data class ChangeServer(val server: ServerConfig) : AuthIntent
-    object TestConnection : AuthIntent
-    object SaveConfiguration : AuthIntent
+    data class DeleteServer(val server: ServerConfig) : AuthIntent
 }
 
 // Global Music Intents (combines Home + NowPlaying concerns)
@@ -87,6 +90,9 @@ sealed interface MusicIntent : Intent {
     data class PlaySong(val song: Song) : MusicIntent
     data class PlayAlbum(val album: Album) : MusicIntent
     data class SetQueue(val songs: List<Song>, val startIndex: Int = 0) : MusicIntent
+    
+    // Server change handling
+    object InvalidatePlayerState : MusicIntent
 }
 
 // Search Screen (remains screen-scoped for now)
@@ -120,3 +126,14 @@ sealed interface ArtistDetailIntent : Intent {
     data class PlayAlbum(val album: Album) : ArtistDetailIntent
     data class PlaySong(val song: Song) : ArtistDetailIntent
 }
+
+// Add Server State (separate from Auth for better separation of concerns)
+data class AddServerState(
+    val serverUrl: String = "",
+    val username: String = "",
+    val password: String = "",
+    val alias: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val isServerAdded: Boolean = false
+) : State

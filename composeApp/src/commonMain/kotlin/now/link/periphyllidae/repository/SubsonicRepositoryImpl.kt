@@ -78,7 +78,7 @@ class SubsonicRepositoryImpl(
     
     private fun loadSavedConfiguration() {
         try {
-            currentConfig = settingsRepository.getServerConfig()
+            currentConfig = settingsRepository.getSelectedServerConfig()
             if (currentConfig != null) {
                 LogManager.i("SubsonicRepository", "Loaded saved server configuration: ${currentConfig?.url}")
                 // Note: We'll need to re-authenticate to get fresh tokens

@@ -26,7 +26,8 @@ class AuthStore(
     val state: StateFlow<AuthState> = _state.asStateFlow()
 
     init {
-        loadSavedConfiguration()
+        loadSelectedConfiguration()
+        loadSavedServers()
     }
 
     fun handleIntent(intent: AuthIntent) {
@@ -34,12 +35,13 @@ class AuthStore(
             is AuthIntent.UpdateServerUrl -> updateServerUrl(intent.url)
             is AuthIntent.UpdateUsername -> updateUsername(intent.username)
             is AuthIntent.UpdatePassword -> updatePassword(intent.password)
+            is AuthIntent.UpdateAlias -> updateAlias(intent.alias)
             is AuthIntent.Login -> login()
             is AuthIntent.Logout -> logout()
             is AuthIntent.ClearError -> clearError()
             is AuthIntent.ChangeServer -> changeServer(intent.server)
-            is AuthIntent.TestConnection -> testConnection()
-            is AuthIntent.SaveConfiguration -> saveConfiguration()
+            is AuthIntent.DeleteServer -> deleteServer(intent.server)
+            is AuthIntent.RefreshSavedServers -> loadSavedServers()
         }
     }
 
@@ -55,6 +57,10 @@ class AuthStore(
         _state.value = _state.value.copy(password = password, error = null)
     }
 
+    private fun updateAlias(alias: String) {
+        _state.value = _state.value.copy(alias = alias, error = null)
+    }
+
     private fun login() {
         val currentState = _state.value
         if (currentState.serverUrl.isBlank() || currentState.username.isBlank() || currentState.password.isBlank()) {
@@ -66,24 +72,29 @@ class AuthStore(
 
         storeScope.launch {
             try {
-                val serverConfig = now.link.periphyllidae.models.ServerConfig(
+                val serverConfig = ServerConfig(
                     url = currentState.serverUrl,
                     username = currentState.username,
-                    password = currentState.password
+                    password = currentState.password,
+                    isSelected = true,
+                    alias = currentState.alias.ifBlank { "Custom Server" }
                 )
                 
                 val result = subsonicRepository.authenticate(serverConfig)
                 
                 if (result.isSuccess && result.getOrNull() == true) {
                     // Save configuration
-                    settingsRepository.saveServerConfig(serverConfig)
+                    settingsRepository.addServerConfig(serverConfig)
 
                     settingsRepository.saveIsAuthenticated(true)
+
+                    val savedServers = settingsRepository.getServerConfigs()
 
                     _state.value = currentState.copy(
                         isLoading = false,
                         isAuthenticated = true,
                         currentServer = serverConfig,
+                        savedServers = savedServers,
                         error = null
                     )
                 } else {
@@ -104,7 +115,7 @@ class AuthStore(
     private fun logout() {
         storeScope.launch {
             settingsRepository.saveIsAuthenticated(false)
-            settingsRepository.clearServerConfig()
+            settingsRepository.removeAllServerConfigs()
             settingsRepository.clearHomeContentCache() // Clear cached home content on logout
             _state.value = AuthState() // Reset to default state
         }
@@ -114,68 +125,54 @@ class AuthStore(
         _state.value = _state.value.copy(error = null)
     }
 
-    private fun changeServer(server: now.link.periphyllidae.models.ServerConfig) {
+    private fun changeServer(server: ServerConfig) {
         storeScope.launch {
-            settingsRepository.saveServerConfig(server)
-            
-            _state.value = _state.value.copy(
-                currentServer = server,
-                serverUrl = server.url,
-                username = server.username,
-                password = server.password,
-                isAuthenticated = true
-            )
+            try {
+                // Change to the selected server
+                settingsRepository.setSelectedServerConfig(server)
+
+                _state.value = _state.value.copy(
+                    currentServer = server,
+                    serverUrl = server.url,
+                    username = server.username,
+                    password = server.password,
+                    alias = server.alias,
+                    isAuthenticated = true,
+                )
+
+                // Notify that server has changed - music store should invalidate player state
+                // This will be handled by the UI layer which observes auth state changes
+
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    error = "Failed to switch server: ${e.message}"
+                )
+            }
         }
     }
 
-    private fun loadSavedConfiguration() {
+    private fun loadSelectedConfiguration() {
         storeScope.launch {
-            val config = settingsRepository.getServerConfig()
+            val config = settingsRepository.getSelectedServerConfig()
             if (config != null) {
                 _state.value = _state.value.copy(
                     currentServer = config,
                     serverUrl = config.url,
                     username = config.username,
                     password = config.password,
+                    alias = config.alias,
                     isAuthenticated = true
                 )
             }
         }
     }
 
-    private fun testConnection() {
+    private fun loadSavedServers() {
         storeScope.launch {
-            try {
-                _state.value = _state.value.copy(isLoading = true, error = null)
-                
-                val currentState = _state.value
-                val testConfig = ServerConfig(
-                    url = currentState.serverUrl,
-                    username = currentState.username,
-                    password = currentState.password,
-                    name = "Test Server"
-                )
-                
-                // Test the connection by trying to authenticate
-                val result = subsonicRepository.authenticate(testConfig)
-                
-                if (result.isSuccess) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = null
-                    )
-                } else {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = "Connection test failed"
-                    )
-                }
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Connection test failed"
-                )
-            }
+            val savedServers = settingsRepository.getServerConfigs()
+            _state.value = _state.value.copy(
+                savedServers = savedServers
+            )
         }
     }
 
@@ -189,10 +186,10 @@ class AuthStore(
                     url = currentState.serverUrl,
                     username = currentState.username,
                     password = currentState.password,
-                    name = "Custom Server"
+                    alias = currentState.alias.ifBlank { "Custom Server" }
                 )
                 
-                settingsRepository.saveServerConfig(serverConfig)
+                settingsRepository.addServerConfig(serverConfig)
                 
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -203,6 +200,43 @@ class AuthStore(
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = e.message ?: "Failed to save configuration"
+                )
+            }
+        }
+    }
+
+    private fun deleteServer(server: ServerConfig) {
+        storeScope.launch {
+            try {
+                val currentServers = settingsRepository.getServerConfigs().toMutableList()
+                currentServers.removeAll { it.url == server.url && it.username == server.username }
+                settingsRepository.saveServerConfigs(currentServers)
+                
+                // Update state with new server list
+                _state.value = _state.value.copy(
+                    savedServers = currentServers
+                )
+                
+                // If the deleted server was the current server, reset authentication
+                if (_state.value.currentServer?.url == server.url && 
+                    _state.value.currentServer?.username == server.username) {
+                    
+                    settingsRepository.saveIsAuthenticated(false)
+                    settingsRepository.removeServerConfig(server)
+                    
+                    _state.value = _state.value.copy(
+                        currentServer = null,
+                        serverUrl = "",
+                        username = "",
+                        password = "",
+                        alias = "",
+                        isAuthenticated = false
+                    )
+                }
+                
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    error = "Failed to delete server: ${e.message}"
                 )
             }
         }

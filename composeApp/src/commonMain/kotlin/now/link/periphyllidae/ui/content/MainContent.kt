@@ -244,8 +244,8 @@ private fun TabContent(
                 is MainComponent.TabChild.SettingsChild -> {
                     SettingsScreen(
                         viewModel = koinInject(),
-                        onNavigateBack = { /* Not needed in tab */ },
                         onNavigateToLogs = child.component::onNavigateToLogs,
+                        onNavigateToServerManagement = child.component::onNavigateToServerManagement,
                         onLogout = child.component::onLogout
                     )
                 }

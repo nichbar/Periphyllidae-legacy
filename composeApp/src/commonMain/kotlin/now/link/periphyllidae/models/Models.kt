@@ -7,7 +7,8 @@ data class ServerConfig(
     val url: String,
     val username: String,
     val password: String,
-    val name: String? = null
+    val isSelected: Boolean = false,
+    val alias: String = url // User-friendly alias for easier identification
 )
 
 @Serializable

@@ -64,6 +64,7 @@ class MusicStore(
             is MusicIntent.PlaySong -> playSong(intent.song)
             is MusicIntent.PlayAlbum -> playAlbum(intent.album)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
+            is MusicIntent.InvalidatePlayerState -> invalidatePlayerState()
         }
     }
 
@@ -572,5 +573,34 @@ class MusicStore(
         }
         
         LogManager.d("MusicStore", "Player state observers started")
+    }
+
+    private fun invalidatePlayerState() {
+        LogManager.i("MusicStore", "Invalidating player state due to server change")
+        
+        storeScope.launch {
+            try {
+                // Stop current playback
+                musicPlayer.stop()
+                
+                // Clear all music state
+                _state.value = MusicState()
+                
+                // Clear cached content
+                settingsRepository.clearHomeContentCache()
+                
+                // Clear saved playback state 
+                settingsRepository.savePlaybackQueue(emptyList())
+                settingsRepository.saveCurrentSongIndex(0)
+                settingsRepository.saveCurrentSongPosition(0L)
+                
+                LogManager.i("MusicStore", "Player state invalidated and caches cleared")
+                
+                // Refresh home content from the new server
+                loadHomeContent()
+            } catch (e: Exception) {
+                LogManager.e("MusicStore", "Error invalidating player state", e)
+            }
+        }
     }
 }

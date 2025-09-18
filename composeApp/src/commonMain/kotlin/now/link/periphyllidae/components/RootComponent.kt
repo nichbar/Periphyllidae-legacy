@@ -1,6 +1,7 @@
 package now.link.periphyllidae.components
 
 import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.decompose.DelicateDecomposeApi
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
@@ -20,10 +21,13 @@ interface RootComponent {
         class MainChild(val component: MainComponent) : Child()
         class NowPlayingChild(val component: NowPlayingComponent) : Child()
         class LogsChild(val component: LogsComponent) : Child()
+        class ServerManagementChild(val component: ServerManagementComponent) : Child()
+        class AddServerChild(val component: AddServerComponent) : Child()
         class ArtistDetailChild(val component: ArtistDetailComponent) : Child()
     }
 }
 
+@OptIn(DelicateDecomposeApi::class)
 class DefaultRootComponent(
     componentContext: ComponentContext,
     private val settingsRepository: SettingsRepository
@@ -46,6 +50,8 @@ class DefaultRootComponent(
             is Config.Main -> RootComponent.Child.MainChild(mainComponent(componentContext))
             is Config.NowPlaying -> RootComponent.Child.NowPlayingChild(nowPlayingComponent(componentContext))
             is Config.Logs -> RootComponent.Child.LogsChild(logsComponent(componentContext))
+            is Config.ServerManagement -> RootComponent.Child.ServerManagementChild(serverManagementComponent(componentContext))
+            is Config.AddServer -> RootComponent.Child.AddServerChild(addServerComponent(componentContext))
             is Config.ArtistDetail -> RootComponent.Child.ArtistDetailChild(artistDetailComponent(componentContext, config))
         }
     
@@ -69,6 +75,12 @@ class DefaultRootComponent(
             onNavigateToLogs = {
                 navigation.push(Config.Logs)
             },
+            onNavigateToServerManagement = {
+                navigation.push(Config.ServerManagement)
+            },
+            onNavigateToLogin = {
+                navigation.push(Config.Login)
+            },
             onLogout = {
                 navigation.push(Config.Login)
             }
@@ -85,6 +97,28 @@ class DefaultRootComponent(
     private fun logsComponent(componentContext: ComponentContext): LogsComponent =
         DefaultLogsComponent(
             componentContext = componentContext,
+            onNavigateBack = {
+                navigation.pop()
+            }
+        )
+    
+    private fun serverManagementComponent(componentContext: ComponentContext): ServerManagementComponent =
+        DefaultServerManagementComponent(
+            componentContext = componentContext,
+            onNavigateBack = {
+                navigation.pop()
+            },
+            onNavigateToAddServer = {
+                navigation.push(Config.AddServer)
+            }
+        )
+    
+    private fun addServerComponent(componentContext: ComponentContext): AddServerComponent =
+        DefaultAddServerComponent(
+            componentContext = componentContext,
+            onServerAdded = {
+                navigation.pop() // Go back to ServerManagement
+            },
             onNavigateBack = {
                 navigation.pop()
             }
@@ -121,6 +155,52 @@ class DefaultRootComponent(
         data object Logs : Config
         
         @Serializable
+        data object ServerManagement : Config
+        
+        @Serializable
+        data object AddServer : Config
+        
+        @Serializable
         data class ArtistDetail(val artistId: String) : Config
+    }
+}
+
+interface ServerManagementComponent {
+    fun onNavigateBack()
+    fun onNavigateToAddServer()
+}
+
+class DefaultServerManagementComponent(
+    componentContext: ComponentContext,
+    private val onNavigateBack: () -> Unit,
+    private val onNavigateToAddServer: () -> Unit
+) : ServerManagementComponent, ComponentContext by componentContext {
+    
+    override fun onNavigateBack() {
+        onNavigateBack.invoke()
+    }
+    
+    override fun onNavigateToAddServer() {
+        onNavigateToAddServer.invoke()
+    }
+}
+
+interface AddServerComponent {
+    fun onServerAdded()
+    fun onNavigateBack()
+}
+
+class DefaultAddServerComponent(
+    componentContext: ComponentContext,
+    private val onServerAdded: () -> Unit,
+    private val onNavigateBack: () -> Unit
+) : AddServerComponent, ComponentContext by componentContext {
+    
+    override fun onServerAdded() {
+        onServerAdded.invoke()
+    }
+    
+    override fun onNavigateBack() {
+        onNavigateBack.invoke()
     }
 }

@@ -25,8 +25,8 @@ import now.link.periphyllidae.utils.NetworkUtils
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit,
     onNavigateToLogs: () -> Unit,
+    onNavigateToServerManagement: () -> Unit,
     onLogout: () -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
@@ -50,11 +50,6 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
             )
         }
     ) { paddingValues ->
@@ -129,11 +124,11 @@ fun SettingsScreen(
                     icon = Icons.Default.Storage,
                     title = "Current Server",
                     subtitle = authState.currentServer?.let { 
-                        val serverInfo = "${it.name ?: it.url} (${it.username})"
+                        val serverInfo = "${it.alias.ifBlank { it.url }} (${it.username})"
                         val latencyInfo = if (latency >= 0) " • ${NetworkUtils.formatLatency(latency)}" else ""
-                        "$serverInfo in $latencyInfo"
+                        "$serverInfo$latencyInfo"
                     } ?: "Not connected",
-                    onClick = { /* TODO: Navigate to server selection */ }
+                    onClick = { onNavigateToServerManagement() }
                 )
                 
                 // Appearance Section
