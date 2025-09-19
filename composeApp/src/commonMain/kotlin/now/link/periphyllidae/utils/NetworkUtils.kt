@@ -9,6 +9,8 @@ import kotlinx.datetime.Clock
 
 object NetworkUtils {
     
+    private const val TAG = "NetworkUtils"
+    
     /**
      * Measures latency to a server by making a simple HTTP HEAD request
      * @param serverUrl The server URL (e.g., "https://demo.navidrome.org")
@@ -31,7 +33,7 @@ object NetworkUtils {
                 -1L // Timeout
             }
         } catch (e: Exception) {
-            LogManager.w("NetworkUtils", "Failed to measure latency to $serverUrl: ${e.message}")
+            LogManager.w(TAG, "Failed to measure latency to $serverUrl: ${e.message}")
             -1L
         } finally {
             httpClient.close()

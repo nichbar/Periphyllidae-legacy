@@ -21,6 +21,8 @@ import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.utils.NetworkUtils
 
+private const val TAG = "ServerManagementScreen"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerManagementScreen(
@@ -42,7 +44,7 @@ fun ServerManagementScreen(
                     val latency = NetworkUtils.measureLatency(server.url)
                     latencies[server.url] = latency
                 } catch (e: Exception) {
-                    LogManager.w("ServerManagementScreen", "Failed to measure latency for ${server.url}: ${e.message}")
+                    LogManager.w(TAG, "Failed to measure latency for ${server.url}: ${e.message}")
                     latencies[server.url] = -1L
                 }
             }

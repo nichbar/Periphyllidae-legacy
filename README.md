@@ -12,7 +12,6 @@ A cross-platform Subsonic client for the modern music lover, built with Kotlin M
   - ExoPlayer backend on Android for optimized mobile playback
   - VLC backend on Desktop for comprehensive codec support
 - **Ktor** for HTTP networking and Subsonic API communication
-- **SQLDelight** for local database persistence and caching
 - **Koin** for dependency injection and service management
 - **Kermit** wrapped by custom LogManager for enhanced debugging
 

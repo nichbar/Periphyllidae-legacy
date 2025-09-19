@@ -18,6 +18,8 @@ import now.link.periphyllidae.store.AppStore
 import now.link.periphyllidae.ui.components.DesktopToolbarContent
 import org.koin.compose.koinInject
 
+private const val TAG = "App"
+
 @Composable
 fun App(
     windowScope: Any? = null,
@@ -50,7 +52,7 @@ private fun AppContent(
     // Initialize LogManager with settings repository
     LaunchedEffect(Unit) {
         LogManager.initialize(settingsRepository)
-        LogManager.i("App", "Application started")
+        LogManager.i(TAG, "Application started")
     }
     
     // Create root component

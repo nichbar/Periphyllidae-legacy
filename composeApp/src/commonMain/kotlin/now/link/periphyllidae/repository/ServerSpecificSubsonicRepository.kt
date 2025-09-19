@@ -24,6 +24,10 @@ class ServerSpecificSubsonicRepository(
     private val settingsRepository: SettingsRepository
 ) : SubsonicRepository {
     
+    companion object {
+        private const val TAG = "SubsonicRepository"
+    }
+    
     // Pre-computed auth parameters - immutable and thread-safe
     private val authParams: Map<String, String> = generateAuthParams()
     
@@ -65,25 +69,25 @@ class ServerSpecificSubsonicRepository(
             
             if (response.status.isSuccess()) {
                 val responseBody = response.bodyAsText()
-                LogManager.d("SubsonicRepository", "Ping response: $responseBody")
+                LogManager.d(TAG, "Ping response: $responseBody")
                 
                 val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
                 val subsonicResponse = jsonResponse.subsonicResponse
                 
                 if (subsonicResponse.status == "ok") {
-                    LogManager.i("SubsonicRepository", "Authentication successful for ${serverConfig.url}")
+                    LogManager.i(TAG, "Authentication successful for ${serverConfig.url}")
                     Result.success(true)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Authentication failed"
-                    LogManager.e("SubsonicRepository", "Authentication failed: $errorMsg")
+                    LogManager.e(TAG, "Authentication failed: $errorMsg")
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Authentication failed with status: ${response.status}")
+                LogManager.e(TAG, "Authentication failed with status: ${response.status}")
                 Result.failure(Exception("Authentication failed with status: ${response.status}"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Authentication error", e)
+            LogManager.e(TAG, "Authentication error", e)
             Result.failure(e)
         }
     }
@@ -99,12 +103,12 @@ class ServerSpecificSubsonicRepository(
             }
 
             if (response.status.isSuccess()) {
-                LogManager.i("SubsonicRepository", "Scrobbled song $songId successfully")
+                LogManager.i(TAG, "Scrobbled song $songId successfully")
             } else {
-                LogManager.w("SubsonicRepository", "Failed to scrobble song $songId: ${response.status}")
+                LogManager.w(TAG, "Failed to scrobble song $songId: ${response.status}")
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error scrobbling song $songId: $e")
+            LogManager.e(TAG, "Error scrobbling song $songId: $e")
         }
     }
     
@@ -128,19 +132,19 @@ class ServerSpecificSubsonicRepository(
                     val songs = subsonicResponse.randomSongs.song.map { song ->
                         song.toDomainModel(this)
                     }
-                    LogManager.i("SubsonicRepository", "Fetched ${songs.size} random songs")
+                    LogManager.i(TAG, "Fetched ${songs.size} random songs")
                     Result.success(songs)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch random songs"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Failed to fetch random songs with status: ${response.status}")
+                LogManager.e(TAG, "Failed to fetch random songs with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch random songs"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error fetching random songs", e)
+            LogManager.e(TAG, "Error fetching random songs", e)
             Result.failure(e)
         }
     }
@@ -175,19 +179,19 @@ class ServerSpecificSubsonicRepository(
 
                 if (subsonicResponse.status == "ok" && subsonicResponse.albumList != null) {
                     val albums = subsonicResponse.albumList.album.map { it.toDomainModel(this) }
-                    LogManager.i("SubsonicRepository", "Fetched ${albums.size} albums for type: $type")
+                    LogManager.i(TAG, "Fetched ${albums.size} albums for type: $type")
                     Result.success(albums)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch albums"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Failed to fetch albums with status: ${response.status}")
+                LogManager.e(TAG, "Failed to fetch albums with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch albums"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error fetching albums", e)
+            LogManager.e(TAG, "Error fetching albums", e)
             Result.failure(e)
         }
     }
@@ -209,19 +213,19 @@ class ServerSpecificSubsonicRepository(
                 if (subsonicResponse.status == "ok") {
                     // Handle case where playlists might be null or empty
                     val playlists = subsonicResponse.playlists?.playlist?.map { it.toDomainModel(this) } ?: emptyList()
-                    LogManager.i("SubsonicRepository", "Fetched ${playlists.size} playlists")
+                    LogManager.i(TAG, "Fetched ${playlists.size} playlists")
                     Result.success(playlists)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlists"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Failed to fetch playlists with status: ${response.status}")
+                LogManager.e(TAG, "Failed to fetch playlists with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch playlists"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error fetching playlists", e)
+            LogManager.e(TAG, "Error fetching playlists", e)
             Result.failure(e)
         }
     }
@@ -250,19 +254,19 @@ class ServerSpecificSubsonicRepository(
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.searchResult3 != null) {
                     val searchResult = subsonicResponse.searchResult3.toDomainModel(this)
-                    LogManager.i("SubsonicRepository", "Search completed for query: $query")
+                    LogManager.i(TAG, "Search completed for query: $query")
                     Result.success(searchResult)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Search failed"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Search failed with status: ${response.status}")
+                LogManager.e(TAG, "Search failed with status: ${response.status}")
                 Result.failure(Exception("Search failed"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error searching", e)
+            LogManager.e(TAG, "Error searching", e)
             Result.failure(e)
         }
     }
@@ -284,19 +288,19 @@ class ServerSpecificSubsonicRepository(
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.album != null) {
                     val album = subsonicResponse.album.toDomainModel(this)
-                    LogManager.i("SubsonicRepository", "Fetched album: $id")
+                    LogManager.i(TAG, "Fetched album: $id")
                     Result.success(album)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch album"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Failed to fetch album with status: ${response.status}")
+                LogManager.e(TAG, "Failed to fetch album with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch album"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error fetching album", e)
+            LogManager.e(TAG, "Error fetching album", e)
             Result.failure(e)
         }
     }
@@ -318,19 +322,19 @@ class ServerSpecificSubsonicRepository(
                 
                 if (subsonicResponse.status == "ok" && subsonicResponse.playlist != null) {
                     val playlist = subsonicResponse.playlist.toDomainModel(this)
-                    LogManager.i("SubsonicRepository", "Fetched playlist: $id")
+                    LogManager.i(TAG, "Fetched playlist: $id")
                     Result.success(playlist)
                 } else {
                     val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch playlist"
-                    LogManager.e("SubsonicRepository", errorMsg)
+                    LogManager.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                LogManager.e("SubsonicRepository", "Failed to fetch playlist with status: ${response.status}")
+                LogManager.e(TAG, "Failed to fetch playlist with status: ${response.status}")
                 Result.failure(Exception("Failed to fetch playlist"))
             }
         } catch (e: Exception) {
-            LogManager.e("SubsonicRepository", "Error fetching playlist", e)
+            LogManager.e(TAG, "Error fetching playlist", e)
             Result.failure(e)
         }
     }
@@ -380,6 +384,6 @@ class ServerSpecificSubsonicRepository(
     override fun refreshConfig() {
         // In the new architecture, each repository instance is immutable
         // So this method is no longer needed - server changes create new instances
-        LogManager.d("SubsonicRepository", "Repository is server-specific and immutable - no config to refresh")
+        LogManager.d(TAG, "Repository is server-specific and immutable - no config to refresh")
     }
 }

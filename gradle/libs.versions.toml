@@ -25,7 +25,8 @@ multiplatform-settings = "1.3.0"
 navigation-compose = "2.9.0-beta04"
 decompose = "3.3.0"
 decompose-extensions = "3.3.0"
-mediamp = "0.0.23"
+mediamp = "0.0.29"
+mediamp-vlc = "0.0.26"
 kotlinx-datetime = "0.6.1"
 
 [libraries]
@@ -82,11 +83,11 @@ multiplatform-settings-jvm = { module = "com.russhwolf:multiplatform-settings-jv
 
 # MediaMP - Multiplatform Media Player
 mediamp-api = { module = "org.openani.mediamp:mediamp-api", version.ref = "mediamp" }
-mediamp-compose = { module = "org.openani.mediamp:mediamp-compose", version.ref = "mediamp" }
+mediamp-compose = { module = "org.openani.mediamp:mediamp-compose", version.ref = "mediamp-vlc" }
 mediamp-exoplayer = { module = "org.openani.mediamp:mediamp-exoplayer", version.ref = "mediamp" }
-mediamp-vlc = { module = "org.openani.mediamp:mediamp-vlc", version.ref = "mediamp" }
-mediamp-vlc-compose = { module = "org.openani.mediamp:mediamp-vlc-compose", version.ref = "mediamp" }
-mediamp-vlc-loader = { module = "org.openani.mediamp:mediamp-vlc-loader", version.ref = "mediamp" }
+mediamp-vlc = { module = "org.openani.mediamp:mediamp-vlc", version.ref = "mediamp-vlc" }
+mediamp-vlc-compose = { module = "org.openani.mediamp:mediamp-vlc-compose", version.ref = "mediamp-vlc" }
+mediamp-vlc-loader = { module = "org.openani.mediamp:mediamp-vlc-loader", version.ref = "mediamp-vlc" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

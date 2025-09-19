@@ -11,6 +11,10 @@ import now.link.periphyllidae.utils.LogManager
 class SubsonicRepositoryManager(
     private val repositoryFactory: SubsonicRepositoryFactory
 ) {
+    companion object {
+        private const val TAG = "SubsonicRepositoryManager"
+    }
+    
     // Cache of repository instances by server key
     private val repositoryCache = mutableMapOf<String, SubsonicRepository>()
     
@@ -27,7 +31,7 @@ class SubsonicRepositoryManager(
         
         return synchronized(repositoryCache) {
             repositoryCache.getOrPut(serverKey) {
-                LogManager.i("SubsonicRepositoryManager", "Creating new repository instance for ${serverConfig.url}")
+                LogManager.i(TAG, "Creating new repository instance for ${serverConfig.url}")
                 repositoryFactory.createRepository(serverConfig)
             }
         }
@@ -39,7 +43,7 @@ class SubsonicRepositoryManager(
      */
     fun setActiveRepository(serverConfig: ServerConfig) {
         currentRepository = getRepository(serverConfig)
-        LogManager.i("SubsonicRepositoryManager", "Active repository set for ${serverConfig.url}")
+        LogManager.i(TAG, "Active repository set for ${serverConfig.url}")
     }
     
     /**
@@ -64,7 +68,7 @@ class SubsonicRepositoryManager(
         synchronized(repositoryCache) {
             repositoryCache.clear()
             currentRepository = null
-            LogManager.i("SubsonicRepositoryManager", "Repository cache cleared")
+            LogManager.i(TAG, "Repository cache cleared")
         }
     }
     
@@ -79,7 +83,7 @@ class SubsonicRepositoryManager(
             if (currentRepository == repositoryCache[serverKey]) {
                 currentRepository = null
             }
-            LogManager.i("SubsonicRepositoryManager", "Removed repository for ${serverConfig.url}")
+            LogManager.i(TAG, "Removed repository for ${serverConfig.url}")
         }
     }
     

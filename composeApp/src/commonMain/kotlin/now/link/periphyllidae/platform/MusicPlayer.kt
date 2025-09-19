@@ -13,6 +13,7 @@ import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import org.openani.mediamp.MediampPlayer
 import org.openani.mediamp.features.AudioLevelController
+import org.openani.mediamp.playFile
 import org.openani.mediamp.playUri
 
 enum class PlaybackState {
@@ -22,8 +23,12 @@ enum class PlaybackState {
 class MusicPlayer(
     private val playerFactory: MediampPlayerFactory
 ) {
+    companion object {
+        private const val TAG = "MusicPlayer"
+    }
+    
     private val mediaPlayer: MediampPlayer by lazy { 
-        LogManager.d("MusicPlayer", "Creating MediaMP player instance")
+        LogManager.d(TAG, "Creating MediaMP player instance")
         playerFactory.createPlayer()
     }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -54,18 +59,18 @@ class MusicPlayer(
     private var repeatEnabled: Boolean = false
     
     init {
-        LogManager.i("MusicPlayer", "Initializing MusicPlayer")
+        LogManager.i(TAG, "Initializing MusicPlayer")
         startPositionUpdater()
         observePlayerState()
-        LogManager.d("MusicPlayer", "MusicPlayer initialization completed")
+        LogManager.d(TAG, "MusicPlayer initialization completed")
     }
     
     private fun observePlayerState() {
-        LogManager.d("MusicPlayer", "Starting player state observation")
+        LogManager.d(TAG, "Starting player state observation")
         scope.launch {
             // Observe MediaMP's playbackState and map to our internal state
             mediaPlayer.playbackState.collect { mediaState ->
-                LogManager.v("MusicPlayer", "MediaMP state changed: $mediaState")
+                LogManager.v(TAG, "MediaMP state changed: $mediaState")
                 
                 // Map MediaMP state to our PlaybackState enum
                 val newState = when (mediaState) {
@@ -76,7 +81,7 @@ class MusicPlayer(
                         if (_isPlaying.value) PlaybackState.PLAYING else PlaybackState.PAUSED
                     }
                     org.openani.mediamp.PlaybackState.FINISHED -> {
-                        LogManager.d("MusicPlayer", "MediaMP playback ended")
+                        LogManager.d(TAG, "MediaMP playback ended")
                         // Handle end of playback
                         scope.launch {
                             handlePlaybackEnded()
@@ -84,24 +89,24 @@ class MusicPlayer(
                         PlaybackState.IDLE
                     }
                     org.openani.mediamp.PlaybackState.PLAYING -> {
-                        LogManager.d("MusicPlayer", "MediaMP is playing")
+                        LogManager.d(TAG, "MediaMP is playing")
                         PlaybackState.PLAYING
                     }
                     else -> {
-                        LogManager.w("MusicPlayer", "Unknown MediaMP state: $mediaState")
+                        LogManager.w(TAG, "Unknown MediaMP state: $mediaState")
                         PlaybackState.IDLE
                     }
                 }
                 
                 _playbackState.value = newState
-                LogManager.v("MusicPlayer", "Internal state updated to: $newState")
+                LogManager.v(TAG, "Internal state updated to: $newState")
             }
         }
-        LogManager.d("MusicPlayer", "Player state observer started")
+        LogManager.d(TAG, "Player state observer started")
     }
     
     private fun startPositionUpdater() {
-        LogManager.d("MusicPlayer", "Starting position updater")
+        LogManager.d(TAG, "Starting position updater")
         scope.launch {
             while (isActive) {
                 if (_isPlaying.value && _currentSong.value != null) {
@@ -113,7 +118,7 @@ class MusicPlayer(
                         // MediaMP should handle this via playbackState, but keep as fallback
                         val duration = _duration.value
                         if (duration > 0 && currentPos >= duration - 500) { // 0.5 second buffer
-                            LogManager.d("MusicPlayer", "Position-based song end detected: currentPos=$currentPos, duration=$duration")
+                            LogManager.d(TAG, "Position-based song end detected: currentPos=$currentPos, duration=$duration")
                             // Only trigger if MediaMP hasn't already handled it
                             if (_playbackState.value == PlaybackState.PLAYING) {
                                 scope.launch {
@@ -122,7 +127,7 @@ class MusicPlayer(
                             }
                         }
                     } catch (e: Exception) {
-                        LogManager.e("MusicPlayer", "Error updating position", e)
+                        LogManager.e(TAG, "Error updating position", e)
                         // Don't spam logs, just continue
                     }
                 }
@@ -132,40 +137,40 @@ class MusicPlayer(
     }
     
     private fun handlePlaybackEnded() {
-        LogManager.i("MusicPlayer", "Handling playback end")
+        LogManager.i(TAG, "Handling playback end")
         _isPlaying.value = false
         
         if (repeatEnabled && _currentSong.value != null) {
-            LogManager.d("MusicPlayer", "Repeat enabled, replaying current song")
+            LogManager.d(TAG, "Repeat enabled, replaying current song")
             // Reset position and replay the same song
             _currentPosition.value = 0L
             play(_currentSong.value!!)
         } else if (currentQueue.isNotEmpty()) {
-            LogManager.d("MusicPlayer", "Moving to next song in queue")
+            LogManager.d(TAG, "Moving to next song in queue")
             next()
         } else {
-            LogManager.d("MusicPlayer", "No more songs in queue, stopping playback")
+            LogManager.d(TAG, "No more songs in queue, stopping playback")
             stop()
         }
     }
     
     fun play(song: Song) {
-        LogManager.i("MusicPlayer", "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
+        LogManager.i(TAG, "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
         _currentSong.value = song
         val streamUrl = song.streamUrl
         
-        LogManager.d("MusicPlayer", "Stream URL: $streamUrl")
+        LogManager.d(TAG, "Stream URL: $streamUrl")
         
         scope.launch {
             try {
-                LogManager.d("MusicPlayer", "Starting MediaMP playback")
+                LogManager.d(TAG, "Starting MediaMP playback")
                 
                 mediaPlayer.playUri(streamUrl)
                 
                 // Update the duration from the song metadata
                 val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
                 _duration.value = songDuration
-                LogManager.d("MusicPlayer", "Song duration set to: ${songDuration}ms")
+                LogManager.d(TAG, "Song duration set to: ${songDuration}ms")
                 
                 // Reset position to start
                 _currentPosition.value = 0L
@@ -175,13 +180,13 @@ class MusicPlayer(
                 _isPlaying.value = true
                 
                 // State will be automatically updated via MediaMP state observation
-                LogManager.i("MusicPlayer", "Song playback initiated: ${song.title}")
+                LogManager.i(TAG, "Song playback initiated: ${song.title}")
                 
                 // Start monitoring for actual duration from player
                 monitorDuration()
                 
             } catch (e: Exception) {
-                LogManager.e("MusicPlayer", "Failed to play song: ${song.title}", e)
+                LogManager.e(TAG, "Failed to play song: ${song.title}", e)
                 _playbackState.value = PlaybackState.ERROR
                 _isPlaying.value = false
             }
@@ -196,46 +201,46 @@ class MusicPlayer(
                 val actualDuration = mediaPlayer.getCurrentPositionMillis()
                 if (actualDuration > 0) {
                     _duration.value = actualDuration
-                    LogManager.d("MusicPlayer", "Updated duration from player: ${actualDuration}ms")
+                    LogManager.d(TAG, "Updated duration from player: ${actualDuration}ms")
                 }
             } catch (e: Exception) {
-                LogManager.w("MusicPlayer", "Could not get duration from player, using metadata duration", e)
+                LogManager.w(TAG, "Could not get duration from player, using metadata duration", e)
             }
         }
     }
     
     fun pause() {
-        LogManager.d("MusicPlayer", "Pausing playback")
+        LogManager.d(TAG, "Pausing playback")
         try {
             mediaPlayer.pause()
             _isPlaying.value = false
             // State will be updated automatically via MediaMP state observation
-            LogManager.i("MusicPlayer", "Playback pause initiated")
+            LogManager.i(TAG, "Playback pause initiated")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to pause playback", e)
+            LogManager.e(TAG, "Failed to pause playback", e)
             _playbackState.value = PlaybackState.ERROR
         }
     }
     
     fun resume() {
-        LogManager.d("MusicPlayer", "Resuming playback")
+        LogManager.d(TAG, "Resuming playback")
         try {
             if (_playbackState.value == PlaybackState.PAUSED) {
                 mediaPlayer.resume()
                 _isPlaying.value = true
                 // State will be updated automatically via MediaMP state observation
-                LogManager.i("MusicPlayer", "Playback resume initiated")
+                LogManager.i(TAG, "Playback resume initiated")
             } else {
-                LogManager.w("MusicPlayer", "Resume called but player is not in paused state: ${_playbackState.value}")
+                LogManager.w(TAG, "Resume called but player is not in paused state: ${_playbackState.value}")
             }
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to resume playback", e)
+            LogManager.e(TAG, "Failed to resume playback", e)
             _playbackState.value = PlaybackState.ERROR
         }
     }
     
     fun stop() {
-        LogManager.d("MusicPlayer", "Stopping playback")
+        LogManager.d(TAG, "Stopping playback")
         try {
             mediaPlayer.stopPlayback()
 
@@ -245,51 +250,51 @@ class MusicPlayer(
             _isPlaying.value = false
             // State will be updated automatically via MediaMP state observation
             // Don't clear the queue or index, just stop playback
-            LogManager.i("MusicPlayer", "Playback stop initiated")
+            LogManager.i(TAG, "Playback stop initiated")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to stop playback", e)
+            LogManager.e(TAG, "Failed to stop playback", e)
             _playbackState.value = PlaybackState.ERROR
         }
     }
     
     fun seekTo(position: Long) {
-        LogManager.d("MusicPlayer", "Seeking to position: ${position}ms")
+        LogManager.d(TAG, "Seeking to position: ${position}ms")
         try {
              mediaPlayer.seekTo(position)
             _currentPosition.value = position
-            LogManager.i("MusicPlayer", "Seeked to position: ${position}ms")
+            LogManager.i(TAG, "Seeked to position: ${position}ms")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to seek to position: ${position}ms", e)
+            LogManager.e(TAG, "Failed to seek to position: ${position}ms", e)
             _playbackState.value = PlaybackState.ERROR
         }
     }
     
     fun setVolume(volume: Float) {
         val clampedVolume = volume.coerceIn(0f, 1f)
-        LogManager.d("MusicPlayer", "Setting volume to: $clampedVolume")
+        LogManager.d(TAG, "Setting volume to: $clampedVolume")
         try {
             mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
-            LogManager.i("MusicPlayer", "Volume set to: $clampedVolume")
+            LogManager.i(TAG, "Volume set to: $clampedVolume")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to set volume to: $clampedVolume", e)
+            LogManager.e(TAG, "Failed to set volume to: $clampedVolume", e)
         }
     }
     
     fun setVolumeWithoutPersistence(volume: Float) {
         val clampedVolume = volume.coerceIn(0f, 1f)
-        LogManager.d("MusicPlayer", "Setting volume to: $clampedVolume (without persistence)")
+        LogManager.d(TAG, "Setting volume to: $clampedVolume (without persistence)")
         try {
             mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
-            LogManager.i("MusicPlayer", "Volume set to: $clampedVolume")
+            LogManager.i(TAG, "Volume set to: $clampedVolume")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Failed to set volume to: $clampedVolume", e)
+            LogManager.e(TAG, "Failed to set volume to: $clampedVolume", e)
         }
     }
     
     fun next() {
-        LogManager.d("MusicPlayer", "Moving to next song")
+        LogManager.d(TAG, "Moving to next song")
         if (currentQueue.isEmpty()) {
-            LogManager.w("MusicPlayer", "Next requested but queue is empty")
+            LogManager.w(TAG, "Next requested but queue is empty")
             return
         }
         
@@ -299,7 +304,7 @@ class MusicPlayer(
             val availableIndices = currentQueue.indices.filter { it != currentIndex }
             if (availableIndices.isNotEmpty()) {
                 val randomIndex = availableIndices.random()
-                LogManager.d("MusicPlayer", "Shuffle enabled, selecting random index: $randomIndex")
+                LogManager.d(TAG, "Shuffle enabled, selecting random index: $randomIndex")
                 randomIndex
             } else {
                 // Only one song in queue, repeat it
@@ -308,25 +313,25 @@ class MusicPlayer(
         } else {
             // Sequential play
             val nextIndex = (currentIndex + 1) % currentQueue.size
-            LogManager.d("MusicPlayer", "Sequential play, next index: $nextIndex")
+            LogManager.d(TAG, "Sequential play, next index: $nextIndex")
             nextIndex
         }
         
         val nextSong = currentQueue.getOrNull(nextIndex)
         if (nextSong != null) {
-            LogManager.i("MusicPlayer", "Playing next song: ${nextSong.title} (index: $nextIndex)")
+            LogManager.i(TAG, "Playing next song: ${nextSong.title} (index: $nextIndex)")
             _currentIndex.value = nextIndex
             play(nextSong)
         } else {
-            LogManager.w("MusicPlayer", "Next song at index $nextIndex is null")
+            LogManager.w(TAG, "Next song at index $nextIndex is null")
             stop()
         }
     }
     
     fun previous() {
-        LogManager.d("MusicPlayer", "Moving to previous song")
+        LogManager.d(TAG, "Moving to previous song")
         if (currentQueue.isEmpty()) {
-            LogManager.w("MusicPlayer", "Previous requested but queue is empty")
+            LogManager.w(TAG, "Previous requested but queue is empty")
             return
         }
         
@@ -336,7 +341,7 @@ class MusicPlayer(
             val availableIndices = currentQueue.indices.filter { it != currentIndex }
             if (availableIndices.isNotEmpty()) {
                 val randomIndex = availableIndices.random()
-                LogManager.d("MusicPlayer", "Shuffle enabled, selecting random index: $randomIndex")
+                LogManager.d(TAG, "Shuffle enabled, selecting random index: $randomIndex")
                 randomIndex
             } else {
                 // Only one song in queue, repeat it
@@ -345,48 +350,48 @@ class MusicPlayer(
         } else {
             // Sequential play - go to previous song
             val prevIndex = if (currentIndex > 0) currentIndex - 1 else currentQueue.size - 1
-            LogManager.d("MusicPlayer", "Sequential play, previous index: $prevIndex")
+            LogManager.d(TAG, "Sequential play, previous index: $prevIndex")
             prevIndex
         }
         
         val previousSong = currentQueue.getOrNull(previousIndex)
         if (previousSong != null) {
-            LogManager.i("MusicPlayer", "Playing previous song: ${previousSong.title} (index: $previousIndex)")
+            LogManager.i(TAG, "Playing previous song: ${previousSong.title} (index: $previousIndex)")
             _currentIndex.value = previousIndex
             play(previousSong)
         } else {
-            LogManager.w("MusicPlayer", "Previous song at index $previousIndex is null")
+            LogManager.w(TAG, "Previous song at index $previousIndex is null")
         }
     }
     
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
-        LogManager.i("MusicPlayer", "Setting queue with ${songs.size} songs, starting at index: $startIndex")
-        LogManager.v("MusicPlayer", "Queue songs: ${songs.map { "${it.title} by ${it.artist}" }}")
+        LogManager.i(TAG, "Setting queue with ${songs.size} songs, starting at index: $startIndex")
+        LogManager.v(TAG, "Queue songs: ${songs.map { "${it.title} by ${it.artist}" }}")
         currentQueue = songs
         _queue.value = songs
         _currentIndex.value = startIndex.coerceIn(0, maxOf(0, songs.size - 1))
-        LogManager.d("MusicPlayer", "Queue set successfully, current index: ${_currentIndex.value}")
+        LogManager.d(TAG, "Queue set successfully, current index: ${_currentIndex.value}")
         
         // Don't auto-play when setting queue, let the caller decide when to start
         val song = songs.getOrNull(_currentIndex.value)
         if (song != null) {
             _currentSong.value = song
-            LogManager.d("MusicPlayer", "Current song set to: ${song.title}")
+            LogManager.d(TAG, "Current song set to: ${song.title}")
         } else {
-            LogManager.w("MusicPlayer", "No song found at index ${_currentIndex.value}")
+            LogManager.w(TAG, "No song found at index ${_currentIndex.value}")
         }
     }
     
     fun setShuffle(enabled: Boolean) {
-        LogManager.i("MusicPlayer", "Setting shuffle: $enabled")
+        LogManager.i(TAG, "Setting shuffle: $enabled")
         shuffleEnabled = enabled
-        LogManager.d("MusicPlayer", "Shuffle mode updated to: $enabled")
+        LogManager.d(TAG, "Shuffle mode updated to: $enabled")
     }
     
     fun setRepeat(enabled: Boolean) {
-        LogManager.i("MusicPlayer", "Setting repeat: $enabled")
+        LogManager.i(TAG, "Setting repeat: $enabled")
         repeatEnabled = enabled
-        LogManager.d("MusicPlayer", "Repeat mode updated to: $enabled")
+        LogManager.d(TAG, "Repeat mode updated to: $enabled")
     }
     
     fun getCurrentSong(): Song? = _currentSong.value
@@ -417,7 +422,7 @@ class MusicPlayer(
      */
     fun setCurrentPosition(position: Long) {
         _currentPosition.value = position
-        LogManager.d("MusicPlayer", "Current position set to: ${position}ms")
+        LogManager.d(TAG, "Current position set to: ${position}ms")
     }
     
     /**
@@ -426,11 +431,11 @@ class MusicPlayer(
     fun playAtIndex(index: Int) {
         if (index >= 0 && index < currentQueue.size) {
             val song = currentQueue[index]
-            LogManager.i("MusicPlayer", "Playing song at index $index: ${song.title}")
+            LogManager.i(TAG, "Playing song at index $index: ${song.title}")
             _currentIndex.value = index
             play(song)
         } else {
-            LogManager.w("MusicPlayer", "Invalid index $index for queue size ${currentQueue.size}")
+            LogManager.w(TAG, "Invalid index $index for queue size ${currentQueue.size}")
         }
     }
     
@@ -438,33 +443,33 @@ class MusicPlayer(
      * Clear the current queue and stop playback
      */
     fun clearQueue() {
-        LogManager.i("MusicPlayer", "Clearing queue")
+        LogManager.i(TAG, "Clearing queue")
         stop()
         currentQueue = emptyList()
         _queue.value = emptyList()
         _currentIndex.value = 0
-        LogManager.d("MusicPlayer", "Queue cleared")
+        LogManager.d(TAG, "Queue cleared")
     }
     
     fun release() {
-        LogManager.i("MusicPlayer", "Releasing MusicPlayer resources")
+        LogManager.i(TAG, "Releasing MusicPlayer resources")
         try {
              mediaPlayer.close()
-             LogManager.d("MusicPlayer", "MediaPlayer resources released successfully")
+             LogManager.d(TAG, "MediaPlayer resources released successfully")
         } catch (e: Exception) {
-            LogManager.e("MusicPlayer", "Error releasing MediaPlayer resources", e)
+            LogManager.e(TAG, "Error releasing MediaPlayer resources", e)
         }
-        LogManager.i("MusicPlayer", "MusicPlayer cleanup completed")
+        LogManager.i(TAG, "MusicPlayer cleanup completed")
     }
     
     private fun updateCurrentIndex(song: Song) {
-        LogManager.v("MusicPlayer", "Updating current index for song: ${song.title}")
+        LogManager.v(TAG, "Updating current index for song: ${song.title}")
         val index = currentQueue.indexOfFirst { it.id == song.id }
         if (index >= 0) {
             _currentIndex.value = index
-            LogManager.d("MusicPlayer", "Current index updated to: $index for song: ${song.title}")
+            LogManager.d(TAG, "Current index updated to: $index for song: ${song.title}")
         } else {
-            LogManager.w("MusicPlayer", "Could not find song ${song.title} in current queue")
+            LogManager.w(TAG, "Could not find song ${song.title} in current queue")
         }
     }
 }

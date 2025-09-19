@@ -15,6 +15,10 @@ class SearchStore(
     private val subsonicRepositoryManager: SubsonicRepositoryManager,
     private val musicStore: MusicStore
 ) {
+    companion object {
+        private const val TAG = "SearchStore"
+    }
+    
     // Store-scoped coroutine scope
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
@@ -65,7 +69,7 @@ class SearchStore(
                         results = result.getOrThrow(),
                         error = null
                     )
-                    LogManager.i("SearchStore", "Search completed for query: $query")
+                    LogManager.i(TAG, "Search completed for query: $query")
                 } else {
                     _state.value = _state.value.copy(
                         isLoading = false,
@@ -73,7 +77,7 @@ class SearchStore(
                     )
                 }
             } catch (e: Exception) {
-                LogManager.e("SearchStore", "Search error", e)
+                LogManager.e(TAG, "Search error", e)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Search failed. Please check your connection."

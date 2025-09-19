@@ -27,6 +27,10 @@ class SettingsViewModel(
     private val musicStore: MusicStore,
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "SettingsViewModel"
+    }
+
     val appState: StateFlow<AppState> = appStore.state
     val authState: StateFlow<AuthState> = authStore.state
 
@@ -55,7 +59,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val newValue = !LogManager.isLogEnabled()
             LogManager.setLogEnabled(newValue)
-            LogManager.i("SettingsViewModel", "Logging ${if (newValue) "enabled" else "disabled"}")
+            LogManager.i(TAG, "Logging ${if (newValue) "enabled" else "disabled"}")
         }
     }
 

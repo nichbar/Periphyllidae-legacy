@@ -49,6 +49,8 @@ import kotlinx.coroutines.launch
 import now.link.periphyllidae.models.Log
 import now.link.periphyllidae.utils.LogManager
 
+private const val TAG = "LogsScreen"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogsScreen(
@@ -300,5 +302,5 @@ private fun copyLogsToClipboard(logEntries: List<Log>) {
     
     // TODO: Implement proper clipboard functionality for KMP
     // For now, just log that the user wanted to copy
-    LogManager.d("copyLogsToClipboard", "User requested to copy ${logEntries.size} log entries")
+    LogManager.d(TAG, "User requested to copy ${logEntries.size} log entries")
 }
