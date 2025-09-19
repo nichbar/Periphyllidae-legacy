@@ -35,7 +35,8 @@ val commonModule = module {
     
     // Repositories
     single<SettingsRepository> { SettingsRepositoryImpl(get(), get()) }
-    single<SubsonicRepository> { SubsonicRepositoryImpl(get(), get(), get()) }
+    single<SubsonicRepositoryFactory> { SubsonicRepositoryFactory(get(), get(), get()) }
+    single<SubsonicRepositoryManager> { SubsonicRepositoryManager(get()) }
     
     // Media Player (MediaMP) - Uses factory pattern to avoid expect/actual issues
     single<MusicPlayer> { MusicPlayer(get()) }

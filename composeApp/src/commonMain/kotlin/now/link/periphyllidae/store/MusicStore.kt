@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.mvi.MusicState
-import now.link.periphyllidae.repository.SubsonicRepository
+import now.link.periphyllidae.repository.SubsonicRepositoryManager
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.platform.MusicPlayer
 import now.link.periphyllidae.models.Song
@@ -19,7 +19,7 @@ import now.link.periphyllidae.models.HomeContentCache
 import now.link.periphyllidae.utils.LogManager
 
 class MusicStore(
-    private val subsonicRepository: SubsonicRepository,
+    private val repositoryManager: SubsonicRepositoryManager,
     private val musicPlayer: MusicPlayer,
     private val settingsRepository: SettingsRepository
 ) {
@@ -45,6 +45,17 @@ class MusicStore(
         // Load persisted shuffle and repeat states
         loadPersistedPlaybackModes()
         LogManager.d("MusicStore", "MusicStore initialization completed")
+    }
+    
+    /**
+     * Helper function to get the current repository instance
+     * Returns null if no repository is active (user not authenticated)
+     */
+    private fun getCurrentRepository() = try {
+        repositoryManager.getCurrentRepository()
+    } catch (e: IllegalStateException) {
+        LogManager.w("MusicStore", "No active repository: ${e.message}")
+        null
     }
 
     fun handleIntent(intent: MusicIntent) {
@@ -201,12 +212,21 @@ class MusicStore(
         
         storeScope.launch {
             try {
+                val repository = getCurrentRepository()
+                if (repository == null) {
+                    _state.value = _state.value.copy(
+                        isLoadingHome = false,
+                        homeError = "No server configured. Please login to a Subsonic server."
+                    )
+                    return@launch
+                }
+                
                 LogManager.d("MusicStore", "Fetching playlists, albums, and songs from repository")
-                val playlistsResult = subsonicRepository.getPlaylists()
-                val recentlyPlayedResult = subsonicRepository.getRecentlyPlayedAlbums(10)
-                val mostPlayedResult = subsonicRepository.getMostPlayedAlbums(10)
-                val newestAlbumsResult = subsonicRepository.getNewestAlbums(10)
-                val randomSongsResult = subsonicRepository.getRandomSongs(100)
+                val playlistsResult = repository.getPlaylists()
+                val recentlyPlayedResult = repository.getRecentlyPlayedAlbums(10)
+                val mostPlayedResult = repository.getMostPlayedAlbums(10)
+                val newestAlbumsResult = repository.getNewestAlbums(10)
+                val randomSongsResult = repository.getRandomSongs(100)
                 
                 val playlists = if (playlistsResult.isSuccess) {
                     val result = playlistsResult.getOrNull() ?: emptyList()
@@ -305,7 +325,13 @@ class MusicStore(
             // If no random songs loaded, try to get some first
             storeScope.launch {
                 try {
-                    val result = subsonicRepository.getRandomSongs(100)
+                    val repository = getCurrentRepository()
+                    if (repository == null) {
+                        LogManager.w("MusicStore", "No repository available for random songs")
+                        return@launch
+                    }
+                    
+                    val result = repository.getRandomSongs(100)
                     if (result.isSuccess) {
                         val songs = result.getOrNull() ?: emptyList()
                         LogManager.d("MusicStore", "Fetched ${songs.size} random songs from server")
@@ -349,8 +375,14 @@ class MusicStore(
                     playSpecificSong(album.songs[0], 0)
                 } else {
                     LogManager.d("MusicStore", "Fetching album details for: ${album.id}")
+                    
+                    val repository = getCurrentRepository()
+                    if (repository == null) {
+                        LogManager.w("MusicStore", "No repository available for album details")
+                        return@launch
+                    }
 
-                    val albumResult = subsonicRepository.getAlbum(album.id)
+                    val albumResult = repository.getAlbum(album.id)
                     if (albumResult.isSuccess) {
                         val albumData = albumResult.getOrNull()
                         val songs = albumData?.songs ?: emptyList()
@@ -521,8 +553,13 @@ class MusicStore(
                         scrobbledSongIds.add(song.id)
                         storeScope.launch {
                             try {
-                                subsonicRepository.scrobbleSong(song.id)
-                                LogManager.i("MusicStore", "Scrobbled song: ${song.title} (${song.id}) at >60% played")
+                                val repository = getCurrentRepository()
+                                if (repository != null) {
+                                    repository.scrobbleSong(song.id)
+                                    LogManager.i("MusicStore", "Scrobbled song: ${song.title} (${song.id}) at >60% played")
+                                } else {
+                                    LogManager.w("MusicStore", "No repository available for scrobbling")
+                                }
                             } catch (e: Exception) {
                                 LogManager.w("MusicStore", "Failed to scrobble song: ${song.title} (${song.id}): $e")
                             }
@@ -596,7 +633,8 @@ class MusicStore(
 
                 LogManager.i("MusicStore", "Player state invalidated and caches cleared")
 
-                subsonicRepository.refreshConfig()
+                // Repository instances are automatically managed by the manager
+                // No need to refresh config as new instances are created per server
 
                 // Refresh home content from the new server
                 loadHomeContent()

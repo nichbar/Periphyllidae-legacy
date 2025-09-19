@@ -11,12 +11,12 @@ import now.link.periphyllidae.models.ServerConfig
 import now.link.periphyllidae.mvi.AuthIntent
 import now.link.periphyllidae.mvi.AuthState
 import now.link.periphyllidae.repository.SettingsRepository
-import now.link.periphyllidae.repository.SubsonicRepository
+import now.link.periphyllidae.repository.SubsonicRepositoryManager
 import now.link.periphyllidae.utils.CryptoUtils
 import java.net.URI
 
 class AuthStore(
-    private val subsonicRepository: SubsonicRepository,
+    private val repositoryManager: SubsonicRepositoryManager,
     private val settingsRepository: SettingsRepository,
     private val cryptoUtils: CryptoUtils
 ) {
@@ -128,9 +128,16 @@ class AuthStore(
                     }
                 )
                 
-                val result = subsonicRepository.authenticate(serverConfig)
+                // Get server-specific repository instance
+                val repository = repositoryManager.getRepository(serverConfig)
+                val result = repository.authenticate(serverConfig)
                 
                 if (result.isSuccess && result.getOrNull() == true) {
+                    // Set this repository as active for successful authentication
+                    if (isLogin) {
+                        repositoryManager.setActiveRepository(serverConfig)
+                    }
+                    
                     // Save the server configuration
                     settingsRepository.addServerConfig(serverConfig)
 
@@ -162,6 +169,9 @@ class AuthStore(
             settingsRepository.saveIsAuthenticated(false)
             settingsRepository.removeAllServerConfigs()
             settingsRepository.clearHomeContentCache() // Clear cached home content on logout
+
+            repositoryManager.clearCache() // Clear repository cache
+
             _state.value = AuthState() // Reset to default state
         }
     }
@@ -177,6 +187,9 @@ class AuthStore(
     private fun changeServer(server: ServerConfig) {
         storeScope.launch {
             try {
+                // Set the new active repository
+                repositoryManager.setActiveRepository(server)
+                
                 // Change to the selected server
                 settingsRepository.setSelectedServerConfig(server)
 
@@ -200,6 +213,9 @@ class AuthStore(
         storeScope.launch {
             val config = settingsRepository.getSelectedServerConfig()
             if (config != null) {
+                // Set the active repository for the saved server
+                repositoryManager.setActiveRepository(config)
+                
                 _state.value = _state.value.copy(
                     currentServer = config,
                     isAuthenticated = true
@@ -223,6 +239,9 @@ class AuthStore(
                 val currentServers = settingsRepository.getServerConfigs().toMutableList()
                 currentServers.removeAll { it.url == server.url && it.username == server.username }
                 settingsRepository.saveServerConfigs(currentServers)
+                
+                // Remove the repository instance from cache
+                repositoryManager.removeRepository(server)
                 
                 // Update state with new server list
                 _state.value = _state.value.copy(
