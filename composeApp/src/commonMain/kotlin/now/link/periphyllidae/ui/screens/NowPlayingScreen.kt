@@ -168,7 +168,7 @@ private fun DefaultLayoutContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(36.dp),
+            .padding(top = 36.dp, start = 36.dp, end = 36.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AlbumArtSection(state)
@@ -287,8 +287,7 @@ private fun WideLayoutContent(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .padding(36.dp),
+            .padding(paddingValues),
         horizontalArrangement = Arrangement.spacedBy(48.dp)
     ) {
         // Left side: Album art
@@ -350,11 +349,11 @@ private fun SongInfoSection(state: MusicState) {
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = state.currentSong?.artist ?: "",
