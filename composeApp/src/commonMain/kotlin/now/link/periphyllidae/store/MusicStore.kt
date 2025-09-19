@@ -593,9 +593,11 @@ class MusicStore(
                 settingsRepository.savePlaybackQueue(emptyList())
                 settingsRepository.saveCurrentSongIndex(0)
                 settingsRepository.saveCurrentSongPosition(0L)
-                
+
                 LogManager.i("MusicStore", "Player state invalidated and caches cleared")
-                
+
+                subsonicRepository.refreshConfig()
+
                 // Refresh home content from the new server
                 loadHomeContent()
             } catch (e: Exception) {

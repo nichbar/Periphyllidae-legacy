@@ -18,4 +18,5 @@ interface SubsonicRepository {
     suspend fun scrobbleSong(songId: String)
     fun getStreamUrl(songId: String): String
     fun getCoverArtUrl(coverArtId: String): String
+    fun refreshConfig()
 }

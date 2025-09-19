@@ -8,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import now.link.periphyllidae.mvi.AuthIntent
 import now.link.periphyllidae.ui.components.ServerConfigurationForm
 import now.link.periphyllidae.viewmodels.LoginViewModel
 
@@ -35,11 +34,11 @@ fun LoginScreen(
             alias = state.alias,
             isLoading = state.isLoading,
             error = state.error,
-            onServerUrlChange = { viewModel.handleIntent(AuthIntent.UpdateServerUrl(it)) },
-            onUsernameChange = { viewModel.handleIntent(AuthIntent.UpdateUsername(it)) },
-            onPasswordChange = { viewModel.handleIntent(AuthIntent.UpdatePassword(it)) },
-            onAliasChange = { viewModel.handleIntent(AuthIntent.UpdateAlias(it)) },
-            onSubmit = { viewModel.handleIntent(AuthIntent.Login) },
+            onServerUrlChange = { viewModel.updateServerUrl(it) },
+            onUsernameChange = { viewModel.updateUsername(it) },
+            onPasswordChange = { viewModel.updatePassword(it) },
+            onAliasChange = { viewModel.updateAlias(it) },
+            onSubmit = { viewModel.login() },
             submitButtonText = "Connect to Server",
             title = "Connect to Server",
             subtitle = "Subsonic Music Player",

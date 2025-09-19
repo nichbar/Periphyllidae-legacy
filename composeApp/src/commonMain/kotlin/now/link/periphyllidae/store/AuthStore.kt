@@ -13,6 +13,7 @@ import now.link.periphyllidae.mvi.AuthState
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.repository.SubsonicRepository
 import now.link.periphyllidae.utils.CryptoUtils
+import java.net.URI
 
 class AuthStore(
     private val subsonicRepository: SubsonicRepository,
@@ -32,11 +33,9 @@ class AuthStore(
 
     fun handleIntent(intent: AuthIntent) {
         when (intent) {
-            is AuthIntent.UpdateServerUrl -> updateServerUrl(intent.url)
-            is AuthIntent.UpdateUsername -> updateUsername(intent.username)
-            is AuthIntent.UpdatePassword -> updatePassword(intent.password)
-            is AuthIntent.UpdateAlias -> updateAlias(intent.alias)
-            is AuthIntent.Login -> login()
+            is AuthIntent.Login -> login(intent.serverUrl, intent.username, intent.password, intent.alias)
+            is AuthIntent.AddServer -> addServer(intent.serverUrl, intent.username, intent.password, intent.alias)
+            is AuthIntent.ResetServerAdded -> resetServerAdded()
             is AuthIntent.Logout -> logout()
             is AuthIntent.ClearError -> clearError()
             is AuthIntent.ChangeServer -> changeServer(intent.server)
@@ -45,69 +44,115 @@ class AuthStore(
         }
     }
 
-    private fun updateServerUrl(url: String) {
-        _state.value = _state.value.copy(serverUrl = url, error = null)
+    private fun login(serverUrl: String, username: String, password: String, alias: String) {
+        authenticateAndSaveServer(
+            serverUrl = serverUrl,
+            username = username,
+            password = password,
+            alias = alias,
+            isLogin = true,
+            onSuccess = { serverConfig, savedServers ->
+                settingsRepository.saveIsAuthenticated(true)
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    isAuthenticated = true,
+                    currentServer = serverConfig,
+                    savedServers = savedServers,
+                    error = null
+                )
+            },
+            onFailure = { error ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = error
+                )
+            }
+        )
     }
 
-    private fun updateUsername(username: String) {
-        _state.value = _state.value.copy(username = username, error = null)
+    private fun addServer(serverUrl: String, username: String, password: String, alias: String) {
+        authenticateAndSaveServer(
+            serverUrl = serverUrl,
+            username = username,
+            password = password,
+            alias = alias,
+            isLogin = false,
+            onSuccess = { _, savedServers ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    savedServers = savedServers,
+                    error = null,
+                    isServerAdded = true
+                )
+            },
+            onFailure = { error ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = error
+                )
+            }
+        )
     }
 
-    private fun updatePassword(password: String) {
-        _state.value = _state.value.copy(password = password, error = null)
-    }
-
-    private fun updateAlias(alias: String) {
-        _state.value = _state.value.copy(alias = alias, error = null)
-    }
-
-    private fun login() {
-        val currentState = _state.value
-        if (currentState.serverUrl.isBlank() || currentState.username.isBlank() || currentState.password.isBlank()) {
-            _state.value = currentState.copy(error = "Please fill in all fields")
+    private fun authenticateAndSaveServer(
+        serverUrl: String,
+        username: String,
+        password: String,
+        alias: String,
+        isLogin: Boolean,
+        onSuccess: (ServerConfig, List<ServerConfig>) -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
+            onFailure("Please fill in all fields")
             return
         }
 
-        _state.value = currentState.copy(isLoading = true, error = null)
+        _state.value = _state.value.copy(isLoading = true, error = null)
 
         storeScope.launch {
             try {
                 val serverConfig = ServerConfig(
-                    url = currentState.serverUrl,
-                    username = currentState.username,
-                    password = currentState.password,
-                    isSelected = true,
-                    alias = currentState.alias.ifBlank { "Custom Server" }
+                    url = serverUrl,
+                    username = username,
+                    password = password,
+                    isSelected = isLogin, // Auto-select only for login
+                    alias = alias.ifBlank {
+                        // Generate a default alias from the URL for add server
+                        try {
+                            val url = URI(serverUrl)
+                            url.host ?: "Subsonic Server"
+                        } catch (e: Exception) {
+                            "Subsonic Server"
+                        }
+                    }
                 )
                 
                 val result = subsonicRepository.authenticate(serverConfig)
                 
                 if (result.isSuccess && result.getOrNull() == true) {
-                    // Save configuration
+                    // Save the server configuration
                     settingsRepository.addServerConfig(serverConfig)
 
-                    settingsRepository.saveIsAuthenticated(true)
-
+                    // Reload saved servers to include the new one
                     val savedServers = settingsRepository.getServerConfigs()
 
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        isAuthenticated = true,
-                        currentServer = serverConfig,
-                        savedServers = savedServers,
-                        error = null
-                    )
+                    onSuccess(serverConfig, savedServers)
                 } else {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        error = "Authentication failed. Please check your credentials."
-                    )
+                    val errorMessage = if (isLogin) {
+                        "Authentication failed. Please check your credentials."
+                    } else {
+                        "Failed to connect to server. Please check your server URL and credentials."
+                    }
+                    onFailure(errorMessage)
                 }
             } catch (e: Exception) {
-                _state.value = currentState.copy(
-                    isLoading = false,
-                    error = "Login failed: ${e.message}"
-                )
+                val errorMessage = if (isLogin) {
+                    "Login failed: ${e.message}"
+                } else {
+                    "Connection failed: ${e.message}"
+                }
+                onFailure(errorMessage)
             }
         }
     }
@@ -125,6 +170,10 @@ class AuthStore(
         _state.value = _state.value.copy(error = null)
     }
 
+    private fun resetServerAdded() {
+        _state.value = _state.value.copy(isServerAdded = false)
+    }
+
     private fun changeServer(server: ServerConfig) {
         storeScope.launch {
             try {
@@ -133,10 +182,6 @@ class AuthStore(
 
                 _state.value = _state.value.copy(
                     currentServer = server,
-                    serverUrl = server.url,
-                    username = server.username,
-                    password = server.password,
-                    alias = server.alias,
                     isAuthenticated = true,
                 )
 
@@ -157,10 +202,6 @@ class AuthStore(
             if (config != null) {
                 _state.value = _state.value.copy(
                     currentServer = config,
-                    serverUrl = config.url,
-                    username = config.username,
-                    password = config.password,
-                    alias = config.alias,
                     isAuthenticated = true
                 )
             }
@@ -173,35 +214,6 @@ class AuthStore(
             _state.value = _state.value.copy(
                 savedServers = savedServers
             )
-        }
-    }
-
-    private fun saveConfiguration() {
-        storeScope.launch {
-            try {
-                _state.value = _state.value.copy(isLoading = true, error = null)
-                
-                val currentState = _state.value
-                val serverConfig = ServerConfig(
-                    url = currentState.serverUrl,
-                    username = currentState.username,
-                    password = currentState.password,
-                    alias = currentState.alias.ifBlank { "Custom Server" }
-                )
-                
-                settingsRepository.addServerConfig(serverConfig)
-                
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    currentServer = serverConfig,
-                    error = null
-                )
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to save configuration"
-                )
-            }
         }
     }
 
@@ -226,10 +238,6 @@ class AuthStore(
                     
                     _state.value = _state.value.copy(
                         currentServer = null,
-                        serverUrl = "",
-                        username = "",
-                        password = "",
-                        alias = "",
                         isAuthenticated = false
                     )
                 }

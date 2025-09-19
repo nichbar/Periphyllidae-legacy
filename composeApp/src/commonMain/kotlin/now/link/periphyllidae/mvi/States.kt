@@ -1,6 +1,7 @@
 package now.link.periphyllidae.mvi
 
 import now.link.periphyllidae.models.*
+import now.link.periphyllidae.viewmodels.ServerConfigFormState
 
 // Base Intent interface
 sealed interface Intent
@@ -19,17 +20,14 @@ enum class AppTheme {
     LIGHT, DARK, SYSTEM
 }
 
-// Global Auth State (combines Login + Auth concerns)
+// Global Auth State (persistent authentication data only)
 data class AuthState(
     val isAuthenticated: Boolean = false,
     val currentServer: ServerConfig? = null,
-    val serverUrl: String = "",
-    val username: String = "",
-    val password: String = "",
-    val alias: String = "",
     val savedServers: List<ServerConfig> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isServerAdded: Boolean = false
 ) : State
 
 // Global Music State (combines NowPlaying + Music concerns)
@@ -57,13 +55,11 @@ sealed interface AppIntent : Intent {
     data class ChangeTheme(val theme: AppTheme) : AppIntent
 }
 
-// Global Auth Intents (combines Login + Settings auth concerns)
+// Global Auth Intents (authentication operations only)
 sealed interface AuthIntent : Intent {
-    data class UpdateServerUrl(val url: String) : AuthIntent
-    data class UpdateUsername(val username: String) : AuthIntent
-    data class UpdatePassword(val password: String) : AuthIntent
-    data class UpdateAlias(val alias: String) : AuthIntent
-    object Login : AuthIntent
+    data class Login(val serverUrl: String, val username: String, val password: String, val alias: String) : AuthIntent
+    data class AddServer(val serverUrl: String, val username: String, val password: String, val alias: String) : AuthIntent
+    object ResetServerAdded : AuthIntent
     object Logout : AuthIntent
     object ClearError : AuthIntent
     object RefreshSavedServers : AuthIntent
@@ -127,13 +123,24 @@ sealed interface ArtistDetailIntent : Intent {
     data class PlaySong(val song: Song) : ArtistDetailIntent
 }
 
-// Add Server State (separate from Auth for better separation of concerns)
+// Login State (local form state for Login screen)
+data class LoginState(
+    override val serverUrl: String = "",
+    override val username: String = "",
+    override val password: String = "",
+    override val alias: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val isAuthenticated: Boolean = false
+) : State, ServerConfigFormState
+
+// Add Server State (local form state for AddServer screen)
 data class AddServerState(
-    val serverUrl: String = "",
-    val username: String = "",
-    val password: String = "",
-    val alias: String = "",
+    override val serverUrl: String = "",
+    override val username: String = "",
+    override val password: String = "",
+    override val alias: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isServerAdded: Boolean = false
-) : State
+) : State, ServerConfigFormState

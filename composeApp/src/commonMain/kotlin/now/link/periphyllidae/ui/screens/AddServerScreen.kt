@@ -29,6 +29,13 @@ fun AddServerScreen(
         }
     }
 
+    // Clear state when leaving the screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearState()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

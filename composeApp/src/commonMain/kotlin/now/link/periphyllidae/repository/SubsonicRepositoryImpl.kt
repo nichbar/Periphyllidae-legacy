@@ -43,9 +43,7 @@ class SubsonicRepositoryImpl(
     private val settingsRepository: SettingsRepository
 ) : SubsonicRepository {
     
-    private var currentConfig: ServerConfig? = null
-    private var authSalt: String = ""
-    private var authToken: String = ""
+    private var cachedServerConfig: ServerConfig? = null
     private var cachedAuthParams: Map<String, String>? = null
     
     init {
@@ -54,7 +52,7 @@ class SubsonicRepositoryImpl(
     }
 
     override suspend fun scrobbleSong(songId: String) {
-        val config = currentConfig ?: throw IllegalStateException("No server config")
+        val config = cachedServerConfig ?: throw IllegalStateException("No server config")
         val authParams = getAuthParams()
 
         try {
@@ -78,11 +76,9 @@ class SubsonicRepositoryImpl(
     
     private fun loadSavedConfiguration() {
         try {
-            currentConfig = settingsRepository.getSelectedServerConfig()
-            if (currentConfig != null) {
-                LogManager.i("SubsonicRepository", "Loaded saved server configuration: ${currentConfig?.url}")
-                // Note: We'll need to re-authenticate to get fresh tokens
-                // The auth tokens (salt/token) are not persisted for security reasons
+            cachedServerConfig = settingsRepository.getSelectedServerConfig()
+            if (cachedServerConfig != null) {
+                LogManager.i("SubsonicRepository", "Loaded saved server configuration: ${cachedServerConfig?.url}")
             }
         } catch (e: Exception) {
             LogManager.e("SubsonicRepository", "Failed to load saved configuration", e)
@@ -101,13 +97,7 @@ class SubsonicRepositoryImpl(
         }
         
         val token = CryptoUtils.md5(config.password + salt)
-        
-        authSalt = salt
-        authToken = token
-        
-        // Invalidate cached auth params since tokens changed
-        cachedAuthParams = null
-        
+
         val params = mapOf(
             "u" to config.username,
             "t" to token,
@@ -117,59 +107,18 @@ class SubsonicRepositoryImpl(
             "f" to "json"
         )
         
-        // Cache the new params
-        cachedAuthParams = params
         return params
     }
-    
+
     private fun getAuthParams(): Map<String, String> {
-        val config = currentConfig ?: throw IllegalStateException("Not authenticated")
-        
-        // If we don't have auth tokens, try to re-authenticate with saved config
-        if (authToken.isEmpty() || authSalt.isEmpty()) {
-            regenerateAuthTokens(config)
-        }
-        
+        val config = cachedServerConfig ?: throw IllegalStateException("Not authenticated")
+
         // Return cached params if available, otherwise create and cache them
-        return cachedAuthParams ?: run {
-            val params = mapOf(
-                "u" to config.username,
-                "t" to authToken,
-                "s" to authSalt,
-                "v" to "1.16.1",
-                "c" to "Periphyllidae",
-                "f" to "json"
-            )
-            cachedAuthParams = params
-            params
-        }
+        return cachedAuthParams ?: generateAuthParams(config).also { cachedAuthParams = it }
     }
-    
-    private fun regenerateAuthTokens(config: ServerConfig) {
-        // Generate a server-specific key for salt storage
-        val serverKey = CryptoUtils.md5("${config.url}:${config.username}")
-        
-        // Try to get existing fixed salt for this server, or generate and save a new one
-        val salt = settingsRepository.getServerSalt(serverKey) ?: run {
-            val newSalt = generateFixedSalt(config.url, config.username)
-            settingsRepository.saveServerSalt(serverKey, newSalt)
-            newSalt
-        }
-        
-        val token = CryptoUtils.md5(config.password + salt)
-        
-        authSalt = salt
-        authToken = token
-        
-        // Invalidate cached auth params since tokens changed
-        cachedAuthParams = null
-        
-        LogManager.d("SubsonicRepository", "Regenerated auth tokens for saved configuration")
-    }
-    
+
     override suspend fun authenticate(serverConfig: ServerConfig): Result<Boolean> {
         return try {
-            currentConfig = serverConfig
             val authParams = generateAuthParams(serverConfig)
             
             val response = httpClient.get("${serverConfig.url}/rest/ping") {
@@ -205,7 +154,7 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getRandomSongs(size: Int): Result<List<Song>> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
             
             val response = httpClient.get("${config.url}/rest/getRandomSongs") {
@@ -258,7 +207,7 @@ class SubsonicRepositoryImpl(
 
     private suspend fun getAlbumList(type: String, size: Int): Result<List<Album>> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
 
             val response = httpClient.get("${config.url}/rest/getAlbumList") {
@@ -297,7 +246,7 @@ class SubsonicRepositoryImpl(
 
     override suspend fun getPlaylists(): Result<List<Playlist>> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
             
             val response = httpClient.get("${config.url}/rest/getPlaylists") {
@@ -335,7 +284,7 @@ class SubsonicRepositoryImpl(
     
     override suspend fun search(query: String): Result<SearchResult> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
             
             val response = httpClient.get("${config.url}/rest/search3") {
@@ -380,7 +329,7 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getAlbum(id: String): Result<Album> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
             
             val response = httpClient.get("${config.url}/rest/getAlbum") {
@@ -418,7 +367,7 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getPlaylist(id: String): Result<Playlist> {
         return try {
-            val config = currentConfig ?: return Result.failure(Exception("Not authenticated"))
+            val config = cachedServerConfig ?: return Result.failure(Exception("Not authenticated"))
             val authParams = getAuthParams()
             
             val response = httpClient.get("${config.url}/rest/getPlaylist") {
@@ -455,7 +404,7 @@ class SubsonicRepositoryImpl(
     }
     
     override fun getStreamUrl(songId: String): String {
-        val config = currentConfig ?: throw IllegalStateException("Not authenticated")
+        val config = cachedServerConfig ?: throw IllegalStateException("Not authenticated")
         val authParams = getAuthParams()
         
         val urlBuilder = URLBuilder("${config.url}/rest/stream")
@@ -468,7 +417,7 @@ class SubsonicRepositoryImpl(
     }
     
     override fun getCoverArtUrl(coverArtId: String): String {
-        val config = currentConfig ?: throw IllegalStateException("Not authenticated")
+        val config = cachedServerConfig ?: throw IllegalStateException("Not authenticated")
         val authParams = getAuthParams()
         
         val urlBuilder = URLBuilder("${config.url}/rest/getCoverArt")
@@ -500,5 +449,11 @@ class SubsonicRepositoryImpl(
     
     override suspend fun getAlbumSongs(albumId: String): Result<List<Song>> {
         return getAlbum(albumId).map { album -> album.songs }
+    }
+
+    override fun refreshConfig() {
+        LogManager.i("SubsonicRepository", "Refreshed server configuration")
+        loadSavedConfiguration()
+        cachedAuthParams = null
     }
 }
