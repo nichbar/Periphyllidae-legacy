@@ -34,7 +34,7 @@ kotlin {
             implementation(libs.mediamp.exoplayer)
             
             // Database - Android
-            implementation(libs.sqldelight.android.driver)
+//            implementation(libs.sqldelight.android.driver)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -64,7 +64,7 @@ kotlin {
             implementation(libs.koin.compose)
             
             // Database
-            implementation(libs.sqldelight.runtime)
+//            implementation(libs.sqldelight.runtime)
             
             // Logging
             implementation(libs.kermit)
@@ -99,7 +99,7 @@ kotlin {
             implementation(libs.mediamp.vlc.loader) // Automatically load VLC binaries
             
             // Database - Desktop
-            implementation(libs.sqldelight.sqlite.driver)
+//            implementation(libs.sqldelight.sqlite.driver)
         }
     }
 }
