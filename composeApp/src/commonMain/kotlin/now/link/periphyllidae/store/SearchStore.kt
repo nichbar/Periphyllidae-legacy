@@ -12,7 +12,7 @@ import now.link.periphyllidae.repository.SubsonicRepositoryManager
 import now.link.periphyllidae.utils.LogManager
 
 class SearchStore(
-    private val repositoryManager: SubsonicRepositoryManager,
+    private val subsonicRepositoryManager: SubsonicRepositoryManager,
     private val musicStore: MusicStore
 ) {
     // Store-scoped coroutine scope
@@ -57,7 +57,7 @@ class SearchStore(
             _state.value = _state.value.copy(isLoading = true, error = null)
             
             try {
-                val repository = repositoryManager.getCurrentRepository()
+                val repository = subsonicRepositoryManager.getCurrentRepository()
                 val result = repository.search(query.trim())
                 if (result.isSuccess) {
                     _state.value = _state.value.copy(

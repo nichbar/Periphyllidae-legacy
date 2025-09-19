@@ -19,7 +19,7 @@ import now.link.periphyllidae.models.HomeContentCache
 import now.link.periphyllidae.utils.LogManager
 
 class MusicStore(
-    private val repositoryManager: SubsonicRepositoryManager,
+    private val subsonicRepositoryManager: SubsonicRepositoryManager,
     private val musicPlayer: MusicPlayer,
     private val settingsRepository: SettingsRepository
 ) {
@@ -52,7 +52,7 @@ class MusicStore(
      * Returns null if no repository is active (user not authenticated)
      */
     private fun getCurrentRepository() = try {
-        repositoryManager.getCurrentRepository()
+        subsonicRepositoryManager.getCurrentRepository()
     } catch (e: IllegalStateException) {
         LogManager.w("MusicStore", "No active repository: ${e.message}")
         null

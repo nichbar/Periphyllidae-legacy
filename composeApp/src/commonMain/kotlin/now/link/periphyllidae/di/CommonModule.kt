@@ -42,9 +42,9 @@ val commonModule = module {
     single<MusicPlayer> { MusicPlayer(get()) }
     
     // Global Stores (App-scoped state containers)
-    single<AuthStore> { AuthStore(get(), get(), get()) }
+    single<AuthStore> { AuthStore(get(), get()) }
     single<MusicStore> { MusicStore(get(), get(), get()) }
-    single<AppStore> { AppStore(get()) }
+    single<AppStore> { AppStore(get(), get()) }
     single<SearchStore> { SearchStore(get(), get()) } // SearchStore as singleton for now
     
     // Page-scoped ViewModels (Singleton pattern for state preservation across tab navigation)

@@ -57,22 +57,23 @@ fun HomeScreen(
             ) {
                 // Main Content
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(if (isLandscape) 32.dp else 24.dp),
-                    contentPadding = PaddingValues(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (isLandscape) 32.dp else 24.dp)
                 ) {
                     // Recently Added Section
                     if (state.newestAlbums.isNotEmpty()) {
                         item {
                             Column {
+                                Spacer(Modifier.height(16.dp))
                                 Text(
                                     text = "Recently Added",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
                                 )
 
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp)
                                 ) {
                                     items(state.newestAlbums) { album ->
                                         AlbumCard(
@@ -89,15 +90,17 @@ fun HomeScreen(
                     if (state.mostPlayedAlbums.isNotEmpty()) {
                         item {
                             Column {
+                                Spacer(Modifier.height(16.dp))
                                 Text(
                                     text = "Most Played",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
                                 )
 
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp)
                                 ) {
                                     items(state.mostPlayedAlbums.take(10)) { album ->
                                         AlbumCard(
@@ -114,15 +117,17 @@ fun HomeScreen(
                     if (state.recentlyPlayedAlbums.isNotEmpty()) {
                         item {
                             Column {
+                                Spacer(Modifier.height(16.dp))
                                 Text(
                                     text = "Recently Played",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
                                 )
 
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 12.dp),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp)
                                 ) {
                                     items(state.recentlyPlayedAlbums.take(10)) { album ->
                                         AlbumCard(
@@ -139,11 +144,12 @@ fun HomeScreen(
                     if (state.playlists.isNotEmpty()) {
                         item {
                             Column {
+                                Spacer(Modifier.height(16.dp))
                                 Text(
                                     text = "Your Playlists",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
                                 )
 
                                 Column(
@@ -212,7 +218,7 @@ fun AlbumCard(
 ) {
     Card(
         modifier = Modifier
-            .width(160.dp)
+            .width(138.dp)
             .clickable { onPlay() }
     ) {
         Column {

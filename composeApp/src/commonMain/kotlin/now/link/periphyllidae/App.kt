@@ -14,6 +14,7 @@ import now.link.periphyllidae.ui.theme.PeriphyllidaeTheme
 import now.link.periphyllidae.components.DefaultRootComponent
 import now.link.periphyllidae.ui.content.RootContent
 import now.link.periphyllidae.mvi.AppTheme
+import now.link.periphyllidae.store.AppStore
 import now.link.periphyllidae.ui.components.DesktopToolbarContent
 import org.koin.compose.koinInject
 
@@ -44,7 +45,7 @@ private fun AppContent(
     showDesktopToolbar: Boolean = false
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
-    val appStore = koinInject<now.link.periphyllidae.store.AppStore>()
+    val appStore = koinInject<AppStore>()
     
     // Initialize LogManager with settings repository
     LaunchedEffect(Unit) {

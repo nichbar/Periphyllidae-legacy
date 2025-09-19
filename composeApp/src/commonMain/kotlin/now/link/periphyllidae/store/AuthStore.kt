@@ -12,13 +12,11 @@ import now.link.periphyllidae.mvi.AuthIntent
 import now.link.periphyllidae.mvi.AuthState
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.repository.SubsonicRepositoryManager
-import now.link.periphyllidae.utils.CryptoUtils
 import java.net.URI
 
 class AuthStore(
-    private val repositoryManager: SubsonicRepositoryManager,
+    private val subsonicRepositoryManager: SubsonicRepositoryManager,
     private val settingsRepository: SettingsRepository,
-    private val cryptoUtils: CryptoUtils
 ) {
     // App-scoped coroutine scope for the store
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -27,8 +25,8 @@ class AuthStore(
     val state: StateFlow<AuthState> = _state.asStateFlow()
 
     init {
-        loadSelectedConfiguration()
         loadSavedServers()
+        loadSelectedConfiguration()
     }
 
     fun handleIntent(intent: AuthIntent) {
@@ -129,13 +127,13 @@ class AuthStore(
                 )
                 
                 // Get server-specific repository instance
-                val repository = repositoryManager.getRepository(serverConfig)
+                val repository = subsonicRepositoryManager.getRepository(serverConfig)
                 val result = repository.authenticate(serverConfig)
                 
                 if (result.isSuccess && result.getOrNull() == true) {
                     // Set this repository as active for successful authentication
                     if (isLogin) {
-                        repositoryManager.setActiveRepository(serverConfig)
+                        subsonicRepositoryManager.setActiveRepository(serverConfig)
                     }
                     
                     // Save the server configuration
@@ -170,7 +168,7 @@ class AuthStore(
             settingsRepository.removeAllServerConfigs()
             settingsRepository.clearHomeContentCache() // Clear cached home content on logout
 
-            repositoryManager.clearCache() // Clear repository cache
+            subsonicRepositoryManager.clearCache() // Clear repository cache
 
             _state.value = AuthState() // Reset to default state
         }
@@ -188,7 +186,7 @@ class AuthStore(
         storeScope.launch {
             try {
                 // Set the new active repository
-                repositoryManager.setActiveRepository(server)
+                subsonicRepositoryManager.setActiveRepository(server)
                 
                 // Change to the selected server
                 settingsRepository.setSelectedServerConfig(server)
@@ -214,7 +212,7 @@ class AuthStore(
             val config = settingsRepository.getSelectedServerConfig()
             if (config != null) {
                 // Set the active repository for the saved server
-                repositoryManager.setActiveRepository(config)
+                subsonicRepositoryManager.setActiveRepository(config)
                 
                 _state.value = _state.value.copy(
                     currentServer = config,
@@ -241,7 +239,7 @@ class AuthStore(
                 settingsRepository.saveServerConfigs(currentServers)
                 
                 // Remove the repository instance from cache
-                repositoryManager.removeRepository(server)
+                subsonicRepositoryManager.removeRepository(server)
                 
                 // Update state with new server list
                 _state.value = _state.value.copy(

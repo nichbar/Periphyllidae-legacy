@@ -13,6 +13,7 @@ import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.repository.SettingsRepository
 
 class AppStore(
+    private val authStore: AuthStore,
     private val settingsRepository: SettingsRepository
 ) {
     // App-scoped coroutine scope for the store
