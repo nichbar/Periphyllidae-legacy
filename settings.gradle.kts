@@ -33,3 +33,15 @@ plugins {
 }
 
 include(":composeApp")
+
+// Include MediaMP submodule
+includeBuild("mediamp") {
+    dependencySubstitution {
+        substitute(module("org.openani.mediamp:mediamp-api")).using(project(":mediamp-api"))
+        substitute(module("org.openani.mediamp:mediamp-compose")).using(project(":mediamp-compose"))
+        substitute(module("org.openani.mediamp:mediamp-exoplayer")).using(project(":mediamp-exoplayer"))
+        substitute(module("org.openani.mediamp:mediamp-vlc")).using(project(":mediamp-vlc"))
+        // substitute(module("org.openani.mediamp:mediamp-vlc-compose")).using(project(":mediamp-ui"))
+        substitute(module("org.openani.mediamp:mediamp-vlc-loader")).using(project(":mediamp-vlc-loader"))
+    }
+}

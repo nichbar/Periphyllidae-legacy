@@ -95,7 +95,7 @@ kotlin {
             
             // MediaMP - VLC backend for JVM
             implementation(libs.mediamp.vlc)
-            implementation(libs.mediamp.vlc.compose)
+            // implementation(libs.mediamp.vlc.compose) // Temporarily disabled due to compilation issues
             implementation(libs.mediamp.vlc.loader) // Automatically load VLC binaries
             
             // Database - Desktop
