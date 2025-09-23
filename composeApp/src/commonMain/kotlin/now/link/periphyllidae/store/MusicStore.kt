@@ -103,6 +103,9 @@ class MusicStore(
                     LogManager.i(TAG, "Resumed from saved position: ${currentState.currentPosition}ms")
                 }
             } else {
+                // Stop current playback before switching songs
+                musicPlayer.stop()
+
                 // Start playing the current song from the beginning
                 LogManager.d(TAG, "Starting fresh playback")
                 musicPlayer.play(song)

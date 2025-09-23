@@ -139,6 +139,9 @@ class MusicPlayer(
     private fun handlePlaybackEnded() {
         LogManager.i(TAG, "Handling playback end")
         _isPlaying.value = false
+
+        // Stop current playback before switching songs
+        stop()
         
         if (repeatEnabled && _currentSong.value != null) {
             LogManager.d(TAG, "Repeat enabled, replaying current song")
@@ -150,7 +153,6 @@ class MusicPlayer(
             next()
         } else {
             LogManager.d(TAG, "No more songs in queue, stopping playback")
-            stop()
         }
     }
     
@@ -184,7 +186,7 @@ class MusicPlayer(
                 
                 // Start monitoring for actual duration from player
                 monitorDuration()
-                
+
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to play song: ${song.title}", e)
                 _playbackState.value = PlaybackState.ERROR
@@ -316,6 +318,9 @@ class MusicPlayer(
             LogManager.d(TAG, "Sequential play, next index: $nextIndex")
             nextIndex
         }
+
+        // Stop current playback before switching songs
+        stop()
         
         val nextSong = currentQueue.getOrNull(nextIndex)
         if (nextSong != null) {
@@ -324,7 +329,6 @@ class MusicPlayer(
             play(nextSong)
         } else {
             LogManager.w(TAG, "Next song at index $nextIndex is null")
-            stop()
         }
     }
     
@@ -353,6 +357,9 @@ class MusicPlayer(
             LogManager.d(TAG, "Sequential play, previous index: $prevIndex")
             prevIndex
         }
+
+        // Stop current playback before switching songs
+        stop()
         
         val previousSong = currentQueue.getOrNull(previousIndex)
         if (previousSong != null) {
