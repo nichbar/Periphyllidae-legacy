@@ -16,6 +16,7 @@ import now.link.periphyllidae.platform.MusicPlayer
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.HomeContentCache
+import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.utils.LogManager
 
 class MusicStore(
@@ -537,38 +538,46 @@ class MusicStore(
             // Observe music player state changes and sync with store state
             musicPlayer.isPlaying.collect { isPlaying ->
                 LogManager.v(TAG, "Player state changed: isPlaying=$isPlaying")
-                _state.value = _state.value.copy(isPlaying = isPlaying)
+                val currentState = _state.value
+                if (currentState.isPlaying != isPlaying) {
+                    LogManager.d(TAG, "Updating store playing state: ${currentState.isPlaying} -> $isPlaying")
+                    _state.value = currentState.copy(isPlaying = isPlaying)
+                }
             }
         }
         
         storeScope.launch {
             // Observe current position changes
             musicPlayer.currentPosition.collect { position ->
-                _state.value = _state.value.copy(currentPosition = position)
-                // Persist position periodically (every 10 seconds to avoid too frequent writes)
-                if (position % 10000 < 1000) { // roughly every 10 seconds
-                    persistPlaybackState()
-                }
+                val currentState = _state.value
+                // Only update if position actually changed to avoid unnecessary state updates
+                if (currentState.currentPosition != position) {
+                    _state.value = currentState.copy(currentPosition = position)
+                    
+                    // Persist position periodically (every 10 seconds to avoid too frequent writes)
+                    if (position % 10000 < 1000) { // roughly every 10 seconds
+                        persistPlaybackState()
+                    }
 
-                // Scrobble logic: report to Subsonic if >60% played and not yet reported
-                val state = _state.value
-                val song = state.currentSong
-                val duration = state.duration
-                if (song != null && duration > 0) {
-                    val progress = position.toDouble() / duration
-                    if (progress > 0.6 && !scrobbledSongIds.contains(song.id)) {
-                        scrobbledSongIds.add(song.id)
-                        storeScope.launch {
-                            try {
-                                val repository = getCurrentRepository()
-                                if (repository != null) {
-                                    repository.scrobbleSong(song.id)
-                                    LogManager.i(TAG, "Scrobbled song: ${song.title} (${song.id}) at >60% played")
-                                } else {
-                                    LogManager.w(TAG, "No repository available for scrobbling")
+                    // Scrobble logic: report to Subsonic if >60% played and not yet reported
+                    val song = currentState.currentSong
+                    val duration = currentState.duration
+                    if (song != null && duration > 0) {
+                        val progress = position.toDouble() / duration
+                        if (progress > 0.6 && !scrobbledSongIds.contains(song.id)) {
+                            scrobbledSongIds.add(song.id)
+                            storeScope.launch {
+                                try {
+                                    val repository = getCurrentRepository()
+                                    if (repository != null) {
+                                        repository.scrobbleSong(song.id)
+                                        LogManager.i(TAG, "Scrobbled song: ${song.title} (${song.id}) at >60% played")
+                                    } else {
+                                        LogManager.w(TAG, "No repository available for scrobbling")
+                                    }
+                                } catch (e: Exception) {
+                                    LogManager.w(TAG, "Failed to scrobble song: ${song.title} (${song.id}): $e")
                                 }
-                            } catch (e: Exception) {
-                                LogManager.w(TAG, "Failed to scrobble song: ${song.title} (${song.id}): $e")
                             }
                         }
                     }
@@ -579,29 +588,46 @@ class MusicStore(
         storeScope.launch {
             // Observe duration changes
             musicPlayer.duration.collect { duration ->
-                _state.value = _state.value.copy(duration = duration)
+                val currentState = _state.value
+                if (currentState.duration != duration) {
+                    LogManager.v(TAG, "Duration changed: ${currentState.duration}ms -> ${duration}ms")
+                    _state.value = currentState.copy(duration = duration)
+                }
             }
         }
         
         storeScope.launch {
             // Observe current song changes
             musicPlayer.currentSong.collect { song ->
-                LogManager.v(TAG, "Current song changed: ${song?.title}")
-                _state.value = _state.value.copy(currentSong = song)
+                val currentState = _state.value
+                if (currentState.currentSong?.id != song?.id) {
+                    LogManager.v(TAG, "Current song changed: ${currentState.currentSong?.title} -> ${song?.title}")
+                    _state.value = currentState.copy(currentSong = song)
 
-                // Reset scrobble state for new song
-                song?.let { if (!scrobbledSongIds.contains(it.id)) scrobbledSongIds.removeAll { id -> id != it.id } }
+                    // Reset scrobble state for new song
+                    song?.let { 
+                        if (!scrobbledSongIds.contains(it.id)) {
+                            // Remove scrobbled IDs for previous songs to prevent memory leak
+                            scrobbledSongIds.removeAll { id -> id != it.id }
+                        }
+                    }
+                }
             }
         }
         
         storeScope.launch {
             // Observe queue changes
             musicPlayer.queue.collect { queue ->
-                LogManager.v(TAG, "Queue changed: ${queue.size} songs")
-                _state.value = _state.value.copy(queue = queue)
-                // Persist queue when it changes
-                if (queue.isNotEmpty()) {
-                    persistQueue()
+                val currentState = _state.value
+                if (currentState.queue.size != queue.size || 
+                    currentState.queue.zip(queue).any { (storeItem, playerItem) -> storeItem.id != playerItem.id }) {
+                    LogManager.v(TAG, "Queue changed: ${currentState.queue.size} -> ${queue.size} songs")
+                    _state.value = currentState.copy(queue = queue)
+                    
+                    // Persist queue when it changes
+                    if (queue.isNotEmpty()) {
+                        persistQueue()
+                    }
                 }
             }
         }
@@ -609,10 +635,31 @@ class MusicStore(
         storeScope.launch {
             // Observe current index changes
             musicPlayer.currentIndex.collect { index ->
-                LogManager.v(TAG, "Current index changed: $index")
-                _state.value = _state.value.copy(currentIndex = index)
-                // Persist index when it changes
-                persistQueue()
+                val currentState = _state.value
+                if (currentState.currentIndex != index) {
+                    LogManager.v(TAG, "Current index changed: ${currentState.currentIndex} -> $index")
+                    _state.value = currentState.copy(currentIndex = index)
+                    // Persist index when it changes
+                    persistQueue()
+                }
+            }
+        }
+        
+        storeScope.launch {
+            // Observe playback state changes from MediaMP for additional validation
+            musicPlayer.playbackState.collect { playbackState ->
+                LogManager.v(TAG, "MediaMP playback state changed: $playbackState")
+                
+                // Validate critical state consistency when playback state changes
+                val currentState = _state.value
+                val playerIsPlaying = playbackState == PlaybackState.PLAYING
+                
+                // Check for major inconsistencies that need immediate correction
+                if (currentState.isPlaying != playerIsPlaying) {
+                    LogManager.w(TAG, "Playback state inconsistency detected: store=${currentState.isPlaying}, player=$playerIsPlaying, mediaState=$playbackState")
+                    // Force sync the playing state
+                    _state.value = currentState.copy(isPlaying = playerIsPlaying)
+                }
             }
         }
         
