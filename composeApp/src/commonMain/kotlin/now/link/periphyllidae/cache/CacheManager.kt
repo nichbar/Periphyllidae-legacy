@@ -6,6 +6,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respond
@@ -132,7 +133,7 @@ class CacheManager private constructor(
         LogManager.i(TAG, "Cache server started on $SERVER_HOST:$serverPort")
     }
     
-    private suspend fun handleCacheRequest(key: String, call: io.ktor.server.application.ApplicationCall) {
+    private suspend fun handleCacheRequest(key: String, call: ApplicationCall) {
         // REQ-FSV-03: Check if fully cached, serve from local file
         withContext(Dispatchers.IO) {
             val snapshot = diskCache.get(key)
@@ -198,14 +199,14 @@ class CacheManager private constructor(
         }
     }
     
-    private suspend fun streamAndCache(originalUrl: String, key: String, call: io.ktor.server.application.ApplicationCall) {
+    private suspend fun streamAndCache(originalUrl: String, key: String, call: ApplicationCall) {
         downloadMutex.withLock {
             // REQ-NF-02: Ensure only one download per URL
             var downloadChannel = activeDownloads[key]
             
             if (downloadChannel == null) {
                 // Start new download
-                downloadChannel = Channel<CachedContent>(Channel.UNLIMITED)
+                downloadChannel = Channel(Channel.UNLIMITED)
                 activeDownloads[key] = downloadChannel
                 
                 scope.launch {
@@ -225,7 +226,7 @@ class CacheManager private constructor(
         }
     }
     
-    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>) {
+    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>?) {
         LogManager.i(TAG, "Starting download and cache for: $originalUrl")
         
         withContext(Dispatchers.IO) {
@@ -271,7 +272,7 @@ class CacheManager private constructor(
                 
                 // Send to all waiting clients
                 val cachedContent = CachedContent(responseBytes, metadata)
-                downloadChannel.trySend(cachedContent)
+                downloadChannel?.trySend(cachedContent)
 
                 // REQ-FW-03: Commit editor on successful download
                 editor.commit()
@@ -289,7 +290,7 @@ class CacheManager private constructor(
         }
     }
     
-    private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: io.ktor.server.application.ApplicationCall, key: String) {
+    private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: ApplicationCall, key: String) {
         LogManager.d(TAG, "Streaming content for key: $key")
         
         try {
@@ -314,6 +315,19 @@ class CacheManager private constructor(
             
         } catch (e: Exception) {
             LogManager.e(TAG, "Error streaming content for key: $key", e)
+        }
+    }
+
+    fun preload(url: String) {
+        val key = url.toCacheKey()
+        scope.launch {
+            try {
+                performDownloadAndCache(url, key, null)
+            } finally {
+                downloadMutex.withLock {
+                    activeDownloads.remove(key)
+                }
+            }
         }
     }
     

@@ -99,7 +99,7 @@ class MusicStore(
                 musicPlayer.play(song)
                 // Seek to saved position after a short delay to allow media to load
                 storeScope.launch {
-                    delay(1000) // Wait for media to load
+                    delay(500) // Wait for media to load
                     musicPlayer.seekTo(currentState.currentPosition)
                     LogManager.i(TAG, "Resumed from saved position: ${currentState.currentPosition}ms")
                 }

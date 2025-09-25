@@ -25,11 +25,7 @@ enum class PlaybackState {
 class MusicPlayer(
     private val playerFactory: MediampPlayerFactory
 ) : KoinComponent {
-    companion object {
-        private const val TAG = "MusicPlayer"
-    }
-    
-    private val mediaPlayer: MediampPlayer by lazy { 
+    private val mediaPlayer: MediampPlayer by lazy {
         LogManager.d(TAG, "Creating MediaMP player instance")
         playerFactory.createPlayer()
     }
@@ -69,6 +65,8 @@ class MusicPlayer(
     private var currentQueue: List<Song> = emptyList()
     private var shuffleEnabled: Boolean = false
     private var repeatEnabled: Boolean = false
+
+    private var preloadedSongIds: MutableSet<String> = hashSetOf()
     
     init {
         LogManager.i(TAG, "Initializing MusicPlayer")
@@ -125,17 +123,33 @@ class MusicPlayer(
                     try {
                         val currentPos = mediaPlayer.getCurrentPositionMillis()
                         _currentPosition.value = currentPos
-                        
+
+                        val duration = _duration.value
+
+                        if (duration == 0L) {
+                            return@launch
+                        }
+
                         // Check if we've reached the end of the song (backup detection)
                         // MediaMP should handle this via playbackState, but keep as fallback
-                        val duration = _duration.value
-                        if (duration > 0 && currentPos >= duration - 500) { // 0.5 second buffer
+                        if (currentPos >= duration - 500) { // 0.5 second buffer
                             LogManager.d(TAG, "Position-based song end detected: currentPos=$currentPos, duration=$duration")
                             // Only trigger if MediaMP hasn't already handled it
                             if (_playbackState.value == PlaybackState.PLAYING) {
                                 scope.launch {
                                     handlePlaybackEnded()
                                 }
+                            }
+                        }
+
+                        // Preload next song if nearing end of current song
+                        val progress = currentPos.toFloat() / duration.toFloat()
+                        if (progress > 0.8f && !shuffleEnabled) {
+                            val nextSong = currentQueue.getOrNull(_currentIndex.value + 1)
+                            if (nextSong != null && !preloadedSongIds.contains(nextSong.id)) {
+                                LogManager.d(TAG, "Preloading next song: ${nextSong.title}")
+                                preloadSong(nextSong)
+                                preloadedSongIds.add(nextSong.id)
                             }
                         }
                     } catch (e: Exception) {
@@ -494,11 +508,11 @@ class MusicPlayer(
      * Preload a song into cache
      */
     suspend fun preloadSong(song: Song) {
-        cacheManager?.let { cache ->
-            if (!cache.isCached(song.streamUrl)) {
+        cacheManager?.let { cacheManager ->
+            if (!cacheManager.isCached(song.streamUrl)) {
                 LogManager.d(TAG, "Preloading song: ${song.title}")
                 // Trigger caching by requesting the local URL
-                cache.getLocalPlaybackUrl(song.streamUrl)
+                cacheManager.preload(song.streamUrl)
             }
         }
     }
@@ -534,5 +548,9 @@ class MusicPlayer(
         } else {
             LogManager.w(TAG, "Could not find song ${song.title} in current queue")
         }
+    }
+
+    companion object {
+        private const val TAG = "MusicPlayer"
     }
 }
