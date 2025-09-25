@@ -11,6 +11,7 @@ A cross-platform Subsonic client for the modern music lover, built with Kotlin M
 - **MediaMP** for cross-platform audio playback
   - ExoPlayer backend on Android for optimized mobile playback
   - VLC backend on Desktop for comprehensive codec support
+- **Intelligent Disk Cache** with embedded HTTP server for transparent music streaming caching
 - **Ktor** for HTTP networking and Subsonic API communication
 - **Koin** for dependency injection and service management
 - **Kermit** wrapped by custom LogManager for enhanced debugging
@@ -29,6 +30,7 @@ This project follows modern Android architecture principles:
 
 - **LogManager**: Custom logging wrapper with 10,000-entry circular buffer and StateFlow updates
 - **HomeContentCache**: Intelligent caching system for home screen data
+- **DiskLruCache**: Advanced music streaming cache with embedded HTTP server for transparent caching
 - **AuthStore**: Secure authentication state management with server configuration
 - **MusicPlayer**: Unified player interface abstracting MediaMP implementations
 - **SubsonicRepository**: Comprehensive API interface for Subsonic servers
@@ -142,6 +144,15 @@ composeApp/
 ```
 
 ## Advanced Features
+
+### Intelligent Music Caching
+
+- **Transparent caching**: Music streams are automatically cached with an embedded HTTP server
+- **LRU eviction**: Automatic cache management with configurable size limits (default 1GB)
+- **Concurrent downloads**: Single download per URL shared across multiple requests
+- **Cross-platform support**: Platform-optimized cache locations for Android and Desktop
+- **Cache preloading**: Manual preloading of songs and playlists for offline listening
+- **Real-time statistics**: Monitor cache usage and performance
 
 ### Debug Logging System
 

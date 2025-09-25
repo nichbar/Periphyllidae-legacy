@@ -7,6 +7,8 @@ import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.serialization.kotlinx.json.*
+import now.link.periphyllidae.cache.CacheDirectoryProvider
+import now.link.periphyllidae.cache.CacheManager
 import now.link.periphyllidae.repository.*
 import now.link.periphyllidae.store.*
 import now.link.periphyllidae.platform.MusicPlayer
@@ -31,6 +33,13 @@ val commonModule = module {
                 level = LogLevel.INFO
             }
         }
+    }
+    
+    // Cache components
+    factory<CacheDirectoryProvider> { CacheDirectoryProvider() }
+    single<CacheManager> { 
+        // This will be initialized asynchronously in the application startup
+        throw IllegalStateException("CacheManager should be initialized asynchronously during app startup")
     }
     
     // Repositories

@@ -59,6 +59,10 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             
+            // Cache Server
+            implementation(libs.ktor.server.core)
+            implementation(libs.ktor.server.cio)
+            
             // Dependency Injection
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -71,6 +75,9 @@ kotlin {
             
             // Date/Time
             implementation(libs.kotlinx.datetime)
+            
+            // I/O
+            implementation(libs.okio)
             
             // Image Loading
             implementation(libs.coil.compose)

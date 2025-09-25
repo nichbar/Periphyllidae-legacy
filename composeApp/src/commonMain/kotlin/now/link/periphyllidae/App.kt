@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import org.koin.compose.KoinApplication
+import now.link.periphyllidae.cache.CacheInitializer
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.di.commonModule
 import now.link.periphyllidae.di.platformModule
@@ -49,10 +50,14 @@ private fun AppContent(
     val settingsRepository = koinInject<SettingsRepository>()
     val appStore = koinInject<AppStore>()
     
-    // Initialize LogManager with settings repository
+    // Initialize LogManager with settings repository and cache system
     LaunchedEffect(Unit) {
         LogManager.initialize(settingsRepository)
         LogManager.i(TAG, "Application started")
+        
+        // Initialize cache system asynchronously
+        CacheInitializer.initializeAsync()
+        LogManager.d(TAG, "Cache initialization started")
     }
     
     // Create root component

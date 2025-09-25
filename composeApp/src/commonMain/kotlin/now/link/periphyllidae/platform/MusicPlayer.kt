@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import now.link.periphyllidae.cache.CacheManager
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.openani.mediamp.MediampPlayer
 import org.openani.mediamp.features.AudioLevelController
 import org.openani.mediamp.playFile
@@ -22,7 +25,7 @@ enum class PlaybackState {
 
 class MusicPlayer(
     private val playerFactory: MediampPlayerFactory
-) {
+) : KoinComponent {
     companion object {
         private const val TAG = "MusicPlayer"
     }
@@ -32,6 +35,16 @@ class MusicPlayer(
         playerFactory.createPlayer()
     }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    
+    // Lazy injection of CacheManager to handle initialization timing
+    private val cacheManager: CacheManager? by lazy {
+        try {
+            inject<CacheManager>().value
+        } catch (e: Exception) {
+            LogManager.w(TAG, "CacheManager not available, caching disabled", e)
+            null
+        }
+    }
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -159,15 +172,16 @@ class MusicPlayer(
     fun play(song: Song) {
         LogManager.i(TAG, "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
         _currentSong.value = song
-        val streamUrl = song.streamUrl
-        
-        LogManager.d(TAG, "Stream URL: $streamUrl")
         
         scope.launch {
             try {
                 LogManager.d(TAG, "Starting MediaMP playback")
                 
-                mediaPlayer.playUri(streamUrl)
+                // Use cached URL if cache is available, otherwise use original URL
+                val playbackUrl = getPlaybackUrl(song.streamUrl)
+                LogManager.d(TAG, "Playback URL: $playbackUrl")
+                
+                mediaPlayer.playUri(playbackUrl)
                 
                 // Update the duration from the song metadata
                 val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
@@ -192,6 +206,16 @@ class MusicPlayer(
                 _playbackState.value = PlaybackState.ERROR
                 _isPlaying.value = false
             }
+        }
+    }
+    
+    /**
+     * Get the appropriate playback URL, using cache if available
+     */
+    private fun getPlaybackUrl(originalUrl: String): String {
+        return cacheManager?.getLocalPlaybackUrl(originalUrl) ?: run {
+            LogManager.d(TAG, "Using original URL (cache not available)")
+            originalUrl
         }
     }
     
@@ -461,12 +485,65 @@ class MusicPlayer(
     fun release() {
         LogManager.i(TAG, "Releasing MusicPlayer resources")
         try {
-             mediaPlayer.close()
-             LogManager.d(TAG, "MediaPlayer resources released successfully")
+            mediaPlayer.close()
+            LogManager.d(TAG, "MediaPlayer resources released successfully")
         } catch (e: Exception) {
             LogManager.e(TAG, "Error releasing MediaPlayer resources", e)
         }
+        
+        // Clean up cache if available
+        scope.launch {
+            try {
+                cacheManager?.shutdown()
+                LogManager.d(TAG, "Cache manager shutdown completed")
+            } catch (e: Exception) {
+                LogManager.e(TAG, "Error shutting down cache manager", e)
+            }
+        }
+        
         LogManager.i(TAG, "MusicPlayer cleanup completed")
+    }
+    
+    /**
+     * Check if a song is cached
+     */
+    suspend fun isSongCached(song: Song): Boolean {
+        return cacheManager?.isCached(song.streamUrl) ?: false
+    }
+    
+    /**
+     * Preload a song into cache
+     */
+    suspend fun preloadSong(song: Song) {
+        cacheManager?.let { cache ->
+            if (!cache.isCached(song.streamUrl)) {
+                LogManager.d(TAG, "Preloading song: ${song.title}")
+                // Trigger caching by requesting the local URL
+                cache.getLocalPlaybackUrl(song.streamUrl)
+            }
+        }
+    }
+    
+    /**
+     * Preload multiple songs into cache
+     */
+    suspend fun preloadSongs(songs: List<Song>) {
+        songs.forEach { song ->
+            preloadSong(song)
+        }
+    }
+    
+    /**
+     * Get cache statistics
+     */
+    fun getCacheStats() = cacheManager?.getCacheStats()
+    
+    /**
+     * Clear all cached content
+     */
+    suspend fun clearCache() {
+        cacheManager?.clearCache()
+        LogManager.i(TAG, "Music cache cleared")
     }
     
     private fun updateCurrentIndex(song: Song) {
