@@ -186,7 +186,6 @@ composeApp/
 ### Networking & Data
 
 - `io.ktor:ktor-client-core` - HTTP client for API communication
-- `app.cash.sqldelight:coroutines-extensions` - Local database with coroutines
 - `org.jetbrains.kotlinx:kotlinx-serialization-json` - JSON serialization
 
 ### Dependency Injection & Utilities

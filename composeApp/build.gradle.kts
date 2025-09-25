@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.sqldelight)
+//    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -146,14 +146,6 @@ dependencies {
 // Configure development runs to use appResources for VLC binaries
 tasks.withType<JavaExec> {
     systemProperty("compose.application.resources.dir", file("appResources").absolutePath)
-}
-
-sqldelight {
-    databases {
-        create("PeriphyllidaeDatabase") {
-            packageName.set("now.link.periphyllidae.database")
-        }
-    }
 }
 
 compose.desktop {

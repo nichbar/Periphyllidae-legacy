@@ -17,9 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,11 +63,7 @@ class CacheManager private constructor(
     private lateinit var diskCache: DiskLruCache
     private var serverPort: Int = 0
     private var server: io.ktor.server.engine.EmbeddedServer<*, *>? = null
-    
-    // Download progress tracking
-    private val _downloadProgress = MutableSharedFlow<DownloadProgress>()
-    val downloadProgress: SharedFlow<DownloadProgress> = _downloadProgress.asSharedFlow()
-    
+
     private suspend fun initialize() = withContext(Dispatchers.IO) {
         LogManager.i(TAG, "Initializing CacheManager with Jake Wharton's DiskLruCache")
         
@@ -217,14 +210,10 @@ class CacheManager private constructor(
                 
                 // Send to all waiting clients
                 downloadChannel.trySend(responseBytes)
-                
-                // Report progress
-                _downloadProgress.tryEmit(DownloadProgress(key, responseBytes.size.toLong(), null))
-                
+
                 // REQ-FW-03: Commit editor on successful download
                 editor.commit()
                 LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes for key: $key")
-                
             } catch (e: Exception) {
                 LogManager.e(TAG, "Download failed for URL: $originalUrl", e)
                 // REQ-FW-04: Abort editor on download failure
@@ -249,7 +238,6 @@ class CacheManager private constructor(
             call.respondBytes(allBytes, ContentType.Audio.MPEG)
             
             LogManager.d(TAG, "Finished streaming ${allBytes.size} bytes for key: $key")
-            
         } catch (e: Exception) {
             LogManager.e(TAG, "Error streaming content for key: $key", e)
         }
@@ -364,15 +352,6 @@ class CacheManager private constructor(
     
     fun getServerUrl(): String = "http://$SERVER_HOST:$serverPort"
 }
-
-/**
- * Data classes for cache functionality
- */
-data class DownloadProgress(
-    val key: String,
-    val bytesDownloaded: Long,
-    val totalBytes: Long?
-)
 
 data class CacheStats(
     val currentSize: Long,

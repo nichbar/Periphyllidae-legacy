@@ -43,7 +43,6 @@ object CacheInitializer : KoinComponent {
                 
                 isInitialized = true
                 LogManager.i(TAG, "Cache initialization completed successfully")
-                
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to initialize cache", e)
                 // Create a dummy cache manager that doesn't cache anything
