@@ -26,7 +26,28 @@ import okio.Path
 import java.io.File
 import java.net.ServerSocket
 import java.security.MessageDigest
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
+
+/**
+ * Metadata stored alongside cached content
+ */
+@Serializable
+data class CacheMetadata(
+    val contentType: String,
+    val contentLength: Long? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Data structure for content and metadata during streaming/caching
+ */
+data class CachedContent(
+    val bytes: ByteArray,
+    val metadata: CacheMetadata
+)
 
 /**
  * Cache Manager that provides HTTP-based caching proxy functionality using Jake Wharton's DiskLruCache.
@@ -42,7 +63,7 @@ class CacheManager private constructor(
         private const val DEFAULT_MAX_CACHE_SIZE = 1024L * 1024L * 1024L // 1GB
         private const val SERVER_HOST = "127.0.0.1"
         private const val CACHE_VERSION = 1
-        private const val VALUE_COUNT = 1
+        private const val VALUE_COUNT = 2  // 0: content, 1: metadata
         
         suspend fun create(
             cacheDirectory: Path,
@@ -57,8 +78,9 @@ class CacheManager private constructor(
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val downloadMutex = Mutex()
-    private val activeDownloads = mutableMapOf<String, Channel<ByteArray>>()
-    
+    private val activeDownloads = mutableMapOf<String, Channel<CachedContent>>()
+    private val json = Json { ignoreUnknownKeys = true }
+
     // REQ-FS-03: Use Jake Wharton's DiskLruCache for cache management
     private lateinit var diskCache: DiskLruCache
     private var serverPort: Int = 0
@@ -118,17 +140,41 @@ class CacheManager private constructor(
                 LogManager.d(TAG, "Serving cached content for key: $key")
                 
                 try {
-                    val inputStream = snapshot.getInputStream(0)
-                    val bytes = inputStream.readBytes()
-                    inputStream.close()
+                    // Read content from index 0
+                    val contentStream = snapshot.getInputStream(0)
+                    val bytes = contentStream.readBytes()
+                    contentStream.close()
+                    
+                    // Read metadata from index 1
+                    val metadata = try {
+                        val metadataStream = snapshot.getInputStream(1)
+                        val metadataJson = metadataStream.readBytes().decodeToString()
+                        metadataStream.close()
+                        json.decodeFromString<CacheMetadata>(metadataJson)
+                    } catch (e: Exception) {
+                        LogManager.w(TAG, "Could not read metadata for key: $key, using defaults", e)
+                        // Fallback to default metadata
+                        CacheMetadata(contentType = "audio/mpeg")
+                    }
+                    
                     snapshot.close()
                     
                     withContext(Dispatchers.Main) {
                         call.response.headers.append("Content-Length", bytes.size.toString())
-                        call.respondBytes(bytes, ContentType.Audio.MPEG)
+                        call.response.headers.append("Cache-Control", "public, max-age=31536000")
+                        
+                        // Use the stored content type
+                        val contentType = try {
+                            ContentType.parse(metadata.contentType)
+                        } catch (e: Exception) {
+                            LogManager.w(TAG, "Invalid content type: ${metadata.contentType}, using audio/mpeg")
+                            ContentType.Audio.MPEG
+                        }
+                        
+                        call.respondBytes(bytes, contentType)
                     }
                     
-                    LogManager.v(TAG, "Successfully served ${bytes.size} bytes from cache for key: $key")
+                    LogManager.v(TAG, "Successfully served ${bytes.size} bytes with content-type ${metadata.contentType} from cache for key: $key")
                     return@withContext
                 } catch (e: Exception) {
                     LogManager.e(TAG, "Error reading cached file for key: $key", e)
@@ -159,7 +205,7 @@ class CacheManager private constructor(
             
             if (downloadChannel == null) {
                 // Start new download
-                downloadChannel = Channel<ByteArray>(Channel.UNLIMITED)
+                downloadChannel = Channel<CachedContent>(Channel.UNLIMITED)
                 activeDownloads[key] = downloadChannel
                 
                 scope.launch {
@@ -179,7 +225,7 @@ class CacheManager private constructor(
         }
     }
     
-    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<ByteArray>) {
+    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>) {
         LogManager.i(TAG, "Starting download and cache for: $originalUrl")
         
         withContext(Dispatchers.IO) {
@@ -203,17 +249,34 @@ class CacheManager private constructor(
                 // Get response as byte array - simple and reliable approach
                 val responseBytes: ByteArray = response.body()
                 
-                // Write to cache
-                val outputStream = editor.newOutputStream(0)
-                outputStream.write(responseBytes)
-                outputStream.close()
+                // Extract content type from response headers
+                val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
+                val contentLength = response.headers["Content-Length"]?.toLongOrNull()
+                
+                val metadata = CacheMetadata(
+                    contentType = contentTypeHeader,
+                    contentLength = contentLength
+                )
+                
+                // Write content to cache (index 0)
+                val contentStream = editor.newOutputStream(0)
+                contentStream.write(responseBytes)
+                contentStream.close()
+                
+                // Write metadata to cache (index 1)
+                val metadataJson = json.encodeToString(metadata)
+                val metadataStream = editor.newOutputStream(1)
+                metadataStream.write(metadataJson.toByteArray())
+                metadataStream.close()
                 
                 // Send to all waiting clients
-                downloadChannel.trySend(responseBytes)
+                val cachedContent = CachedContent(responseBytes, metadata)
+                downloadChannel.trySend(cachedContent)
 
                 // REQ-FW-03: Commit editor on successful download
                 editor.commit()
-                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes for key: $key")
+                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key")
+
             } catch (e: Exception) {
                 LogManager.e(TAG, "Download failed for URL: $originalUrl", e)
                 // REQ-FW-04: Abort editor on download failure
@@ -226,18 +289,29 @@ class CacheManager private constructor(
         }
     }
     
-    private suspend fun streamFromDownload(downloadChannel: Channel<ByteArray>, call: io.ktor.server.application.ApplicationCall, key: String) {
+    private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: io.ktor.server.application.ApplicationCall, key: String) {
         LogManager.d(TAG, "Streaming content for key: $key")
         
         try {
-            call.response.headers.append("Content-Type", "audio/mpeg")
-            call.response.headers.append("Cache-Control", "public, max-age=31536000")
-            
             // Wait for and serve the complete download
-            val allBytes = downloadChannel.receive()
-            call.respondBytes(allBytes, ContentType.Audio.MPEG)
+            val cachedContent = downloadChannel.receive()
             
-            LogManager.d(TAG, "Finished streaming ${allBytes.size} bytes for key: $key")
+            call.response.headers.append("Content-Type", cachedContent.metadata.contentType)
+            call.response.headers.append("Cache-Control", "public, max-age=31536000")
+            call.response.headers.append("Content-Length", cachedContent.bytes.size.toString())
+            
+            // Use the actual content type from the download
+            val contentType = try {
+                ContentType.parse(cachedContent.metadata.contentType)
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Invalid content type: ${cachedContent.metadata.contentType}, using audio/mpeg")
+                ContentType.Audio.MPEG
+            }
+            
+            call.respondBytes(cachedContent.bytes, contentType)
+            
+            LogManager.d(TAG, "Finished streaming ${cachedContent.bytes.size} bytes with content-type ${cachedContent.metadata.contentType} for key: $key")
+            
         } catch (e: Exception) {
             LogManager.e(TAG, "Error streaming content for key: $key", e)
         }

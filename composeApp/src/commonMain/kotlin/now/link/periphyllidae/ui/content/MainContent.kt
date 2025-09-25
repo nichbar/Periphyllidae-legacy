@@ -233,7 +233,6 @@ private fun TabContent(
                 is MainComponent.TabChild.SearchChild -> {
                     SearchScreen(
                         viewModel = koinInject(),
-                        onNavigateBack = { /* Not needed in tab */ },
                         onNavigateToNowPlaying = child.component::onNavigateToNowPlaying,
                         onNavigateToArtist = child.component::onNavigateToArtist
                     )
