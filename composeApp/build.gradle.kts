@@ -143,11 +143,6 @@ dependencies {
     debugImplementation(compose.uiTooling)
 }
 
-// Configure development runs to use appResources for VLC binaries
-tasks.withType<JavaExec> {
-    systemProperty("compose.application.resources.dir", file("appResources").absolutePath)
-}
-
 compose.desktop {
     application {
         mainClass = "now.link.periphyllidae.MainKt"
