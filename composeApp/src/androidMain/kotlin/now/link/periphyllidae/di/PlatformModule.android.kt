@@ -1,6 +1,5 @@
 package now.link.periphyllidae.di
 
-import android.content.Context
 import org.koin.dsl.module
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.SharedPreferencesSettings
@@ -15,10 +14,7 @@ actual val platformModule = module {
             androidContext().getSharedPreferences("periphyllidae_settings", android.content.Context.MODE_PRIVATE)
         )
     }
-    
-    // Provide Android Context for cache directory provider
-    single<Context> { androidContext() }
-    
+
     // MediaMP player factory for Android
     single<MediampPlayerFactory> { AndroidMediampPlayerFactory(androidContext()) }
     
