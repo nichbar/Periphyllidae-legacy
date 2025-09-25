@@ -29,6 +29,7 @@ mediamp = "0.0.29"
 mediamp-vlc = "0.0.26"
 kotlinx-datetime = "0.6.1"
 okio = "3.9.1"
+disklrucache = "2.0.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -79,6 +80,7 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 
 # I/O
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+disklrucache = { module = "com.jakewharton:disklrucache", version.ref = "disklrucache" }
 
 # Image Loading
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

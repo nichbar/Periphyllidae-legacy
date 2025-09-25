@@ -37,11 +37,7 @@ val commonModule = module {
     
     // Cache components
     factory<CacheDirectoryProvider> { CacheDirectoryProvider() }
-    single<CacheManager> { 
-        // This will be initialized asynchronously in the application startup
-        throw IllegalStateException("CacheManager should be initialized asynchronously during app startup")
-    }
-    
+
     // Repositories
     single<SettingsRepository> { SettingsRepositoryImpl(get(), get()) }
     single<SubsonicRepositoryFactory> { SubsonicRepositoryFactory(get(), get(), get()) }

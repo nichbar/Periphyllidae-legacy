@@ -78,6 +78,7 @@ kotlin {
             
             // I/O
             implementation(libs.okio)
+            implementation(libs.disklrucache)
             
             // Image Loading
             implementation(libs.coil.compose)

@@ -536,7 +536,7 @@ class MusicPlayer(
     /**
      * Get cache statistics
      */
-    fun getCacheStats() = cacheManager?.getCacheStats()
+    suspend fun getCacheStats() = cacheManager?.getCacheStats()
     
     /**
      * Clear all cached content
