@@ -16,7 +16,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.openani.mediamp.MediampPlayer
 import org.openani.mediamp.features.AudioLevelController
-import org.openani.mediamp.playFile
 import org.openani.mediamp.playUri
 
 enum class PlaybackState {
@@ -197,10 +196,6 @@ class MusicPlayer(
                 
                 // State will be automatically updated via MediaMP state observation
                 LogManager.i(TAG, "Song playback initiated: ${song.title}")
-                
-                // Start monitoring for actual duration from player
-                monitorDuration()
-
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to play song: ${song.title}", e)
                 _playbackState.value = PlaybackState.ERROR
@@ -218,23 +213,7 @@ class MusicPlayer(
             originalUrl
         }
     }
-    
-    private fun monitorDuration() {
-        scope.launch {
-            // Try to get actual duration from the player after a short delay
-            delay(2000) // Wait for media to load
-            try {
-                val actualDuration = mediaPlayer.getCurrentPositionMillis()
-                if (actualDuration > 0) {
-                    _duration.value = actualDuration
-                    LogManager.d(TAG, "Updated duration from player: ${actualDuration}ms")
-                }
-            } catch (e: Exception) {
-                LogManager.w(TAG, "Could not get duration from player, using metadata duration", e)
-            }
-        }
-    }
-    
+
     fun pause() {
         LogManager.d(TAG, "Pausing playback")
         try {
