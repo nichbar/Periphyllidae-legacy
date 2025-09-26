@@ -6,7 +6,6 @@ import com.russhwolf.settings.SharedPreferencesSettings
 import org.koin.android.ext.koin.androidContext
 import now.link.periphyllidae.platform.MediampPlayerFactory
 import now.link.periphyllidae.platform.AndroidMediampPlayerFactory
-import now.link.periphyllidae.utils.CryptoUtils
 
 actual val platformModule = module {
     single<Settings> { 
@@ -17,7 +16,4 @@ actual val platformModule = module {
 
     // MediaMP player factory for Android
     single<MediampPlayerFactory> { AndroidMediampPlayerFactory(androidContext()) }
-    
-    // CryptoUtils
-    single<CryptoUtils> { CryptoUtils }
 }

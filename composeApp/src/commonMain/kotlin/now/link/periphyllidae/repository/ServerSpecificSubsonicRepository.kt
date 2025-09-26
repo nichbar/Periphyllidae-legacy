@@ -9,7 +9,6 @@ import kotlinx.serialization.json.Json
 import now.link.periphyllidae.models.*
 import now.link.periphyllidae.models.subsonic.*
 import now.link.periphyllidae.utils.CryptoUtils
-import now.link.periphyllidae.utils.generateFixedSalt
 import now.link.periphyllidae.utils.LogManager
 
 /**
@@ -37,7 +36,7 @@ class ServerSpecificSubsonicRepository(
         
         // Try to get existing fixed salt for this server, or generate and save a new one
         val salt = settingsRepository.getServerSalt(serverKey) ?: run {
-            val newSalt = generateFixedSalt(serverConfig.url, serverConfig.username)
+            val newSalt = CryptoUtils.generateFixedSalt(serverConfig.url, serverConfig.username)
             settingsRepository.saveServerSalt(serverKey, newSalt)
             newSalt
         }

@@ -4,7 +4,6 @@ import org.koin.dsl.module
 import com.russhwolf.settings.Settings
 import now.link.periphyllidae.platform.MediampPlayerFactory
 import now.link.periphyllidae.platform.JvmMediampPlayerFactory
-import now.link.periphyllidae.utils.CryptoUtils
 import java.util.Properties
 import java.io.File
 import java.io.FileInputStream
@@ -91,7 +90,4 @@ actual val platformModule = module {
     
     // MediaMP player factory for JVM
     single<MediampPlayerFactory> { JvmMediampPlayerFactory() }
-    
-    // CryptoUtils
-    single<CryptoUtils> { CryptoUtils }
 }
