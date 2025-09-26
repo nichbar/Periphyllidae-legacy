@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import org.koin.compose.KoinApplication
+import com.arkivanov.decompose.ComponentContext
 import now.link.periphyllidae.cache.CacheInitializer
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.di.commonModule
@@ -23,6 +24,7 @@ private const val TAG = "App"
 
 @Composable
 fun App(
+    rootComponentContext: ComponentContext? = null,
     windowScope: Any? = null,
     windowState: Any? = null,
     onCloseRequest: (() -> Unit)? = null,
@@ -32,6 +34,7 @@ fun App(
         modules(commonModule, platformModule)
     }) {
         AppContent(
+            rootComponentContext = rootComponentContext,
             windowScope = windowScope,
             windowState = windowState,
             onCloseRequest = onCloseRequest,
@@ -42,6 +45,7 @@ fun App(
 
 @Composable
 private fun AppContent(
+    rootComponentContext: ComponentContext? = null,
     windowScope: Any? = null,
     windowState: Any? = null,
     onCloseRequest: (() -> Unit)? = null,
@@ -63,7 +67,7 @@ private fun AppContent(
     // Create root component
     val rootComponent = remember {
         DefaultRootComponent(
-            componentContext = defaultComponentContext(),
+            componentContext = rootComponentContext ?: defaultComponentContext(),
             settingsRepository = settingsRepository
         )
     }
