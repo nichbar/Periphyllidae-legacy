@@ -35,7 +35,6 @@ fun ServerConfigurationForm(
     submitButtonText: String,
     title: String,
     subtitle: String,
-    description: String,
     canSubmit: Boolean = serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank(),
     modifier: Modifier = Modifier
 ) {
@@ -53,7 +52,7 @@ fun ServerConfigurationForm(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(32.dp),
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
@@ -98,15 +97,7 @@ fun ServerConfigurationForm(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
                 // Server URL Field
                 OutlinedTextField(
                     value = serverUrl,

@@ -42,7 +42,6 @@ fun LoginScreen(
             submitButtonText = "Connect to Server",
             title = "Connect to Server",
             subtitle = "Subsonic Music Player",
-            description = "Enter your Subsonic server details to get started",
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)

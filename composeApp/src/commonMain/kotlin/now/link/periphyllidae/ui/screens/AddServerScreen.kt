@@ -66,7 +66,6 @@ fun AddServerScreen(
             submitButtonText = "Add Server",
             title = "Server Configuration",
             subtitle = "Add Subsonic Server",
-            description = "Enter your Subsonic server details to add it to your server list",
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)

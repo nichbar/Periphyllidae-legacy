@@ -29,7 +29,7 @@ class ServerSpecificSubsonicRepository(
     }
     
     // Pre-computed auth parameters - immutable and thread-safe
-    private val authParams: Map<String, String> = generateAuthParams()
+    private val authParams: Map<String, String> by lazy { generateAuthParams() }
     
     private fun generateAuthParams(): Map<String, String> {
         // Generate a server-specific key for salt storage
@@ -59,10 +59,12 @@ class ServerSpecificSubsonicRepository(
         if (serverConfig.url != this.serverConfig.url || serverConfig.username != this.serverConfig.username) {
             return Result.failure(Exception("Server config mismatch"))
         }
-        
+
+        val tempAuthParams = generateAuthParams()
+
         return try {
             val response = httpClient.get("${serverConfig.url}/rest/ping") {
-                authParams.forEach { (key, value) ->
+                tempAuthParams.forEach { (key, value) ->
                     parameter(key, value)
                 }
             }
