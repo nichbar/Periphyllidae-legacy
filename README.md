@@ -179,6 +179,7 @@ composeApp/
 - [ ] Support playing on background on Android
 - [ ] Support notifications on Android
 - [ ] Add transitions and animations between MusicBar and NowPlayingScreen
+- [ ] Remove nested scaffolds in mainContent
 
 ## Dependencies
 

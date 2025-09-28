@@ -52,13 +52,13 @@ val commonModule = module {
     single<AppStore> { AppStore(get(), get()) }
     single<SearchStore> { SearchStore(get(), get()) } // SearchStore as singleton for now
     
-    // Page-scoped ViewModels (Singleton pattern for state preservation across tab navigation)
-    single<HomeViewModel> { HomeViewModel(get()) }
+    // ViewModels - Use factory for proper lifecycle management
+    factory<HomeViewModel> { HomeViewModel(get()) }
     factory<LoginViewModel> { LoginViewModel(get()) }
     factory<AddServerViewModel> { AddServerViewModel(get()) }
-    single<SearchViewModel> { SearchViewModel(get(), get()) }
+    factory<SearchViewModel> { SearchViewModel(get(), get()) }
     factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
-    single<SettingsViewModel> { SettingsViewModel(get(), get(), get()) }
+    factory<SettingsViewModel> { SettingsViewModel(get(), get(), get()) }
     factory<ArtistDetailViewModel> { ArtistDetailViewModel(get(), get()) }
 }
 
