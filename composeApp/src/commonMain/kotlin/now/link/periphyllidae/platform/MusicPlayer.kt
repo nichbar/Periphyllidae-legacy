@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.cache.CacheManager
+import now.link.periphyllidae.getPlatform
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import org.koin.core.component.KoinComponent
@@ -190,8 +191,13 @@ class MusicPlayer(
             try {
                 LogManager.d(TAG, "Starting MediaMP playback")
                 
-                // Use cached URL if cache is available, otherwise use original URL
-                val playbackUrl = getPlaybackUrl(song.streamUrl)
+                // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
+                val playbackUrl = if (getPlatform().isAndroid) {
+                    song.streamUrl
+                } else {
+                    getPlaybackUrl(song.streamUrl)
+                }
+
                 LogManager.d(TAG, "Playback URL: $playbackUrl")
                 
                 mediaPlayer.playUri(playbackUrl)

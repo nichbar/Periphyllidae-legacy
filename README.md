@@ -169,6 +169,17 @@ composeApp/
 - **Queue management**: Full playlist and queue control
 - **Format support**: Wide audio format support via platform-optimized backends
 
+## TODO
+
+- [ ] Implement artist and album detail screens
+- [ ] Implement play queue management
+- [ ] Now playing screen should have better UI/UX
+- [ ] Check why FLAC playback is not working on Android
+- [ ] Home screen caching needs improvement
+- [ ] Support playing on background on Android
+- [ ] Support notifications on Android
+- [ ] Add transitions and animations between MusicBar and NowPlayingScreen
+
 ## Dependencies
 
 ### Core Framework
