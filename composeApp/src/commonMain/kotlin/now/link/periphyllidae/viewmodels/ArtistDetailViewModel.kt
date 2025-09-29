@@ -58,29 +58,11 @@ class ArtistDetailViewModel(
         }
     }
     
-    fun playAllSongs() {
+    fun playAllSongsOfArtist() {
         viewModelScope.launch {
             val artist = _state.value.artist
             if (artist != null) {
-                try {
-                    // Get all songs from all albums for this artist
-                    val allSongs = mutableListOf<Song>()
-                    artist.albums.forEach { album ->
-                        val albumSongsResult = subsonicRepositoryManager.getCurrentRepository().getAlbumSongs(album.id)
-                        if (albumSongsResult.isSuccess) {
-                            allSongs.addAll(albumSongsResult.getOrNull() ?: emptyList())
-                        }
-                    }
-                    
-                    if (allSongs.isNotEmpty()) {
-                        musicStore.handleIntent(MusicIntent.SetQueue(allSongs, 0))
-                        musicStore.handleIntent(MusicIntent.Play)
-                    }
-                } catch (e: Exception) {
-                    _state.value = _state.value.copy(
-                        error = "Failed to play artist songs: ${e.message}"
-                    )
-                }
+                musicStore.handleIntent(MusicIntent.PlayAllSongsOfArtist(artist))
             }
         }
     }

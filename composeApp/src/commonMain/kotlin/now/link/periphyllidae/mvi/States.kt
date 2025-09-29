@@ -85,6 +85,7 @@ sealed interface MusicIntent : Intent {
     object PlayRandomSong : MusicIntent
     data class PlaySong(val song: Song) : MusicIntent
     data class PlayAlbum(val album: Album) : MusicIntent
+    data class PlayAllSongsOfArtist(val artist: Artist) : MusicIntent
     data class SetQueue(val songs: List<Song>, val startIndex: Int = 0) : MusicIntent
     
     // Server change handling
@@ -118,7 +119,7 @@ data class ArtistDetailState(
 // Artist Detail Intents
 sealed interface ArtistDetailIntent : Intent {
     data class LoadArtistDetail(val artistId: String) : ArtistDetailIntent
-    object PlayAllSongs : ArtistDetailIntent
+    object PlayAllSongsOfArtist : ArtistDetailIntent
     data class PlayAlbum(val album: Album) : ArtistDetailIntent
     data class PlaySong(val song: Song) : ArtistDetailIntent
 }

@@ -3,6 +3,7 @@ package now.link.periphyllidae.store
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.platform.MusicPlayer
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Album
+import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.HomeContentCache
 import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.utils.LogManager
@@ -79,6 +81,7 @@ class MusicStore(
             is MusicIntent.PlayRandomSong -> playRandomSong()
             is MusicIntent.PlaySong -> playSong(intent.song)
             is MusicIntent.PlayAlbum -> playAlbum(intent.album)
+            is MusicIntent.PlayAllSongsOfArtist -> playAllSongsOfArtist(intent.artist)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
             is MusicIntent.InvalidatePlayerState -> invalidatePlayerState()
         }
@@ -230,11 +233,20 @@ class MusicStore(
                 }
                 
                 LogManager.d(TAG, "Fetching playlists, albums, and songs from repository")
-                val playlistsResult = repository.getPlaylists()
-                val recentlyPlayedResult = repository.getRecentlyPlayedAlbums(10)
-                val mostPlayedResult = repository.getMostPlayedAlbums(10)
-                val newestAlbumsResult = repository.getNewestAlbums(10)
-                val randomSongsResult = repository.getRandomSongs(100)
+                
+                // Run all API calls concurrently for better performance
+                val playlistsDeferred = async { repository.getPlaylists() }
+                val recentlyPlayedDeferred = async { repository.getRecentlyPlayedAlbums(10) }
+                val mostPlayedDeferred = async { repository.getMostPlayedAlbums(10) }
+                val newestAlbumsDeferred = async { repository.getNewestAlbums(10) }
+                val randomSongsDeferred = async { repository.getRandomSongs(100) }
+                
+                // Wait for all results
+                val playlistsResult = playlistsDeferred.await()
+                val recentlyPlayedResult = recentlyPlayedDeferred.await()
+                val mostPlayedResult = mostPlayedDeferred.await()
+                val newestAlbumsResult = newestAlbumsDeferred.await()
+                val randomSongsResult = randomSongsDeferred.await()
                 
                 val playlists = if (playlistsResult.isSuccess) {
                     val result = playlistsResult.getOrNull() ?: emptyList()
@@ -411,6 +423,62 @@ class MusicStore(
                 _state.value = _state.value.copy(
                     homeError = "Failed to load album songs: ${e.message}"
                 )
+            }
+        }
+    }
+
+    private fun playAllSongsOfArtist(artist: Artist) {
+        LogManager.i(TAG, "Playing all songs for artist: ${artist.name} (ID: ${artist.id})")
+        storeScope.launch {
+            try {
+                val repository = getCurrentRepository()
+                if (repository == null) {
+                    LogManager.w(TAG, "No repository available for artist songs")
+                    return@launch
+                }
+
+                // Collect all songs from all albums using coroutines for better performance
+                val allSongs = mutableListOf<Song>()
+                
+                if (artist.albums.isNotEmpty()) {
+                    LogManager.d(TAG, "Fetching songs from ${artist.albums.size} albums for artist ${artist.name}")
+                    
+                    // Use async to fetch all albums concurrently for better performance
+                    val albumSongResults = artist.albums.map { album ->
+                        async {
+                            try {
+                                repository.getAlbumSongs(album.id)
+                            } catch (e: Exception) {
+                                LogManager.w(TAG, "Failed to get songs for album ${album.name}: ${e.message}")
+                                Result.failure<List<Song>>(e)
+                            }
+                        }
+                    }
+                    
+                    // Collect all successful results
+                    albumSongResults.forEach { deferred ->
+                        val result = deferred.await()
+                        if (result.isSuccess) {
+                            val songs = result.getOrNull() ?: emptyList()
+                            allSongs.addAll(songs)
+                            LogManager.d(TAG, "Added ${songs.size} songs from album")
+                        }
+                    }
+                } else {
+                    LogManager.d(TAG, "Artist has no albums, trying to get songs directly")
+                    // Fallback: if artist has no albums but we still want to try playing
+                    // This might happen with some server configurations
+                }
+
+                if (allSongs.isNotEmpty()) {
+                    LogManager.i(TAG, "Starting artist playback with ${allSongs.size} total songs from ${artist.name}")
+                    setQueue(allSongs, 0)
+                    playSpecificSong(allSongs[0], 0)
+                } else {
+                    LogManager.w(TAG, "Artist ${artist.name} contains no playable songs")
+                }
+            } catch (e: Exception) {
+                LogManager.e(TAG, "Failed to load songs for artist ${artist.name}", e)
             }
         }
     }

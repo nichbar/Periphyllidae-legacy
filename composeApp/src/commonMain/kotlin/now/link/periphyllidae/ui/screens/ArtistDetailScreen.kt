@@ -94,7 +94,7 @@ fun ArtistDetailScreen(
                         if (currentArtist != null) {
                             ArtistHeader(
                                 artist = currentArtist,
-                                onPlayAll = { viewModel.playAllSongs() }
+                                onPlayAll = { viewModel.playAllSongsOfArtist() }
                             )
                         }
                     }
