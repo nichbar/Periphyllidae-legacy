@@ -28,6 +28,7 @@ fun RootContent(
             is RootComponent.Child.ServerManagementChild -> ServerManagementContent(child.component)
             is RootComponent.Child.AddServerChild -> AddServerContent(child.component)
             is RootComponent.Child.ArtistDetailChild -> ArtistDetailContent(child.component)
+            is RootComponent.Child.AlbumDetailChild -> AlbumDetailContent(child.component)
         }
     }
 }
@@ -61,6 +62,16 @@ private fun LogsContent(component: now.link.periphyllidae.components.LogsCompone
 private fun ArtistDetailContent(component: now.link.periphyllidae.components.ArtistDetailComponent) {
     ArtistDetailScreen(
         artistId = component.artistId,
+        viewModel = koinInject(),
+        onNavigateBack = component::onNavigateBack,
+        onNavigateToNowPlaying = component::onNavigateToNowPlaying
+    )
+}
+
+@Composable
+private fun AlbumDetailContent(component: now.link.periphyllidae.components.AlbumDetailComponent) {
+    AlbumDetailScreen(
+        albumId = component.albumId,
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
         onNavigateToNowPlaying = component::onNavigateToNowPlaying

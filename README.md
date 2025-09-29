@@ -171,7 +171,8 @@ composeApp/
 
 ## TODO
 
-- [ ] Implement artist and album detail screens
+- [x] Implement artist detail screen (completed)
+- [x] Implement album detail screen (completed)
 - [ ] Implement play queue management
 - [ ] Now playing screen should have better UI/UX
 - [ ] Check why FLAC playback is not working on Android

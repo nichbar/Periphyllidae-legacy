@@ -124,6 +124,20 @@ sealed interface ArtistDetailIntent : Intent {
     data class PlaySong(val song: Song) : ArtistDetailIntent
 }
 
+// Album Detail State
+data class AlbumDetailState(
+    val album: Album? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null
+) : State
+
+// Album Detail Intents
+sealed interface AlbumDetailIntent : Intent {
+    data class LoadAlbumDetail(val albumId: String) : AlbumDetailIntent
+    object PlayAllSongsOfAlbum : AlbumDetailIntent
+    data class PlaySong(val song: Song) : AlbumDetailIntent
+}
+
 // Login State (local form state for Login screen)
 data class LoginState(
     override val serverUrl: String = "",

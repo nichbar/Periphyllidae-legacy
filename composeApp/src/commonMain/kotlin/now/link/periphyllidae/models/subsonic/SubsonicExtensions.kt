@@ -24,6 +24,7 @@ fun SubsonicAlbum.toDomainModel(repository: SubsonicRepository): Album {
         year = this.year,
         genre = this.genre,
         coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        copyright = this.copyright,
         songs = this.song.map { it.toDomainModel(repository) }
     )
 }

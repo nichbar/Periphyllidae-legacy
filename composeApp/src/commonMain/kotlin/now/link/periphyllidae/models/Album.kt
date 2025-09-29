@@ -12,5 +12,6 @@ data class Album(
     val year: Int? = null,
     val genre: String? = null,
     val coverArt: String? = null,
+    val copyright: String? = null,
     val songs: List<Song> = emptyList()
 )

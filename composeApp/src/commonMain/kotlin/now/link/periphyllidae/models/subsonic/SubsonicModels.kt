@@ -77,6 +77,7 @@ data class SubsonicAlbum(
     val coverArt: String? = null,
     val created: String? = null,
     val starred: String? = null,
+    val copyright: String? = null,
     val song: List<SubsonicSong> = emptyList()
 )
 

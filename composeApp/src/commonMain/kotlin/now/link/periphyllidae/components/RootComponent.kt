@@ -24,6 +24,7 @@ interface RootComponent {
         class ServerManagementChild(val component: ServerManagementComponent) : Child()
         class AddServerChild(val component: AddServerComponent) : Child()
         class ArtistDetailChild(val component: ArtistDetailComponent) : Child()
+        class AlbumDetailChild(val component: AlbumDetailComponent) : Child()
     }
 }
 
@@ -53,6 +54,7 @@ class DefaultRootComponent(
             is Config.ServerManagement -> RootComponent.Child.ServerManagementChild(serverManagementComponent(componentContext))
             is Config.AddServer -> RootComponent.Child.AddServerChild(addServerComponent(componentContext))
             is Config.ArtistDetail -> RootComponent.Child.ArtistDetailChild(artistDetailComponent(componentContext, config))
+            is Config.AlbumDetail -> RootComponent.Child.AlbumDetailChild(albumDetailComponent(componentContext, config))
         }
     
     private fun loginComponent(componentContext: ComponentContext): LoginComponent =
@@ -135,6 +137,18 @@ class DefaultRootComponent(
                 navigation.push(Config.NowPlaying)
             }
         )
+
+    private fun albumDetailComponent(componentContext: ComponentContext, config: Config.AlbumDetail): AlbumDetailComponent =
+        DefaultAlbumDetailComponent(
+            componentContext = componentContext,
+            albumId = config.albumId,
+            onNavigateBack = {
+                navigation.pop()
+            },
+            onNavigateToNowPlaying = {
+                navigation.push(Config.NowPlaying)
+            }
+        )
     
     override fun onBackClicked(toIndex: Int) {
         navigation.pop()
@@ -162,6 +176,9 @@ class DefaultRootComponent(
         
         @Serializable
         data class ArtistDetail(val artistId: String) : Config
+
+        @Serializable
+        data class AlbumDetail(val albumId: String) : Config
     }
 }
 
