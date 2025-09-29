@@ -62,8 +62,8 @@ sealed class HomeSection {
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = koinInject(),
 ) {
+    val viewModel: HomeViewModel = koinInject()
     val state by viewModel.state.collectAsState()
 
     BoxWithConstraints {

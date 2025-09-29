@@ -3,6 +3,7 @@ package now.link.periphyllidae.components
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
+import com.arkivanov.decompose.router.stack.bringToFront
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.value.Value
 import kotlinx.serialization.Serializable
@@ -81,10 +82,7 @@ class DefaultMainComponent(
             3 -> TabConfig.Settings
             else -> TabConfig.Home
         }
-        tabNavigation.navigate(
-            transformer = { listOf(config) },
-            onComplete = { _, _ -> }
-        )
+        tabNavigation.bringToFront(config)
     }
     
     override fun onNavigateToNowPlaying() {

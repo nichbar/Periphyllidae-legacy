@@ -20,15 +20,16 @@ import kotlinx.coroutines.delay
 import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.NetworkUtils
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
     onNavigateToLogs: () -> Unit,
     onNavigateToServerManagement: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val viewModel: SettingsViewModel = koinInject()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val appState by viewModel.appState.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }

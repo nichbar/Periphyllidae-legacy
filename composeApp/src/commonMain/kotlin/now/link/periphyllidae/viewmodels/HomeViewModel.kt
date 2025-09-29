@@ -19,8 +19,10 @@ class HomeViewModel(
     val state: StateFlow<MusicState> = musicStore.state
     
     init {
-        // Load initial home content when the ViewModel is created
-        loadHomeContent()
+        // Load initial home content only when there is no cached data
+        if (state.value.randomSongs.isEmpty()) {
+            loadHomeContent()
+        }
     }
     
     fun handleIntent(intent: MusicIntent) {

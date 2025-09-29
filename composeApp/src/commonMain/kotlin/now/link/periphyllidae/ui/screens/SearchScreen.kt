@@ -27,14 +27,15 @@ import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.viewmodels.SearchViewModel
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: SearchViewModel,
     onNavigateToNowPlaying: () -> Unit,
     onNavigateToArtist: (String) -> Unit
 ) {
+    val viewModel: SearchViewModel = koinInject()
     val state by viewModel.state.collectAsStateWithLifecycle()
     
     Scaffold(

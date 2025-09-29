@@ -228,11 +228,10 @@ private fun TabContent(
         ) {
             when (val child = it.instance) {
                 is MainComponent.TabChild.HomeChild -> {
-                    HomeScreen(viewModel = koinInject())
+                    HomeScreen()
                 }
                 is MainComponent.TabChild.SearchChild -> {
                     SearchScreen(
-                        viewModel = koinInject(),
                         onNavigateToNowPlaying = child.component::onNavigateToNowPlaying,
                         onNavigateToArtist = child.component::onNavigateToArtist
                     )
@@ -242,7 +241,6 @@ private fun TabContent(
                 }
                 is MainComponent.TabChild.SettingsChild -> {
                     SettingsScreen(
-                        viewModel = koinInject(),
                         onNavigateToLogs = child.component::onNavigateToLogs,
                         onNavigateToServerManagement = child.component::onNavigateToServerManagement,
                         onLogout = child.component::onLogout

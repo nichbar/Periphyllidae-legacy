@@ -202,7 +202,7 @@ class MusicStore(
         // Try to load cached content first
         val cachedContent = settingsRepository.getHomeContentCache()
         if (cachedContent != null) {
-            LogManager.d(TAG, "Found cached home content from ${System.currentTimeMillis() - cachedContent.timestamp}ms ago")
+            LogManager.d(TAG, "Found cached home content from ${(System.currentTimeMillis() - cachedContent.timestamp) / 1000}S ago")
             _state.value = _state.value.copy(
                 isLoadingHome = false,
                 randomSongs = cachedContent.randomSongs,
