@@ -60,7 +60,8 @@ data class SubsonicArtist(
     val name: String,
     val albumCount: Int? = null,
     val starred: String? = null,
-    val coverArt: String? = null
+    val coverArt: String? = null,
+    val album: List<SubsonicAlbum> = emptyList()
 )
 
 @Serializable

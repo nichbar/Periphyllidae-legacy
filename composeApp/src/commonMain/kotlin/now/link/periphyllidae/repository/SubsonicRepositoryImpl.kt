@@ -24,5 +24,6 @@ data class SubsonicJsonContainer(
     val playlists: PlaylistList? = null,
     val searchResult3: SearchResult3? = null,
     val album: SubsonicAlbum? = null,
-    val playlist: SubsonicPlaylist? = null
+    val playlist: SubsonicPlaylist? = null,
+    val artist: SubsonicArtist? = null
 )

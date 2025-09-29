@@ -180,6 +180,7 @@ composeApp/
 - [ ] Support notifications on Android
 - [ ] Add transitions and animations between MusicBar and NowPlayingScreen
 - [ ] Remove nested scaffolds in mainContent
+- [ ] Search history
 
 ## Dependencies
 

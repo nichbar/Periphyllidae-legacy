@@ -360,17 +360,38 @@ class ServerSpecificSubsonicRepository(
         return urlBuilder.buildString()
     }
     
-    override suspend fun getArtist(artistId: String): Result<Artist> {
-        // TODO: Implement actual API call
-        return Result.success(
-            Artist(
-                id = artistId,
-                name = "Unknown Artist",
-                albumCount = 0,
-                starred = null,
-                coverArt = null
-            )
-        )
+    override suspend fun getArtist(id: String): Result<Artist> {
+        return try {
+            val response = httpClient.get("${serverConfig.url}/rest/getArtist") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("id", id)
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+                
+                if (subsonicResponse.status == "ok" && subsonicResponse.artist != null) {
+                    val artist = subsonicResponse.artist.toDomainModel(this)
+                    LogManager.i(TAG, "Fetched artist: $id")
+                    Result.success(artist)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch artist"
+                    LogManager.e(TAG, errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                LogManager.e(TAG, "Failed to fetch artist with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch artist"))
+            }
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Error fetching artist", e)
+            Result.failure(e)
+        }
     }
     
     override suspend fun getTopSongs(artistId: String, count: Int): Result<List<Song>> {

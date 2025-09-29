@@ -7,9 +7,10 @@ fun SubsonicArtist.toDomainModel(repository: SubsonicRepository): Artist {
     return Artist(
         id = this.id,
         name = this.name,
-        albumCount = this.albumCount ?: 0,
+        albumCount = this.albumCount ?: this.album.size,
         starred = this.starred,
-        coverArt = this.coverArt ?.let { repository.getCoverArtUrl(it) }
+        coverArt = this.coverArt ?.let { repository.getCoverArtUrl(it) },
+        albums = this.album.map { it.toDomainModel(repository) }
     )
 }
 

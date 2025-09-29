@@ -64,7 +64,14 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val viewModel: HomeViewModel = koinInject()
-    val state by viewModel.state.collectAsState()
+    val musicState by viewModel.musicState.collectAsState()
+    val authState by viewModel.authState.collectAsState()
+
+    val currentServer = remember { authState.currentServer }
+
+    LaunchedEffect(currentServer) {
+        viewModel.refreshContent()
+    }
 
     BoxWithConstraints {
         val box = this
@@ -79,7 +86,7 @@ fun HomeScreen(
             }
         ) { paddingValues ->
             HomeContent(
-                state = state,
+                state = musicState,
                 isLandscape = isLandscape,
                 onAlbumPlay = { album -> viewModel.playAlbum(album) },
                 onPlaylistClick = { /* TODO: Navigate to playlist detail */ },

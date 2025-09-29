@@ -53,7 +53,7 @@ val commonModule = module {
     single<SearchStore> { SearchStore(get(), get()) } // SearchStore as singleton for now
     
     // ViewModels - Use factory for proper lifecycle management
-    factory<HomeViewModel> { HomeViewModel(get()) }
+    factory<HomeViewModel> { HomeViewModel(get(), get()) }
     factory<LoginViewModel> { LoginViewModel(get()) }
     factory<AddServerViewModel> { AddServerViewModel(get()) }
     factory<SearchViewModel> { SearchViewModel(get(), get()) }
