@@ -24,11 +24,7 @@ class HomeViewModel(
             loadHomeContent()
         }
     }
-    
-    fun handleIntent(intent: MusicIntent) {
-        musicStore.handleIntent(intent)
-    }
-    
+
     fun loadHomeContent() {
         viewModelScope.launch {
             musicStore.handleIntent(MusicIntent.LoadHomeContent)

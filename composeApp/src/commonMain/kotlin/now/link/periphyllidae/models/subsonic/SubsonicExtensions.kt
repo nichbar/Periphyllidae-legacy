@@ -3,13 +3,13 @@ package now.link.periphyllidae.models.subsonic
 import now.link.periphyllidae.models.*
 import now.link.periphyllidae.repository.SubsonicRepository
 
-fun SubsonicArtist.toDomainModel(): Artist {
+fun SubsonicArtist.toDomainModel(repository: SubsonicRepository): Artist {
     return Artist(
         id = this.id,
         name = this.name,
         albumCount = this.albumCount ?: 0,
         starred = this.starred,
-        coverArt = this.coverArt
+        coverArt = this.coverArt ?.let { repository.getCoverArtUrl(it) }
     )
 }
 
@@ -43,7 +43,7 @@ fun SubsonicSong.toDomainModel(repository: SubsonicRepository): Song {
 }
 
 fun SubsonicPlaylist.toDomainModel(repository: SubsonicRepository): Playlist {
-    val songs = this.entry?.map { song ->
+    val songs = this.entry.map { song ->
         // Create a SubsonicSong from the entry
         SubsonicSong(
             id = song.id,
@@ -56,7 +56,7 @@ fun SubsonicPlaylist.toDomainModel(repository: SubsonicRepository): Playlist {
             genre = song.genre,
             coverArt = song.coverArt
         ).toDomainModel(repository)
-    } ?: emptyList()
+    }
 
     return Playlist(
         id = this.id,
@@ -73,7 +73,7 @@ fun SubsonicPlaylist.toDomainModel(repository: SubsonicRepository): Playlist {
 
 fun SearchResult3.toDomainModel(repository: SubsonicRepository): SearchResult {
     return SearchResult(
-        artists = this.artist.map { it.toDomainModel() },
+        artists = this.artist.map { it.toDomainModel(repository) },
         albums = this.album.map { it.toDomainModel(repository) },
         songs = this.song.map { it.toDomainModel(repository) }
     )

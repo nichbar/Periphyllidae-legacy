@@ -6,42 +6,32 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import now.link.periphyllidae.mvi.ArtistDetailIntent
 import now.link.periphyllidae.mvi.ArtistDetailState
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.store.MusicStore
-import now.link.periphyllidae.repository.SubsonicRepository
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.repository.SubsonicRepositoryManager
 
 /**
  * ViewModel for Artist Detail screen
  * Handles artist-specific data and interactions with the global MusicStore
  */
 class ArtistDetailViewModel(
-    private val subsonicRepository: SubsonicRepository,
-    private val musicStore: MusicStore
+    private val musicStore: MusicStore,
+    private val subsonicRepositoryManager: SubsonicRepositoryManager,
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(ArtistDetailState())
     val state: StateFlow<ArtistDetailState> = _state.asStateFlow()
-    
-    fun handleIntent(intent: ArtistDetailIntent) {
-        when (intent) {
-            is ArtistDetailIntent.LoadArtistDetail -> loadArtistDetail(intent.artistId)
-            is ArtistDetailIntent.PlayAllSongs -> playAllSongs()
-            is ArtistDetailIntent.PlayAlbum -> playAlbum(intent.album)
-            is ArtistDetailIntent.PlaySong -> playSong(intent.song)
-        }
-    }
-    
+
     fun loadArtistDetail(artistId: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             
             try {
-                val artistResult = subsonicRepository.getArtist(artistId)
-                val topSongsResult = subsonicRepository.getTopSongs(artistId, limit = 10)
+                val artistResult = subsonicRepositoryManager.getCurrentRepository().getArtist(artistId)
+                val topSongsResult = subsonicRepositoryManager.getCurrentRepository().getTopSongs(artistId, limit = 10)
                 
                 if (artistResult.isSuccess && topSongsResult.isSuccess) {
                     _state.value = _state.value.copy(
@@ -76,7 +66,7 @@ class ArtistDetailViewModel(
                     // Get all songs from all albums for this artist
                     val allSongs = mutableListOf<Song>()
                     artist.albums.forEach { album ->
-                        val albumSongsResult = subsonicRepository.getAlbumSongs(album.id)
+                        val albumSongsResult = subsonicRepositoryManager.getCurrentRepository().getAlbumSongs(album.id)
                         if (albumSongsResult.isSuccess) {
                             allSongs.addAll(albumSongsResult.getOrNull() ?: emptyList())
                         }
