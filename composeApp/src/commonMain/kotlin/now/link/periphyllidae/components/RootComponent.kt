@@ -11,6 +11,21 @@ import com.arkivanov.decompose.value.Value
 import kotlinx.serialization.Serializable
 import now.link.periphyllidae.repository.SettingsRepository
 
+/**
+ * Sealed class representing all possible navigation events in the app
+ */
+sealed class Nav {
+    data object Main : Nav()
+    data object NowPlaying : Nav()
+    data object Logs : Nav()
+    data object ServerManagement : Nav()
+    data object AddServer : Nav()
+    data object Login : Nav()
+    data object Logout : Nav()
+    data class ArtistDetail(val artistId: String) : Nav()
+    data class AlbumDetail(val albumId: String) : Nav()
+}
+
 interface RootComponent {
     val stack: Value<ChildStack<*, Child>>
     
@@ -35,6 +50,23 @@ class DefaultRootComponent(
 ) : RootComponent, ComponentContext by componentContext {
     
     private val navigation = StackNavigation<Config>()
+
+    /**
+     * Central navigation handler using sealed class Nav
+     */
+    private val nav: (Nav) -> Unit = { event ->
+        when (event) {
+            is Nav.Main -> navigation.push(Config.Main)
+            is Nav.NowPlaying -> navigation.push(Config.NowPlaying)
+            is Nav.ArtistDetail -> navigation.push(Config.ArtistDetail(artistId = event.artistId))
+            is Nav.AlbumDetail -> navigation.push(Config.AlbumDetail(albumId = event.albumId))
+            is Nav.Logs -> navigation.push(Config.Logs)
+            is Nav.ServerManagement -> navigation.push(Config.ServerManagement)
+            is Nav.AddServer -> navigation.push(Config.AddServer)
+            is Nav.Login -> navigation.push(Config.Login)
+            is Nav.Logout -> navigation.push(Config.Login)
+        }
+    }
     
     override val stack: Value<ChildStack<*, RootComponent.Child>> =
         childStack(
@@ -44,7 +76,7 @@ class DefaultRootComponent(
             handleBackButton = true,
             childFactory = ::child,
         )
-    
+
     private fun child(config: Config, componentContext: ComponentContext): RootComponent.Child =
         when (config) {
             is Config.Login -> RootComponent.Child.LoginChild(loginComponent(componentContext))
@@ -60,32 +92,13 @@ class DefaultRootComponent(
     private fun loginComponent(componentContext: ComponentContext): LoginComponent =
         DefaultLoginComponent(
             componentContext = componentContext,
-            onLoginSuccess = {
-                navigation.push(Config.Main)
-            }
+            nav = nav,
         )
     
     private fun mainComponent(componentContext: ComponentContext): MainComponent =
         DefaultMainComponent(
             componentContext = componentContext,
-            onNavigateToNowPlaying = {
-                navigation.push(Config.NowPlaying)
-            },
-            onNavigateToArtist = { artistId ->
-                navigation.push(Config.ArtistDetail(artistId = artistId))
-            },
-            onNavigateToLogs = {
-                navigation.push(Config.Logs)
-            },
-            onNavigateToServerManagement = {
-                navigation.push(Config.ServerManagement)
-            },
-            onNavigateToLogin = {
-                navigation.push(Config.Login)
-            },
-            onLogout = {
-                navigation.push(Config.Login)
-            }
+            nav = nav
         )
     
     private fun nowPlayingComponent(componentContext: ComponentContext): NowPlayingComponent =
@@ -110,9 +123,7 @@ class DefaultRootComponent(
             onNavigateBack = {
                 navigation.pop()
             },
-            onNavigateToAddServer = {
-                navigation.push(Config.AddServer)
-            }
+            nav = nav
         )
     
     private fun addServerComponent(componentContext: ComponentContext): AddServerComponent =
@@ -133,9 +144,7 @@ class DefaultRootComponent(
             onNavigateBack = {
                 navigation.pop()
             },
-            onNavigateToNowPlaying = {
-                navigation.push(Config.NowPlaying)
-            }
+            nav = nav
         )
 
     private fun albumDetailComponent(componentContext: ComponentContext, config: Config.AlbumDetail): AlbumDetailComponent =
@@ -145,9 +154,7 @@ class DefaultRootComponent(
             onNavigateBack = {
                 navigation.pop()
             },
-            onNavigateToNowPlaying = {
-                navigation.push(Config.NowPlaying)
-            }
+            nav = nav
         )
     
     override fun onBackClicked(toIndex: Int) {
@@ -184,21 +191,21 @@ class DefaultRootComponent(
 
 interface ServerManagementComponent {
     fun onNavigateBack()
-    fun onNavigateToAddServer()
+    fun onNavigateTo(nav: Nav)
 }
 
 class DefaultServerManagementComponent(
     componentContext: ComponentContext,
     private val onNavigateBack: () -> Unit,
-    private val onNavigateToAddServer: () -> Unit
+    private val nav: (Nav) -> Unit
 ) : ServerManagementComponent, ComponentContext by componentContext {
     
     override fun onNavigateBack() {
         onNavigateBack.invoke()
     }
     
-    override fun onNavigateToAddServer() {
-        onNavigateToAddServer.invoke()
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
     }
 }
 

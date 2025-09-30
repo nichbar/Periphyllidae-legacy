@@ -8,17 +8,11 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.value.Value
 import kotlinx.serialization.Serializable
 
-interface MainComponent {
+interface MainComponent: NavigationComponent {
     val tabStack: Value<ChildStack<*, TabChild>>
     
     fun selectTab(index: Int)
-    fun onNavigateToNowPlaying()
-    fun onNavigateToArtist(artistId: String)
-    fun onNavigateToLogs()
-    fun onNavigateToServerManagement()
-    fun onNavigateToLogin()
-    fun onLogout()
-    
+
     sealed class TabChild {
         class HomeChild(val component: HomeTabComponent) : TabChild()
         class SearchChild(val component: SearchTabComponent) : TabChild()
@@ -29,12 +23,7 @@ interface MainComponent {
 
 class DefaultMainComponent(
     componentContext: ComponentContext,
-    private val onNavigateToNowPlaying: () -> Unit,
-    private val onNavigateToArtist: (String) -> Unit,
-    private val onNavigateToLogs: () -> Unit,
-    private val onNavigateToServerManagement: () -> Unit,
-    private val onNavigateToLogin: () -> Unit,
-    private val onLogout: () -> Unit
+    private val nav: (Nav) -> Unit
 ) : MainComponent, ComponentContext by componentContext {
     
     private val tabNavigation = StackNavigation<TabConfig>()
@@ -56,8 +45,7 @@ class DefaultMainComponent(
             TabConfig.Search -> MainComponent.TabChild.SearchChild(
                 DefaultSearchTabComponent(
                     componentContext = componentContext,
-                    onNavigateToNowPlaying = onNavigateToNowPlaying,
-                    onNavigateToArtist = onNavigateToArtist
+                    nav = nav
                 )
             )
             TabConfig.Playlists -> MainComponent.TabChild.PlaylistsChild(
@@ -66,10 +54,7 @@ class DefaultMainComponent(
             TabConfig.Settings -> MainComponent.TabChild.SettingsChild(
                 DefaultSettingsTabComponent(
                     componentContext = componentContext,
-                    onNavigateToLogs = onNavigateToLogs,
-                    onNavigateToServerManagement = onNavigateToServerManagement,
-                    onNavigateToLogin = onNavigateToLogin,
-                    onLogout = onLogout
+                    nav = nav
                 )
             )
         }
@@ -85,30 +70,10 @@ class DefaultMainComponent(
         tabNavigation.bringToFront(config)
     }
     
-    override fun onNavigateToNowPlaying() {
-        onNavigateToNowPlaying.invoke()
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
     }
-    
-    override fun onNavigateToArtist(artistId: String) {
-        onNavigateToArtist.invoke(artistId)
-    }
-    
-    override fun onNavigateToLogs() {
-        onNavigateToLogs.invoke()
-    }
-    
-    override fun onNavigateToServerManagement() {
-        onNavigateToServerManagement.invoke()
-    }
-    
-    override fun onNavigateToLogin() {
-        onNavigateToLogin.invoke()
-    }
-    
-    override fun onLogout() {
-        onLogout.invoke()
-    }
-    
+
     @Serializable
     private sealed interface TabConfig {
         @Serializable
@@ -132,23 +97,15 @@ class DefaultHomeTabComponent(
     componentContext: ComponentContext
 ) : HomeTabComponent, ComponentContext by componentContext
 
-interface SearchTabComponent {
-    fun onNavigateToNowPlaying()
-    fun onNavigateToArtist(artistId: String)
-}
+interface SearchTabComponent: NavigationComponent
 
 class DefaultSearchTabComponent(
     componentContext: ComponentContext,
-    private val onNavigateToNowPlaying: () -> Unit,
-    private val onNavigateToArtist: (String) -> Unit
+    private val nav: (Nav) -> Unit
 ) : SearchTabComponent, ComponentContext by componentContext {
     
-    override fun onNavigateToNowPlaying() {
-        onNavigateToNowPlaying.invoke()
-    }
-    
-    override fun onNavigateToArtist(artistId: String) {
-        onNavigateToArtist.invoke(artistId)
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
     }
 }
 
@@ -158,34 +115,14 @@ class DefaultPlaylistsTabComponent(
     componentContext: ComponentContext
 ) : PlaylistsTabComponent, ComponentContext by componentContext
 
-interface SettingsTabComponent {
-    fun onNavigateToLogs()
-    fun onNavigateToServerManagement()
-    fun onNavigateToLogin()
-    fun onLogout()
-}
+interface SettingsTabComponent: NavigationComponent
 
 class DefaultSettingsTabComponent(
     componentContext: ComponentContext,
-    private val onNavigateToLogs: () -> Unit,
-    private val onNavigateToServerManagement: () -> Unit,
-    private val onNavigateToLogin: () -> Unit,
-    private val onLogout: () -> Unit
+    private val nav: (Nav) -> Unit
 ) : SettingsTabComponent, ComponentContext by componentContext {
-    
-    override fun onNavigateToLogs() {
-        onNavigateToLogs.invoke()
-    }
-    
-    override fun onNavigateToServerManagement() {
-        onNavigateToServerManagement.invoke()
-    }
-    
-    override fun onNavigateToLogin() {
-        onNavigateToLogin.invoke()
-    }
-    
-    override fun onLogout() {
-        onLogout.invoke()
+
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
     }
 }

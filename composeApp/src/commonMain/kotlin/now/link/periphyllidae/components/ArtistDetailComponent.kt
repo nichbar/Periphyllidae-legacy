@@ -2,24 +2,23 @@ package now.link.periphyllidae.components
 
 import com.arkivanov.decompose.ComponentContext
 
-interface ArtistDetailComponent {
+interface ArtistDetailComponent: NavigationComponent{
     val artistId: String
     fun onNavigateBack()
-    fun onNavigateToNowPlaying()
 }
 
 class DefaultArtistDetailComponent(
     componentContext: ComponentContext,
     override val artistId: String,
     private val onNavigateBack: () -> Unit,
-    private val onNavigateToNowPlaying: () -> Unit
+    private val nav: (Nav) -> Unit,
 ) : ArtistDetailComponent, ComponentContext by componentContext {
     
     override fun onNavigateBack() {
         onNavigateBack.invoke()
     }
-    
-    override fun onNavigateToNowPlaying() {
-        onNavigateToNowPlaying.invoke()
+
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
     }
 }

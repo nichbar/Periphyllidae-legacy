@@ -6,6 +6,8 @@ import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.slide
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import now.link.periphyllidae.components.AlbumDetailComponent
+import now.link.periphyllidae.components.LoginComponent
 import now.link.periphyllidae.components.RootComponent
 import now.link.periphyllidae.ui.screens.*
 import org.koin.compose.koinInject
@@ -34,12 +36,10 @@ fun RootContent(
 }
 
 @Composable
-private fun LoginContent(component: now.link.periphyllidae.components.LoginComponent) {
+private fun LoginContent(component: LoginComponent) {
     LoginScreen(
         viewModel = koinInject(),
-        onLoginSuccess = {
-            (component as now.link.periphyllidae.components.DefaultLoginComponent).onLoginSuccess()
-        }
+        onNavigateTo = { component::onNavigateTo },
     )
 }
 
@@ -64,17 +64,17 @@ private fun ArtistDetailContent(component: now.link.periphyllidae.components.Art
         artistId = component.artistId,
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
-        onNavigateToNowPlaying = component::onNavigateToNowPlaying
+        onNavigateTo = component::onNavigateTo
     )
 }
 
 @Composable
-private fun AlbumDetailContent(component: now.link.periphyllidae.components.AlbumDetailComponent) {
+private fun AlbumDetailContent(component: AlbumDetailComponent) {
     AlbumDetailScreen(
         albumId = component.albumId,
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
-        onNavigateToNowPlaying = component::onNavigateToNowPlaying
+        onNavigateTo = component::onNavigateTo
     )
 }
 
@@ -83,7 +83,7 @@ private fun ServerManagementContent(component: now.link.periphyllidae.components
     ServerManagementScreen(
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
-        onNavigateToAddServer = component::onNavigateToAddServer
+        onNavigateTo = component::onNavigateTo
     )
 }
 

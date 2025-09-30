@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.ServerConfig
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.LogManager
@@ -28,7 +29,7 @@ private const val TAG = "ServerManagementScreen"
 fun ServerManagementScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToAddServer: () -> Unit
+    onNavigateTo: (Nav) -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     var serverLatencies by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
@@ -68,7 +69,7 @@ fun ServerManagementScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToAddServer,
+                onClick = { onNavigateTo(Nav.AddServer) },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
@@ -86,7 +87,7 @@ fun ServerManagementScreen(
             if (authState.savedServers.isEmpty()) {
                 // Empty state
                 EmptyServerState(
-                    onAddServer = onNavigateToAddServer,
+                    onAddServer = { onNavigateTo(Nav.AddServer) },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {

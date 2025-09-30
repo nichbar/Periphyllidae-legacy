@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.NetworkUtils
@@ -25,9 +26,7 @@ import org.koin.compose.koinInject
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateToLogs: () -> Unit,
-    onNavigateToServerManagement: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateTo: (Nav) -> Unit,
 ) {
     val viewModel: SettingsViewModel = koinInject()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
@@ -129,7 +128,7 @@ fun SettingsScreen(
                         val latencyInfo = if (latency >= 0) " • ${NetworkUtils.formatLatency(latency)}" else ""
                         "$serverInfo$latencyInfo"
                     } ?: "Not connected",
-                    onClick = { onNavigateToServerManagement() }
+                    onClick = { onNavigateTo(Nav.ServerManagement) }
                 )
                 
                 // Appearance Section
@@ -179,7 +178,7 @@ fun SettingsScreen(
                         icon = Icons.AutoMirrored.Filled.List,
                         title = "View Logs",
                         subtitle = "View captured debug logs",
-                        onClick = onNavigateToLogs
+                        onClick = { onNavigateTo(Nav.Logs) }
                     )
                 }
                 
@@ -228,7 +227,7 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.logout()
                         showLogoutDialog = false
-                        onLogout()
+                        onNavigateTo(Nav.Login)
                     }
                 ) {
                     Text("Sign Out")

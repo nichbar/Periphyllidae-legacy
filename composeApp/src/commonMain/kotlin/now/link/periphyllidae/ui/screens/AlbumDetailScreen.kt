@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.viewmodels.AlbumDetailViewModel
@@ -31,7 +32,7 @@ fun AlbumDetailScreen(
     albumId: String,
     viewModel: AlbumDetailViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToNowPlaying: () -> Unit
+    onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     

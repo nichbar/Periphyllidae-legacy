@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.viewmodels.ArtistDetailViewModel
@@ -30,7 +31,7 @@ fun ArtistDetailScreen(
     artistId: String,
     viewModel: ArtistDetailViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToNowPlaying: () -> Unit
+    onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     

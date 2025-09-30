@@ -18,6 +18,7 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.fade
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import now.link.periphyllidae.components.MainComponent
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.ui.components.FloatingMusicBar
 import now.link.periphyllidae.ui.components.LandscapeFloatingMusicBar
@@ -94,7 +95,7 @@ private fun PortraitMainContent(
                     FloatingMusicBar(
                         currentSong = currentSong,
                         isPlaying = musicState.isPlaying,
-                        onBarClick = component::onNavigateToNowPlaying,
+                        onBarClick = { component.onNavigateTo(Nav.NowPlaying) },
                         onPlayPauseClick = {
                             if (musicState.isPlaying) {
                                 musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Pause)
@@ -183,7 +184,7 @@ private fun LandscapeMainContent(
                 currentSong = currentSong,
                 isPlaying = musicState.isPlaying,
                 musicState = musicState,
-                onBarClick = component::onNavigateToNowPlaying,
+                onBarClick = { component.onNavigateTo(Nav.NowPlaying) },
                 onPlayPauseClick = {
                     if (musicState.isPlaying) {
                         musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Pause)
@@ -232,8 +233,7 @@ private fun TabContent(
                 }
                 is MainComponent.TabChild.SearchChild -> {
                     SearchScreen(
-                        onNavigateToNowPlaying = child.component::onNavigateToNowPlaying,
-                        onNavigateToArtist = child.component::onNavigateToArtist
+                        onNavigateTo = { child.component::onNavigateTo } ,
                     )
                 }
                 is MainComponent.TabChild.PlaylistsChild -> {
@@ -241,9 +241,7 @@ private fun TabContent(
                 }
                 is MainComponent.TabChild.SettingsChild -> {
                     SettingsScreen(
-                        onNavigateToLogs = child.component::onNavigateToLogs,
-                        onNavigateToServerManagement = child.component::onNavigateToServerManagement,
-                        onLogout = child.component::onLogout
+                        onNavigateTo = { child.component::onNavigateTo }
                     )
                 }
             }

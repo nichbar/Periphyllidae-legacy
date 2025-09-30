@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
@@ -34,12 +35,11 @@ import org.koin.compose.koinInject
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    onNavigateToNowPlaying: () -> Unit,
-    onNavigateToArtist: (String) -> Unit
+    onNavigateTo: (Nav) -> Unit
 ) {
     val viewModel: SearchViewModel = koinInject()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,7 +61,7 @@ fun SearchScreen(
                 isLoading = state.isLoading,
                 modifier = Modifier.padding(16.dp)
             )
-            
+
             // Search Results
             when {
                 state.isLoading -> {
@@ -72,7 +72,7 @@ fun SearchScreen(
                         CircularProgressIndicator()
                     }
                 }
-                
+
                 state.error != null -> {
                     Card(
                         colors = CardDefaults.cardColors(
@@ -90,7 +90,7 @@ fun SearchScreen(
                         )
                     }
                 }
-                
+
                 state.results != null -> {
                     val results = state.results
                     if (results != null) {
@@ -98,11 +98,11 @@ fun SearchScreen(
                             results = results,
                             onPlaySong = { viewModel.playSearchResult(it) },
                             onPlayAlbum = { viewModel.playAlbum(it) },
-                            onArtistClick = { artist -> onNavigateToArtist(artist.id) }
+                            onArtistClick = { artist -> onNavigateTo.invoke(Nav.ArtistDetail(artist.id)) }
                         )
                     }
                 }
-                
+
                 state.query.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -199,7 +199,7 @@ private fun SearchResults(
                 }
             }
         }
-        
+
         // Albums
         if (results.albums.isNotEmpty()) {
             item {
@@ -217,7 +217,7 @@ private fun SearchResults(
                 )
             }
         }
-        
+
         // Songs
         if (results.songs.isNotEmpty()) {
             item {
@@ -235,7 +235,7 @@ private fun SearchResults(
                 )
             }
         }
-        
+
         // Empty results
         if (results.artists.isEmpty() && results.albums.isEmpty() && results.songs.isEmpty()) {
             item {
@@ -271,7 +271,7 @@ private fun ArtistListItem(artist: Artist) {
                 modifier = Modifier.size(56.dp),
                 contentScale = ContentScale.Crop
             )
-            
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -316,9 +316,9 @@ private fun ArtistIconItem(
                 contentScale = ContentScale.Crop
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = artist.name,
             style = MaterialTheme.typography.bodySmall,
@@ -352,7 +352,7 @@ private fun AlbumListItem(
                 modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
-            
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -380,7 +380,7 @@ private fun AlbumListItem(
                     )
                 }
             }
-            
+
             IconButton(onClick = onPlay) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
@@ -413,7 +413,7 @@ private fun SongSearchItem(
                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
             )
-            
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -434,7 +434,7 @@ private fun SongSearchItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            
+
             IconButton(onClick = onPlay) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,

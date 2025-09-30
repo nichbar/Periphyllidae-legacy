@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.ui.components.ServerConfigurationForm
 import now.link.periphyllidae.viewmodels.LoginViewModel
 
@@ -15,14 +16,14 @@ import now.link.periphyllidae.viewmodels.LoginViewModel
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel,
-    onLoginSuccess: () -> Unit,
+    onNavigateTo: (Nav) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     
     // Navigate on successful authentication
     LaunchedEffect(state.isAuthenticated) {
         if (state.isAuthenticated) {
-            onLoginSuccess()
+            onNavigateTo(Nav.Main)
         }
     }
 
