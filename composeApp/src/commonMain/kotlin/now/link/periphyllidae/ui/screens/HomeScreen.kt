@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import now.link.periphyllidae.components.Nav
 import org.koin.compose.koinInject
 import now.link.periphyllidae.viewmodels.HomeViewModel
 import now.link.periphyllidae.models.Album
@@ -61,6 +62,7 @@ sealed class HomeSection {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onNavigateTo: (Nav) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: HomeViewModel = koinInject()
@@ -89,6 +91,9 @@ fun HomeScreen(
                 state = musicState,
                 isLandscape = isLandscape,
                 onAlbumPlay = { album -> viewModel.playAlbum(album) },
+                onAlbumClick = {
+                    onNavigateTo(Nav.AlbumDetail(it.id))
+                },
                 onPlaylistClick = { /* TODO: Navigate to playlist detail */ },
                 modifier = modifier
                     .fillMaxSize()
@@ -120,6 +125,7 @@ private fun HomeContent(
     state: now.link.periphyllidae.mvi.MusicState,
     isLandscape: Boolean,
     onAlbumPlay: (Album) -> Unit,
+    onAlbumClick: (Album) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -148,6 +154,7 @@ private fun HomeContent(
                 section = section,
                 isLandscape = isLandscape,
                 onAlbumPlay = onAlbumPlay,
+                onAlbumClick = onAlbumClick,
                 onPlaylistClick = onPlaylistClick
             )
         }
@@ -158,6 +165,7 @@ private fun LazyListScope.renderSection(
     section: HomeSection,
     isLandscape: Boolean,
     onAlbumPlay: (Album) -> Unit,
+    onAlbumClick: (Album) -> Unit,
     onPlaylistClick: (Playlist) -> Unit
 ) {
     when (section) {
@@ -165,7 +173,8 @@ private fun LazyListScope.renderSection(
             albumSection(
                 data = section.data,
                 isLandscape = isLandscape,
-                onAlbumPlay = onAlbumPlay
+                onAlbumClick = onAlbumClick,
+                onAlbumPlay = onAlbumPlay,
             )
         }
         is HomeSection.PlaylistsSection -> {
@@ -187,6 +196,7 @@ private fun LazyListScope.renderSection(
 private fun LazyListScope.albumSection(
     data: AlbumSectionData,
     isLandscape: Boolean,
+    onAlbumClick: (Album) -> Unit,
     onAlbumPlay: (Album) -> Unit
 ) {
     if (data.displayAlbums.isNotEmpty()) {
@@ -195,6 +205,7 @@ private fun LazyListScope.albumSection(
                 title = data.title,
                 albums = data.displayAlbums,
                 isLandscape = isLandscape,
+                onAlbumClick = onAlbumClick,
                 onAlbumPlay = onAlbumPlay
             )
         }
@@ -237,6 +248,7 @@ private fun AlbumSectionContent(
     title: String,
     albums: List<Album>,
     isLandscape: Boolean,
+    onAlbumClick: (Album) -> Unit,
     onAlbumPlay: (Album) -> Unit
 ) {
     Column {
@@ -251,6 +263,7 @@ private fun AlbumSectionContent(
                     title = album.name,
                     subtitle = album.artist,
                     imageUrl = album.coverArt,
+                    onClick = { onAlbumClick(album) },
                     onPlay = { onAlbumPlay(album) }
                 )
             }
@@ -334,13 +347,13 @@ private fun MediaCard(
     title: String,
     subtitle: String,
     imageUrl: String?,
+    onClick: () -> Unit,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .width(HomeScreenDefaults.cardWidth)
-            .clickable { onPlay() }
     ) {
         Column {
             AsyncImage(
@@ -354,7 +367,8 @@ private fun MediaCard(
                             topStart = HomeScreenDefaults.cardCornerRadius, 
                             topEnd = HomeScreenDefaults.cardCornerRadius
                         )
-                    ),
+                    )
+                    .clickable { onPlay() },
                 contentScale = ContentScale.Crop
             )
 
@@ -366,7 +380,8 @@ private fun MediaCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { onClick() }
                 )
 
                 Text(

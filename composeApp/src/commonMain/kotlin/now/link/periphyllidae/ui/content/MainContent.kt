@@ -19,6 +19,7 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import now.link.periphyllidae.components.MainComponent
 import now.link.periphyllidae.components.Nav
+import now.link.periphyllidae.mvi.MusicState
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.ui.components.FloatingMusicBar
 import now.link.periphyllidae.ui.components.LandscapeFloatingMusicBar
@@ -28,24 +29,24 @@ import org.koin.compose.koinInject
 data class TabItem(
     val title: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    val unselectedIcon: ImageVector,
 )
 
 @Composable
 fun MainContent(
     component: MainComponent,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val musicStore: MusicStore = koinInject()
     val musicState by musicStore.state.collectAsStateWithLifecycle()
-    
+
     val tabs = listOf(
         TabItem("Home", Icons.Filled.Home, Icons.Outlined.Home),
         TabItem("Search", Icons.Filled.Search, Icons.Outlined.Search),
         TabItem("Playlists", Icons.AutoMirrored.Filled.List, Icons.AutoMirrored.Outlined.List),
         TabItem("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
-    
+
     val stack by component.tabStack.subscribeAsState()
     val selectedTabIndex = when (stack.active.instance) {
         is MainComponent.TabChild.HomeChild -> 0
@@ -83,8 +84,8 @@ private fun PortraitMainContent(
     component: MainComponent,
     selectedTabIndex: Int,
     tabs: List<TabItem>,
-    musicState: now.link.periphyllidae.mvi.MusicState,
-    musicStore: MusicStore
+    musicState: MusicState,
+    musicStore: MusicStore,
 ) {
     Scaffold(
         bottomBar = {
@@ -108,7 +109,7 @@ private fun PortraitMainContent(
                         }
                     )
                 }
-                
+
                 // Bottom Navigation
                 NavigationBar {
                     tabs.forEachIndexed { index, tab ->
@@ -140,8 +141,8 @@ private fun LandscapeMainContent(
     component: MainComponent,
     selectedTabIndex: Int,
     tabs: List<TabItem>,
-    musicState: now.link.periphyllidae.mvi.MusicState,
-    musicStore: MusicStore
+    musicState: MusicState,
+    musicStore: MusicStore,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Main content area with navigation rail
@@ -168,7 +169,7 @@ private fun LandscapeMainContent(
                     )
                 }
             }
-            
+
             // Main content
             TabContent(
                 component = component,
@@ -176,7 +177,7 @@ private fun LandscapeMainContent(
                 modifier = Modifier.weight(1f)
             )
         }
-        
+
         // Enhanced Floating Music Bar for landscape
         val currentSong = musicState.currentSong
         if (currentSong != null) {
@@ -216,7 +217,7 @@ private fun LandscapeMainContent(
 private fun TabContent(
     component: MainComponent,
     paddingValues: PaddingValues,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
@@ -229,19 +230,30 @@ private fun TabContent(
         ) {
             when (val child = it.instance) {
                 is MainComponent.TabChild.HomeChild -> {
-                    HomeScreen()
-                }
-                is MainComponent.TabChild.SearchChild -> {
-                    SearchScreen(
-                        onNavigateTo = { child.component::onNavigateTo } ,
+                    HomeScreen(
+                        onNavigateTo = { nav ->
+                            child.component.onNavigateTo(nav)
+                        }
                     )
                 }
+
+                is MainComponent.TabChild.SearchChild -> {
+                    SearchScreen(
+                        onNavigateTo = { nav ->
+                            child.component.onNavigateTo(nav)
+                        }
+                    )
+                }
+
                 is MainComponent.TabChild.PlaylistsChild -> {
                     PlaylistsScreen()
                 }
+
                 is MainComponent.TabChild.SettingsChild -> {
                     SettingsScreen(
-                        onNavigateTo = { child.component::onNavigateTo }
+                        onNavigateTo = { nav ->
+                            child.component.onNavigateTo(nav)
+                        }
                     )
                 }
             }

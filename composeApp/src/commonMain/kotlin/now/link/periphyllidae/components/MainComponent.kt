@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 
 interface MainComponent: NavigationComponent {
     val tabStack: Value<ChildStack<*, TabChild>>
-    
+
     fun selectTab(index: Int)
 
     sealed class TabChild {
@@ -25,9 +25,9 @@ class DefaultMainComponent(
     componentContext: ComponentContext,
     private val nav: (Nav) -> Unit
 ) : MainComponent, ComponentContext by componentContext {
-    
+
     private val tabNavigation = StackNavigation<TabConfig>()
-    
+
     override val tabStack: Value<ChildStack<*, MainComponent.TabChild>> =
         childStack(
             source = tabNavigation,
@@ -36,11 +36,14 @@ class DefaultMainComponent(
             handleBackButton = false,
             childFactory = ::createTabChild,
         )
-    
+
     private fun createTabChild(config: TabConfig, componentContext: ComponentContext): MainComponent.TabChild =
         when (config) {
             TabConfig.Home -> MainComponent.TabChild.HomeChild(
-                DefaultHomeTabComponent(componentContext)
+                DefaultHomeTabComponent(
+                    componentContext = componentContext,
+                    nav = nav
+                )
             )
             TabConfig.Search -> MainComponent.TabChild.SearchChild(
                 DefaultSearchTabComponent(
@@ -58,7 +61,7 @@ class DefaultMainComponent(
                 )
             )
         }
-    
+
     override fun selectTab(index: Int) {
         val config = when (index) {
             0 -> TabConfig.Home
@@ -69,7 +72,7 @@ class DefaultMainComponent(
         }
         tabNavigation.bringToFront(config)
     }
-    
+
     override fun onNavigateTo(nav: Nav) {
         this.nav(nav)
     }
@@ -78,24 +81,30 @@ class DefaultMainComponent(
     private sealed interface TabConfig {
         @Serializable
         data object Home : TabConfig
-        
+
         @Serializable
         data object Search : TabConfig
-        
+
         @Serializable
         data object Playlists : TabConfig
-        
+
         @Serializable
         data object Settings : TabConfig
     }
 }
 
 // Tab components
-interface HomeTabComponent
+interface HomeTabComponent: NavigationComponent
 
 class DefaultHomeTabComponent(
-    componentContext: ComponentContext
-) : HomeTabComponent, ComponentContext by componentContext
+    componentContext: ComponentContext,
+    private val nav: (Nav) -> Unit,
+) : HomeTabComponent, ComponentContext by componentContext {
+
+    override fun onNavigateTo(nav: Nav) {
+        this.nav(nav)
+    }
+}
 
 interface SearchTabComponent: NavigationComponent
 
@@ -103,7 +112,7 @@ class DefaultSearchTabComponent(
     componentContext: ComponentContext,
     private val nav: (Nav) -> Unit
 ) : SearchTabComponent, ComponentContext by componentContext {
-    
+
     override fun onNavigateTo(nav: Nav) {
         this.nav(nav)
     }

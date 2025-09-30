@@ -60,6 +60,7 @@ val commonModule = module {
     factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
     factory<SettingsViewModel> { SettingsViewModel(get(), get(), get()) }
     factory<ArtistDetailViewModel> { ArtistDetailViewModel(get(), get()) }
+    factory<AlbumDetailViewModel> { AlbumDetailViewModel(get(), get()) }
 }
 
 // Platform-specific modules will be defined in platform-specific files
