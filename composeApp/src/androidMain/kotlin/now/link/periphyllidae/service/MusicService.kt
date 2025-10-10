@@ -16,11 +16,17 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat.MediaStyle
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import now.link.periphyllidae.MainActivity
+import now.link.periphyllidae.R
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.platform.PlaybackState
@@ -34,6 +40,7 @@ class MusicService : Service() {
     
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: NotificationManager
+    private lateinit var imageLoader: ImageLoader
     
     private val binder = MusicBinder()
     
@@ -46,6 +53,7 @@ class MusicService : Service() {
         LogManager.i(TAG, "MusicService created")
         
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        imageLoader = ImageLoader(this)
         createNotificationChannel()
         setupMediaSession()
         observePlaybackState()
@@ -67,12 +75,7 @@ class MusicService : Service() {
         
         // Special handling for stop action
         if (intent?.action == ACTION_STOP) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
         
@@ -170,8 +173,20 @@ class MusicService : Service() {
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, song.album)
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, playbackInfo.duration)
             
-            // TODO: Add album art when available
-            // .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, albumArt)
+            // Load album art asynchronously
+            song.coverArt?.let { coverUrl ->
+                scope.launch {
+                    try {
+                        val bitmap = loadAlbumArt(coverUrl)
+                        bitmap?.let {
+                            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it)
+                            mediaSession.setMetadata(metadataBuilder.build())
+                        }
+                    } catch (e: Exception) {
+                        LogManager.w(TAG, "Failed to load album art", e)
+                    }
+                }
+            }
         }
         mediaSession.setMetadata(metadataBuilder.build())
         
@@ -251,10 +266,10 @@ class MusicService : Service() {
             createPendingIntent(ACTION_NEXT)
         )
         
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(song.title)
             .setContentText("${song.artist} • ${song.album}")
-            .setSmallIcon(android.R.drawable.ic_media_play) // TODO: Use app icon
+            .setSmallIcon(R.drawable.periphyllidae_icon)
             .setContentIntent(openAppPendingIntent)
             .setDeleteIntent(createPendingIntent(ACTION_STOP))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -267,7 +282,26 @@ class MusicService : Service() {
                     .setMediaSession(mediaSession.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2) // Show all three actions in compact view
             )
-            .build()
+        
+        // Load album art asynchronously for notification
+        song.coverArt?.let { coverUrl ->
+            scope.launch {
+                try {
+                    val bitmap = loadAlbumArt(coverUrl)
+                    bitmap?.let {
+                        // Update notification with album art
+                        val updatedNotification = notificationBuilder
+                            .setLargeIcon(it)
+                            .build()
+                        notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                    }
+                } catch (e: Exception) {
+                    LogManager.w(TAG, "Failed to load album art for notification", e)
+                }
+            }
+        }
+        
+        return notificationBuilder.build()
     }
     
     private fun createPendingIntent(action: String): PendingIntent {
@@ -281,6 +315,33 @@ class MusicService : Service() {
     }
     
     fun getMediaSession(): MediaSessionCompat = mediaSession
+    
+    /**
+     * Load album art bitmap using Coil
+     */
+    private suspend fun loadAlbumArt(url: String): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            val request = ImageRequest.Builder(this@MusicService)
+                .data(url)
+                .size(256, 256) // Resize for performance
+                .build()
+            
+            val result = imageLoader.execute(request)
+            when (result) {
+                is SuccessResult -> {
+                    // Convert the image to bitmap
+                    result.image.toBitmap()
+                }
+                else -> {
+                    LogManager.w(TAG, "Failed to load image, result: $result")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            LogManager.w(TAG, "Failed to load album art from URL: $url", e)
+            null
+        }
+    }
     
     private data class PlaybackInfo(
         val song: Song?,

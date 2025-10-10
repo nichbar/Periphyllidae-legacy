@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.libs
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -34,8 +35,8 @@ kotlin {
             implementation(libs.mediamp.exoplayer)
             
             // Media Session & Notifications
-            implementation("androidx.media:media:1.7.0")
-            implementation("androidx.core:core-ktx:1.12.0")
+            implementation(libs.androidx.media)
+            implementation(libs.androidx.core.ktx)
             
             // Database - Android
 //            implementation(libs.sqldelight.android.driver)
