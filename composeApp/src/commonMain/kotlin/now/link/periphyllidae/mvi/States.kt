@@ -1,6 +1,7 @@
 package now.link.periphyllidae.mvi
 
 import now.link.periphyllidae.models.*
+import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.viewmodels.ServerConfigFormState
 
 // Base Intent interface
@@ -36,6 +37,7 @@ data class MusicState(
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
     val duration: Long = 0L,
+    val playbackState: PlaybackState = PlaybackState.IDLE,
     val isRepeat: Boolean = false,
     val isShuffle: Boolean = false,
     val volume: Float = 0.7f,

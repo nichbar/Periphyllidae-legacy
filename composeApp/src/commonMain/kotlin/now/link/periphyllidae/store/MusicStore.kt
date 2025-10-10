@@ -718,8 +718,13 @@ class MusicStore(
             musicPlayer.playbackState.collect { playbackState ->
                 LogManager.v(TAG, "MediaMP playback state changed: $playbackState")
                 
-                // Validate critical state consistency when playback state changes
                 val currentState = _state.value
+                if (currentState.playbackState != playbackState) {
+                    LogManager.d(TAG, "Updating store playback state: ${currentState.playbackState} -> $playbackState")
+                    _state.value = currentState.copy(playbackState = playbackState)
+                }
+                
+                // Validate critical state consistency when playback state changes
                 val playerIsPlaying = playbackState == PlaybackState.PLAYING
                 
                 // Check for major inconsistencies that need immediate correction

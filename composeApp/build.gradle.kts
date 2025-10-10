@@ -33,6 +33,10 @@ kotlin {
             // MediaMP - ExoPlayer backend for Android
             implementation(libs.mediamp.exoplayer)
             
+            // Media Session & Notifications
+            implementation("androidx.media:media:1.7.0")
+            implementation("androidx.core:core-ktx:1.12.0")
+            
             // Database - Android
 //            implementation(libs.sqldelight.android.driver)
         }
