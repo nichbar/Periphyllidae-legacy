@@ -89,7 +89,7 @@ actual class SystemTrayManager : SystemTray {
                 icon.toolTip = tooltip
                 
                 // Update icon to show playing state
-                val newIcon = createTrayIcon(isPlaying)
+                val newIcon = createTrayIcon()
                 icon.image = newIcon
                 
                 // Update popup menu
@@ -112,7 +112,7 @@ actual class SystemTrayManager : SystemTray {
         LogManager.d(TAG, "System tray disposed")
     }
     
-    private fun createTrayIcon(playing: Boolean = false): Image {
+    private fun createTrayIcon(): Image {
         // Create a simple icon programmatically since we don't have access to resources yet
         val image = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
         val g2d = image.createGraphics()
@@ -126,7 +126,7 @@ actual class SystemTrayManager : SystemTray {
         g2d.composite = AlphaComposite.SrcOver
         
         // Draw jellyfish-inspired icon (simplified version of the vector)
-        g2d.color = Color(99, 102, 241) // #6366f1 - primary color
+        g2d.color = Color(0, 0, 0) // #6366f1 - primary color
         
         // Draw jellyfish bell (ellipse)
         g2d.fillOval(2, 2, 12, 8)
@@ -138,16 +138,9 @@ actual class SystemTrayManager : SystemTray {
         g2d.drawLine(8, 10, 8, 14)
         g2d.drawLine(10, 10, 10, 14)
         g2d.drawLine(12, 10, 13, 14)
-        
-        // Add play/pause indicator
-        if (playing) {
-            g2d.color = Color(34, 197, 94) // Green for playing
-            g2d.fillOval(11, 1, 4, 4)
-        } else if (currentSong != null) {
-            g2d.color = Color(239, 68, 68) // Red for paused
-            g2d.fillRect(11, 1, 4, 4)
-        }
-        
+
+        g2d.rotate(45.0)
+
         g2d.dispose()
         return image
     }
