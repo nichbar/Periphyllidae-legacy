@@ -111,6 +111,10 @@ kotlin {
             // implementation(libs.mediamp.vlc.compose) // Temporarily disabled due to compilation issues
             implementation(libs.mediamp.vlc.loader) // Automatically load VLC binaries
             
+            // System Tray and Native Integration
+            implementation(libs.jna)
+            implementation(libs.jna.platform)
+            
             // Database - Desktop
 //            implementation(libs.sqldelight.sqlite.driver)
         }

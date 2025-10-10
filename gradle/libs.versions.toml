@@ -31,6 +31,7 @@ mediamp-vlc = "0.0.26"
 kotlinx-datetime = "0.6.1"
 okio = "3.9.1"
 disklrucache = "2.0.2"
+jna = "5.14.0"
 
 [libraries]
 androidx-media = { module = "androidx.media:media", version.ref = "media" }
@@ -83,6 +84,10 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 # I/O
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 disklrucache = { module = "com.jakewharton:disklrucache", version.ref = "disklrucache" }
+
+# Native Integration
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 
 # Image Loading
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
