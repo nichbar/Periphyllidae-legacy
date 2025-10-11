@@ -88,37 +88,54 @@ class CacheManager private constructor(
     private var server: io.ktor.server.engine.EmbeddedServer<*, *>? = null
 
     private suspend fun initialize() = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
         LogManager.i(TAG, "Initializing CacheManager with Jake Wharton's DiskLruCache")
+        LogManager.d(TAG, "Cache directory: $cacheDirectory")
+        LogManager.d(TAG, "Max cache size: ${maxCacheSize / (1024 * 1024)}MB")
         
         // REQ-FS-03: Use DiskLruCache for cache management
         val cacheDir = File(cacheDirectory.toString())
-        cacheDir.mkdirs()
+        val dirCreated = cacheDir.mkdirs()
+        LogManager.v(TAG, "Cache directory creation result: $dirCreated (exists: ${cacheDir.exists()})")
         
         diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
-        LogManager.d(TAG, "DiskLruCache initialized with max size: ${maxCacheSize / (1024 * 1024)}MB")
+        val initTime = System.currentTimeMillis() - startTime
+        LogManager.d(TAG, "DiskLruCache initialized in ${initTime}ms with max size: ${maxCacheSize / (1024 * 1024)}MB")
         
         // REQ-NF-03: Start Ktor server on application launch
         startServer()
-        LogManager.i(TAG, "CacheManager initialized successfully on port $serverPort")
+        val totalInitTime = System.currentTimeMillis() - startTime
+        LogManager.i(TAG, "CacheManager initialized successfully on port $serverPort in ${totalInitTime}ms")
     }
     
     private fun startServer() {
+        val serverStartTime = System.currentTimeMillis()
+        LogManager.d(TAG, "Starting cache server...")
+        
         // Find an available port
         serverPort = findAvailablePort()
+        LogManager.v(TAG, "Found available port: $serverPort")
         
         server = embeddedServer(CIO, port = serverPort, host = SERVER_HOST) {
             routing {
                 // REQ-FSV-02: Dynamic endpoint using content identifier
                 get("/cache/{key}") {
+                    val requestStartTime = System.currentTimeMillis()
                     val key = call.parameters["key"] ?: run {
+                        LogManager.w(TAG, "Cache request missing key parameter")
                         call.respond(HttpStatusCode.BadRequest, "Missing key parameter")
                         return@get
                     }
                     
+                    LogManager.v(TAG, "Handling cache request for key: $key")
+                    
                     try {
                         handleCacheRequest(key, call)
+                        val requestTime = System.currentTimeMillis() - requestStartTime
+                        LogManager.v(TAG, "Cache request for key $key completed in ${requestTime}ms")
                     } catch (e: Exception) {
-                        LogManager.e(TAG, "Error handling cache request for key: $key", e)
+                        val requestTime = System.currentTimeMillis() - requestStartTime
+                        LogManager.e(TAG, "Error handling cache request for key: $key (after ${requestTime}ms)", e)
                         call.respond(HttpStatusCode.InternalServerError, "Cache error")
                     }
                 }
@@ -130,28 +147,42 @@ class CacheManager private constructor(
         }
         
         server?.start(wait = false)
-        LogManager.i(TAG, "Cache server started on $SERVER_HOST:$serverPort")
+        val serverStartupTime = System.currentTimeMillis() - serverStartTime
+        LogManager.i(TAG, "Cache server started on $SERVER_HOST:$serverPort in ${serverStartupTime}ms")
     }
     
     private suspend fun handleCacheRequest(key: String, call: ApplicationCall) {
+        val handleStartTime = System.currentTimeMillis()
+        LogManager.d(TAG, "Processing cache request for key: $key")
+        
         // REQ-FSV-03: Check if fully cached, serve from local file
         withContext(Dispatchers.IO) {
+            val cacheCheckTime = System.currentTimeMillis()
             val snapshot = diskCache.get(key)
+            val cacheCheckDuration = System.currentTimeMillis() - cacheCheckTime
+            
             if (snapshot != null) {
-                LogManager.d(TAG, "Serving cached content for key: $key")
+                LogManager.d(TAG, "Cache HIT for key: $key (lookup took ${cacheCheckDuration}ms)")
                 
                 try {
                     // Read content from index 0
+                    val contentReadTime = System.currentTimeMillis()
                     val contentStream = snapshot.getInputStream(0)
                     val bytes = contentStream.readBytes()
                     contentStream.close()
+                    val contentReadDuration = System.currentTimeMillis() - contentReadTime
+                    LogManager.v(TAG, "Read ${bytes.size} bytes from cache in ${contentReadDuration}ms for key: $key")
                     
                     // Read metadata from index 1
                     val metadata = try {
+                        val metadataReadTime = System.currentTimeMillis()
                         val metadataStream = snapshot.getInputStream(1)
                         val metadataJson = metadataStream.readBytes().decodeToString()
                         metadataStream.close()
-                        json.decodeFromString<CacheMetadata>(metadataJson)
+                        val metadataReadDuration = System.currentTimeMillis() - metadataReadTime
+                        val parsedMetadata = json.decodeFromString<CacheMetadata>(metadataJson)
+                        LogManager.v(TAG, "Read metadata in ${metadataReadDuration}ms for key: $key")
+                        parsedMetadata
                     } catch (e: Exception) {
                         LogManager.w(TAG, "Could not read metadata for key: $key, using defaults", e)
                         // Fallback to default metadata
@@ -160,6 +191,7 @@ class CacheManager private constructor(
                     
                     snapshot.close()
                     
+                    val responseTime = System.currentTimeMillis()
                     withContext(Dispatchers.Main) {
                         call.response.headers.append("Content-Length", bytes.size.toString())
                         call.response.headers.append("Cache-Control", "public, max-age=31536000")
@@ -174,24 +206,29 @@ class CacheManager private constructor(
                         
                         call.respondBytes(bytes, contentType)
                     }
+                    val responseSetupDuration = System.currentTimeMillis() - responseTime
+                    val totalCacheServeTime = System.currentTimeMillis() - handleStartTime
                     
-                    LogManager.v(TAG, "Successfully served ${bytes.size} bytes with content-type ${metadata.contentType} from cache for key: $key")
+                    LogManager.v(TAG, "Successfully served ${bytes.size} bytes with content-type ${metadata.contentType} from cache for key: $key (total: ${totalCacheServeTime}ms, response setup: ${responseSetupDuration}ms)")
                     return@withContext
                 } catch (e: Exception) {
                     LogManager.e(TAG, "Error reading cached file for key: $key", e)
                     snapshot.close()
                     // Fall through to streaming
                 }
+            } else {
+                LogManager.d(TAG, "Cache MISS for key: $key (lookup took ${cacheCheckDuration}ms) - will stream and cache")
             }
             
             // REQ-FSV-04: Stream from remote while caching
             val originalUrl = getOriginalUrlForKey(key)
             if (originalUrl != null) {
+                LogManager.d(TAG, "Starting stream and cache for key: $key -> $originalUrl")
                 withContext(Dispatchers.Main) {
                     streamAndCache(originalUrl, key, call)
                 }
             } else {
-                LogManager.w(TAG, "No original URL found for key: $key")
+                LogManager.w(TAG, "No original URL found for key: $key in URL mappings (${urlMappings.size} total mappings)")
                 withContext(Dispatchers.Main) {
                     call.respond(HttpStatusCode.NotFound, "Content not found")
                 }
@@ -200,11 +237,15 @@ class CacheManager private constructor(
     }
     
     private suspend fun streamAndCache(originalUrl: String, key: String, call: ApplicationCall) {
+        val streamStartTime = System.currentTimeMillis()
+        LogManager.d(TAG, "Starting streamAndCache for key: $key")
+        
         downloadMutex.withLock {
             // REQ-NF-02: Ensure only one download per URL
             var downloadChannel = activeDownloads[key]
             
             if (downloadChannel == null) {
+                LogManager.d(TAG, "Starting new download for key: $key (active downloads: ${activeDownloads.size})")
                 // Start new download
                 downloadChannel = Channel(Channel.UNLIMITED)
                 activeDownloads[key] = downloadChannel
@@ -215,44 +256,62 @@ class CacheManager private constructor(
                     } finally {
                         downloadMutex.withLock {
                             activeDownloads.remove(key)
+                            LogManager.v(TAG, "Removed download channel for key: $key (remaining: ${activeDownloads.size})")
                         }
                         downloadChannel.close()
                     }
                 }
+            } else {
+                LogManager.d(TAG, "Joining existing download for key: $key")
             }
             
             // Stream content to client
+            val streamSetupTime = System.currentTimeMillis() - streamStartTime
+            LogManager.v(TAG, "Stream setup completed in ${streamSetupTime}ms for key: $key")
             streamFromDownload(downloadChannel, call, key)
         }
     }
     
     private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>?) {
-        LogManager.i(TAG, "Starting download and cache for: $originalUrl")
+        val downloadStartTime = System.currentTimeMillis()
+        LogManager.i(TAG, "Starting download and cache for: $originalUrl (key: $key)")
         
         withContext(Dispatchers.IO) {
             // REQ-FW-02: Use DiskLruCache.Editor for writing
+            val editorStartTime = System.currentTimeMillis()
             val editor = diskCache.edit(key)
             if (editor == null) {
-                LogManager.w(TAG, "Could not create cache editor for key: $key")
+                LogManager.w(TAG, "Could not create cache editor for key: $key (possibly already being written)")
                 return@withContext
             }
+            val editorCreateTime = System.currentTimeMillis() - editorStartTime
+            LogManager.v(TAG, "Cache editor created in ${editorCreateTime}ms for key: $key")
             
             try {
                 // REQ-FW-01: Use Ktor HTTP client to download
+                val httpStartTime = System.currentTimeMillis()
+                LogManager.d(TAG, "Starting HTTP request to: $originalUrl")
                 val response = httpClient.get(originalUrl)
+                val httpResponseTime = System.currentTimeMillis() - httpStartTime
                 
                 if (response.status != HttpStatusCode.OK) {
-                    LogManager.w(TAG, "HTTP error ${response.status} for URL: $originalUrl")
+                    LogManager.w(TAG, "HTTP error ${response.status} for URL: $originalUrl (after ${httpResponseTime}ms)")
                     editor.abort()
                     return@withContext
                 }
                 
+                LogManager.d(TAG, "HTTP response received in ${httpResponseTime}ms for: $originalUrl (status: ${response.status})")
+                
                 // Get response as byte array - simple and reliable approach
+                val bodyStartTime = System.currentTimeMillis()
                 val responseBytes: ByteArray = response.body()
+                val bodyReadTime = System.currentTimeMillis() - bodyStartTime
+                LogManager.d(TAG, "Downloaded ${responseBytes.size} bytes in ${bodyReadTime}ms from: $originalUrl")
                 
                 // Extract content type from response headers
                 val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
                 val contentLength = response.headers["Content-Length"]?.toLongOrNull()
+                LogManager.v(TAG, "Response headers - Content-Type: $contentTypeHeader, Content-Length: $contentLength")
                 
                 val metadata = CacheMetadata(
                     contentType = contentTypeHeader,
@@ -260,43 +319,60 @@ class CacheManager private constructor(
                 )
                 
                 // Write content to cache (index 0)
+                val cacheWriteStartTime = System.currentTimeMillis()
                 val contentStream = editor.newOutputStream(0)
                 contentStream.write(responseBytes)
                 contentStream.close()
+                val contentWriteTime = System.currentTimeMillis() - cacheWriteStartTime
+                LogManager.v(TAG, "Content written to cache in ${contentWriteTime}ms for key: $key")
                 
                 // Write metadata to cache (index 1)
+                val metadataWriteStartTime = System.currentTimeMillis()
                 val metadataJson = json.encodeToString(metadata)
                 val metadataStream = editor.newOutputStream(1)
                 metadataStream.write(metadataJson.toByteArray())
                 metadataStream.close()
+                val metadataWriteTime = System.currentTimeMillis() - metadataWriteStartTime
+                LogManager.v(TAG, "Metadata written to cache in ${metadataWriteTime}ms for key: $key")
                 
                 // Send to all waiting clients
                 val cachedContent = CachedContent(responseBytes, metadata)
-                downloadChannel?.trySend(cachedContent)
+                val channelResult = downloadChannel?.trySend(cachedContent)
+                LogManager.v(TAG, "Content sent to download channel: ${channelResult?.isSuccess ?: "no channel"}")
 
                 // REQ-FW-03: Commit editor on successful download
+                val commitStartTime = System.currentTimeMillis()
                 editor.commit()
-                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key")
+                val commitTime = System.currentTimeMillis() - commitStartTime
+                val totalDownloadTime = System.currentTimeMillis() - downloadStartTime
+                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key (total: ${totalDownloadTime}ms, commit: ${commitTime}ms)")
 
             } catch (e: Exception) {
-                LogManager.e(TAG, "Download failed for URL: $originalUrl", e)
+                val failureTime = System.currentTimeMillis() - downloadStartTime
+                LogManager.e(TAG, "Download failed for URL: $originalUrl after ${failureTime}ms", e)
                 // REQ-FW-04: Abort editor on download failure
                 try {
                     editor.abort()
+                    LogManager.v(TAG, "Cache editor aborted for key: $key")
                 } catch (abortException: Exception) {
-                    LogManager.w(TAG, "Error aborting editor", abortException)
+                    LogManager.w(TAG, "Error aborting editor for key: $key", abortException)
                 }
             }
         }
     }
     
     private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: ApplicationCall, key: String) {
-        LogManager.d(TAG, "Streaming content for key: $key")
+        val streamStartTime = System.currentTimeMillis()
+        LogManager.d(TAG, "Waiting for download content to stream for key: $key")
         
         try {
             // Wait for and serve the complete download
+            val receiveStartTime = System.currentTimeMillis()
             val cachedContent = downloadChannel.receive()
+            val receiveTime = System.currentTimeMillis() - receiveStartTime
+            LogManager.d(TAG, "Received ${cachedContent.bytes.size} bytes from download channel in ${receiveTime}ms for key: $key")
             
+            val responseStartTime = System.currentTimeMillis()
             call.response.headers.append("Content-Type", cachedContent.metadata.contentType)
             call.response.headers.append("Cache-Control", "public, max-age=31536000")
             call.response.headers.append("Content-Length", cachedContent.bytes.size.toString())
@@ -311,18 +387,28 @@ class CacheManager private constructor(
             
             call.respondBytes(cachedContent.bytes, contentType)
             
-            LogManager.d(TAG, "Finished streaming ${cachedContent.bytes.size} bytes with content-type ${cachedContent.metadata.contentType} for key: $key")
+            val responseTime = System.currentTimeMillis() - responseStartTime
+            val totalStreamTime = System.currentTimeMillis() - streamStartTime
+            LogManager.d(TAG, "Finished streaming ${cachedContent.bytes.size} bytes with content-type ${cachedContent.metadata.contentType} for key: $key (total: ${totalStreamTime}ms, response: ${responseTime}ms)")
             
         } catch (e: Exception) {
-            LogManager.e(TAG, "Error streaming content for key: $key", e)
+            val errorTime = System.currentTimeMillis() - streamStartTime
+            LogManager.e(TAG, "Error streaming content for key: $key after ${errorTime}ms", e)
         }
     }
 
     fun preload(url: String) {
         val key = url.toCacheKey()
+        LogManager.d(TAG, "Preloading URL: $url (key: $key)")
         scope.launch {
+            val preloadStartTime = System.currentTimeMillis()
             try {
                 performDownloadAndCache(url, key, null)
+                val preloadTime = System.currentTimeMillis() - preloadStartTime
+                LogManager.i(TAG, "Preload completed for URL: $url in ${preloadTime}ms")
+            } catch (e: Exception) {
+                val preloadTime = System.currentTimeMillis() - preloadStartTime
+                LogManager.e(TAG, "Preload failed for URL: $url after ${preloadTime}ms", e)
             } finally {
                 downloadMutex.withLock {
                     activeDownloads.remove(key)
@@ -342,7 +428,8 @@ class CacheManager private constructor(
         storeUrlMapping(key, originalUrl)
         
         val localUrl = "http://$SERVER_HOST:$serverPort/cache/$key"
-        LogManager.d(TAG, "Generated local URL: $localUrl for original: $originalUrl")
+        LogManager.d(TAG, "Generated local URL: $localUrl for original: $originalUrl (key: $key)")
+        LogManager.v(TAG, "URL mappings now contains ${urlMappings.size} entries")
         return localUrl
     }
     
@@ -351,20 +438,28 @@ class CacheManager private constructor(
     
     private fun storeUrlMapping(key: String, originalUrl: String) {
         urlMappings[key] = originalUrl
+        LogManager.v(TAG, "Stored URL mapping: $key -> $originalUrl (total mappings: ${urlMappings.size})")
     }
     
     private fun getOriginalUrlForKey(key: String): String? {
-        return urlMappings[key]
+        val url = urlMappings[key]
+        if (url == null) {
+            LogManager.v(TAG, "No URL mapping found for key: $key")
+        }
+        return url
     }
     
     /**
      * Check if a URL is already cached
      */
     suspend fun isCached(url: String): Boolean = withContext(Dispatchers.IO) {
+        val checkStartTime = System.currentTimeMillis()
         val key = url.toCacheKey()
         val snapshot = diskCache.get(key)
         val cached = snapshot != null
         snapshot?.close()
+        val checkTime = System.currentTimeMillis() - checkStartTime
+        LogManager.v(TAG, "Cache check for URL: $url -> $cached (${checkTime}ms)")
         cached
     }
     
@@ -372,67 +467,97 @@ class CacheManager private constructor(
      * Get cache statistics
      */
     suspend fun getCacheStats(): CacheStats = withContext(Dispatchers.IO) {
-        CacheStats(
+        val statsStartTime = System.currentTimeMillis()
+        val stats = CacheStats(
             currentSize = diskCache.size(),
             maxSize = diskCache.maxSize,
             entryCount = diskCache.size() // Approximation - DiskLruCache doesn't provide exact count
         )
+        val statsTime = System.currentTimeMillis() - statsStartTime
+        LogManager.d(TAG, "Cache stats: ${stats.currentSize / (1024 * 1024)}MB / ${stats.maxSize / (1024 * 1024)}MB, ~${stats.entryCount} entries (calculated in ${statsTime}ms)")
+        stats
     }
     
     /**
      * Clear all cached content
      */
     suspend fun clearCache() = withContext(Dispatchers.IO) {
+        val clearStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Clearing all cache content")
+        val sizeBefore = diskCache.size()
+        val entriesBefore = urlMappings.size
+        
         diskCache.delete()
         
         val cacheDir = File(cacheDirectory.toString())
         diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
         urlMappings.clear()
-        LogManager.i(TAG, "Cache cleared successfully")
+        val clearTime = System.currentTimeMillis() - clearStartTime
+        LogManager.i(TAG, "Cache cleared successfully: removed ${sizeBefore / (1024 * 1024)}MB and $entriesBefore URL mappings in ${clearTime}ms")
     }
     
     /**
      * Remove specific URL from cache
      */
     suspend fun removeCached(url: String): Boolean = withContext(Dispatchers.IO) {
+        val removeStartTime = System.currentTimeMillis()
         val key = url.toCacheKey()
+        LogManager.d(TAG, "Removing cached content for URL: $url (key: $key)")
+        
         urlMappings.remove(key)
-        diskCache.remove(key)
+        val removed = diskCache.remove(key)
+        val removeTime = System.currentTimeMillis() - removeStartTime
+        LogManager.d(TAG, "Cache removal for URL: $url -> $removed (${removeTime}ms)")
+        removed
     }
     
     /**
      * REQ-NF-03: Stop server gracefully on application exit
      */
     suspend fun shutdown() = withContext(Dispatchers.IO) {
+        val shutdownStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Shutting down CacheManager")
+        LogManager.d(TAG, "Active downloads at shutdown: ${activeDownloads.size}")
+        LogManager.d(TAG, "URL mappings at shutdown: ${urlMappings.size}")
         
         try {
+            val serverStopStartTime = System.currentTimeMillis()
             server?.stop(1000, 2000)
-            LogManager.d(TAG, "Cache server stopped")
+            val serverStopTime = System.currentTimeMillis() - serverStopStartTime
+            LogManager.d(TAG, "Cache server stopped in ${serverStopTime}ms")
         } catch (e: Exception) {
             LogManager.e(TAG, "Error stopping cache server", e)
         }
         
         try {
+            val cacheCloseStartTime = System.currentTimeMillis()
+            val finalCacheSize = diskCache.size()
             diskCache.close()
-            LogManager.d(TAG, "DiskLruCache closed")
+            val cacheCloseTime = System.currentTimeMillis() - cacheCloseStartTime
+            LogManager.d(TAG, "DiskLruCache closed in ${cacheCloseTime}ms (final size: ${finalCacheSize / (1024 * 1024)}MB)")
         } catch (e: Exception) {
             LogManager.e(TAG, "Error closing DiskLruCache", e)
         }
         
         scope.cancel()
-        LogManager.i(TAG, "CacheManager shutdown complete")
+        val totalShutdownTime = System.currentTimeMillis() - shutdownStartTime
+        LogManager.i(TAG, "CacheManager shutdown complete in ${totalShutdownTime}ms")
     }
     
     private fun findAvailablePort(): Int {
+        val portSearchStartTime = System.currentTimeMillis()
         return try {
             ServerSocket(0).use { socket ->
-                socket.localPort
+                val port = socket.localPort
+                val portSearchTime = System.currentTimeMillis() - portSearchStartTime
+                LogManager.v(TAG, "Found available port $port in ${portSearchTime}ms")
+                port
             }
         } catch (e: Exception) {
-            LogManager.w(TAG, "Could not find available port, using random port", e)
-            Random.nextInt(8080, 65000)
+            val fallbackPort = Random.nextInt(8080, 65000)
+            val portSearchTime = System.currentTimeMillis() - portSearchStartTime
+            LogManager.w(TAG, "Could not find available port in ${portSearchTime}ms, using random port $fallbackPort", e)
+            fallbackPort
         }
     }
     
