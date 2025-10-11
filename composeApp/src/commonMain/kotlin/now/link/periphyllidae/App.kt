@@ -3,8 +3,15 @@ package now.link.periphyllidae
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import org.koin.compose.KoinApplication
 import com.arkivanov.decompose.ComponentContext
 import now.link.periphyllidae.cache.CacheInitializer
@@ -82,19 +89,51 @@ private fun AppContent(
     }
     
     PeriphyllidaeTheme(darkTheme = isDarkTheme) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Show desktop toolbar only on desktop platforms when requested
-            if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
-                // Use expect/actual pattern to handle platform-specific toolbar
-                DesktopToolbarContent(
-                    windowScope = windowScope,
-                    windowState = windowState,
-                    onCloseRequest = onCloseRequest
-                )
-            }
+        val platform = remember { getPlatform() }
+        val isDesktop = !platform.isAndroid
+        
+        if (isDesktop) {
+            // Desktop: Use rounded corners with Card
+            Card(
+                modifier = Modifier
+                    .fillMaxSize(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Show desktop toolbar only on desktop platforms when requested
+                    if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
+                        // Use expect/actual pattern to handle platform-specific toolbar
+                        DesktopToolbarContent(
+                            windowScope = windowScope,
+                            windowState = windowState,
+                            onCloseRequest = onCloseRequest
+                        )
+                    }
 
-            // Main app content with Decompose
-            RootContent(component = rootComponent)
+                    // Main app content with Decompose
+                    RootContent(component = rootComponent)
+                }
+            }
+        } else {
+            // Android: Use regular Column without padding/rounded corners
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Show desktop toolbar only on desktop platforms when requested
+                if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
+                    // Use expect/actual pattern to handle platform-specific toolbar
+                    DesktopToolbarContent(
+                        windowScope = windowScope,
+                        windowState = windowState,
+                        onCloseRequest = onCloseRequest
+                    )
+                }
+
+                // Main app content with Decompose
+                RootContent(component = rootComponent)
+            }
         }
     }
 }
