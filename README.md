@@ -1,8 +1,18 @@
 # Periphyllidae
 
-**Still in early development! Not all features are implemented yet.**
+## Overview
 
-A cross-platform Subsonic client for the modern music lover, built with Kotlin Multiplatform and Compose Multiplatform.
+I've been porting all my songs from phone to server lately, so that I can access them from any devices.
+
+Navidrome is the service I chose to provide music-streaming service. However, I found that the open source clients are either buggy or web-based.
+
+So I decided to build my own client app to meet my specific demands.
+
+- run on macOS at work and Windows at home
+- shuffle-all is the no.1 priority
+- simple offline caching
+
+So Periphyllidae was born. It's buggy and incomplete, but it just works for me. I will fix bugs and add features when I have time.
 
 ## Technology Stack
 
@@ -11,10 +21,10 @@ A cross-platform Subsonic client for the modern music lover, built with Kotlin M
 - **MediaMP** for cross-platform audio playback
   - ExoPlayer backend on Android for optimized mobile playback
   - VLC backend on Desktop for comprehensive codec support
-- **Intelligent Disk Cache** with embedded HTTP server for transparent music streaming caching
+- **Intelligent Disk Cache** with embedded HTTP server for transparent music streaming and caching
 - **Ktor** for HTTP networking and Subsonic API communication
 - **Koin** for dependency injection and service management
-- **Kermit** wrapped by custom LogManager for enhanced debugging
+- **Kermit** wrapped by custom LogManager for enhanced debugging and logging
 
 ## Architecture
 
@@ -30,7 +40,7 @@ This project follows modern Android architecture principles:
 
 - **LogManager**: Custom logging wrapper with 10,000-entry circular buffer and StateFlow updates
 - **HomeContentCache**: Intelligent caching system for home screen data
-- **DiskLruCache**: Advanced music streaming cache with embedded HTTP server for transparent caching
+- **DiskLruCache**: Advanced music streaming cache with embedded HTTP server for transparent caching and storage
 - **AuthStore**: Secure authentication state management with server configuration
 - **MusicPlayer**: Unified player interface abstracting MediaMP implementations
 - **SubsonicRepository**: Comprehensive API interface for Subsonic servers
@@ -157,17 +167,17 @@ composeApp/
 ### Debug Logging System
 
 - **Real-time log viewer**: Access logs through the Logs screen
-- **In-memory buffering**: 10,000 most recent log entries stored in memory
+- **In-memory buffering**: Store the 10,000 most recent log entries in memory
 - **Log level filtering**: Filter by Verbose, Debug, Info, Warning, and Error levels
 - **Copy and export**: Copy individual log entries or export entire log history
-- **Live updates**: Logs update in real-time using StateFlow
+- **Live updates**: Logs update in real-time using StateFlow for reactive UI updates
 
 ### Cross-platform Audio
 
 - **Unified player interface**: Single API across all platforms
 - **State synchronization**: Real-time playback state updates
 - **Queue management**: Full playlist and queue control
-- **Format support**: Wide audio format support via platform-optimized backends
+- **Format support**: Wide audio format support via platform-optimized backends and codecs
 
 ## TODO
 
@@ -175,12 +185,12 @@ composeApp/
 - [x] Implement album detail screen (completed)
 - [x] Support playing on background on Android (completed)
 - [x] Support media playback notifications on Android (completed - using default media playback notification style with androidx.media.app.NotificationCompat.MediaStyle)
-- [x] Support tray icon and media controls on Desktop Jvm (completed - app indicator on Linux, menu bar icon on macOS, system tray icon on Windows)
+- [x] Support tray icon and media controls on Desktop JVM (completed - app indicator on Linux, menu bar icon on macOS, system tray icon on Windows)
 - [ ] Implement play queue management
-- [ ] Now playing screen should have better UI/UX
-- [ ] Home screen caching needs improvement
+- [ ] The Now playing screen should have better UI/UX
+- [ ] Home screen caching needs improvements
 - [ ] Add transitions and animations between MusicBar and NowPlayingScreen (make them the same component in different states?)
-- [ ] Remove nested scaffolds in mainContent
+- [ ] Remove nested scaffolds in MainContent
 - [ ] Add search history
 - [ ] Fix buggy caching
 
