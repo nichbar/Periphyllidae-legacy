@@ -205,7 +205,7 @@ private fun SearchResults(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(results.artists) { artist ->
+                    items(results.artists, key = { it.id }) { artist ->
                         ArtistIconItem(
                             artist = artist,
                             onArtistClick = { onArtistClick(artist) }
@@ -225,7 +225,7 @@ private fun SearchResults(
                     modifier = Modifier.padding(top = if (results.artists.isNotEmpty()) 16.dp else 0.dp)
                 )
             }
-            items(results.albums) { album ->
+            items(results.albums, key = { it.id }) { album ->
                 AlbumListItem(
                     album = album,
                     onPlay = { onPlayAlbum(album) }
@@ -243,7 +243,7 @@ private fun SearchResults(
                     modifier = Modifier.padding(top = if (results.artists.isNotEmpty() || results.albums.isNotEmpty()) 16.dp else 0.dp)
                 )
             }
-            items(results.songs) { song ->
+            items(results.songs, key = { it.id }) { song ->
                 SongSearchItem(
                     song = song,
                     onPlay = { onPlaySong(song) }

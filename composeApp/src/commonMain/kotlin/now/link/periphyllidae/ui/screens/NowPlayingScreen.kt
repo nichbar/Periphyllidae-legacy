@@ -30,7 +30,6 @@ private enum class ScreenLayout {
 }
 
 // Helper function to determine screen layout based on aspect ratio
-@Composable
 private fun getScreenLayout(maxWidth: Float, maxHeight: Float): ScreenLayout {
     // Calculate the aspect ratio of the available space.
     val aspectRatio = maxWidth / maxHeight
@@ -69,10 +68,14 @@ fun NowPlayingScreen(
     ) { paddingValues ->
         BoxWithConstraints {
             val boxConstraintsScope = this
-            val screenLayout = getScreenLayout(
-                boxConstraintsScope.maxWidth.value,
-                boxConstraintsScope.maxHeight.value
-            )
+            val screenLayout by remember {
+                derivedStateOf {
+                    getScreenLayout(
+                        boxConstraintsScope.maxWidth.value,
+                        boxConstraintsScope.maxHeight.value
+                    )
+                }
+            }
 
             if (state.currentSong == null) {
                 EmptyStateContent(paddingValues)

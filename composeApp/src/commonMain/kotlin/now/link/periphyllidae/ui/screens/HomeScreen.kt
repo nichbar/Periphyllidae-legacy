@@ -130,18 +130,22 @@ private fun HomeContent(
     modifier: Modifier = Modifier
 ) {
     // Create sections based on state
-    val sections = buildList {
-        // Album sections
-        add(HomeSection.AlbumsSection(AlbumSectionData("Recently Added", state.newestAlbums)))
-        add(HomeSection.AlbumsSection(AlbumSectionData("Most Played", state.mostPlayedAlbums, maxItems = 10)))
-        add(HomeSection.AlbumsSection(AlbumSectionData("Recently Played", state.recentlyPlayedAlbums, maxItems = 10)))
-        
-        // Playlists section
-        add(HomeSection.PlaylistsSection(state.playlists))
-        
-        // State sections
-        add(HomeSection.LoadingSection(state.isLoadingHome))
-        add(HomeSection.ErrorSection(state.homeError))
+    val sections by remember {
+        derivedStateOf {
+            buildList {
+                // Album sections
+                add(HomeSection.AlbumsSection(AlbumSectionData("Recently Added", state.newestAlbums)))
+                add(HomeSection.AlbumsSection(AlbumSectionData("Most Played", state.mostPlayedAlbums, maxItems = 10)))
+                add(HomeSection.AlbumsSection(AlbumSectionData("Recently Played", state.recentlyPlayedAlbums, maxItems = 10)))
+
+                // Playlists section
+                add(HomeSection.PlaylistsSection(state.playlists))
+
+                // State sections
+                add(HomeSection.LoadingSection(state.isLoadingHome))
+                add(HomeSection.ErrorSection(state.homeError))
+            }
+        }
     }
 
     LazyColumn(
@@ -258,7 +262,7 @@ private fun AlbumSectionContent(
             horizontalArrangement = Arrangement.spacedBy(HomeScreenDefaults.getItemSpacing(isLandscape)),
             contentPadding = PaddingValues(horizontal = HomeScreenDefaults.horizontalPadding)
         ) {
-            items(albums) { album ->
+            items(albums, key = { it.id }) { album ->
                 MediaCard(
                     title = album.name,
                     subtitle = album.artist,
