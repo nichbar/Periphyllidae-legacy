@@ -1,13 +1,8 @@
 package now.link.periphyllidae.platform
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.swing.Swing
-import kotlinx.coroutines.withContext
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import java.awt.*
-import java.awt.event.ActionEvent
-import java.awt.event.ActionListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage

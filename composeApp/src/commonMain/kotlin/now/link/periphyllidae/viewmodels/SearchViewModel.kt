@@ -26,10 +26,7 @@ class SearchViewModel(
     private val _isSearchBarFocused = MutableStateFlow(false)
     val isSearchBarFocused: StateFlow<Boolean> = _isSearchBarFocused.asStateFlow()
     
-    fun handleSearchIntent(intent: SearchIntent) {
-        searchStore.handleIntent(intent)
-    }
-    
+      
     fun search(query: String) {
         viewModelScope.launch {
             searchStore.handleIntent(SearchIntent.UpdateQuery(query))

@@ -187,7 +187,7 @@ composeApp/
 - [x] Support media playback notifications on Android (completed - using default media playback notification style with androidx.media.app.NotificationCompat.MediaStyle)
 - [x] Support tray icon and media controls on Desktop JVM (completed - app indicator on Linux, menu bar icon on macOS, system tray icon on Windows)
 - [ ] Implement play queue management
-- [ ] The Now playing screen should have better UI/UX
+- [ ] Implement playlist management (create, edit, delete)
 - [ ] Home screen caching needs improvements
 - [ ] Add transitions and animations between MusicBar and NowPlayingScreen (make them the same component in different states?)
 - [ ] Remove nested scaffolds in MainContent

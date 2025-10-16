@@ -99,8 +99,6 @@ sealed interface SearchIntent : Intent {
     data class UpdateQuery(val query: String) : SearchIntent
     data class Search(val query: String) : SearchIntent
     object ClearResults : SearchIntent
-    data class PlaySong(val song: Song) : SearchIntent
-    data class PlayAlbum(val album: Album) : SearchIntent
 }
 
 data class SearchState(

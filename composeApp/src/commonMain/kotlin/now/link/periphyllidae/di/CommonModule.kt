@@ -50,7 +50,7 @@ val commonModule = module {
     single<AuthStore> { AuthStore(get(), get()) }
     single<MusicStore> { MusicStore(get(), get(), get()) }
     single<AppStore> { AppStore(get(), get()) }
-    single<SearchStore> { SearchStore(get(), get()) } // SearchStore as singleton for now
+    single<SearchStore> { SearchStore(get()) } // SearchStore as singleton for now
     
     // ViewModels - Use factory for proper lifecycle management
     factory<HomeViewModel> { HomeViewModel(get(), get()) }

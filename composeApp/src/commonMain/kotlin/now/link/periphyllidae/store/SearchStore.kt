@@ -12,8 +12,7 @@ import now.link.periphyllidae.repository.SubsonicRepositoryManager
 import now.link.periphyllidae.utils.LogManager
 
 class SearchStore(
-    private val subsonicRepositoryManager: SubsonicRepositoryManager,
-    private val musicStore: MusicStore
+    private val subsonicRepositoryManager: SubsonicRepositoryManager
 ) {
     companion object {
         private const val TAG = "SearchStore"
@@ -39,14 +38,6 @@ class SearchStore(
                     results = null,
                     error = null
                 )
-            }
-            is SearchIntent.PlaySong -> {
-                // Delegate to global music store
-                musicStore.handleIntent(MusicIntent.PlaySong(intent.song))
-            }
-            is SearchIntent.PlayAlbum -> {
-                // Delegate to global music store
-                musicStore.handleIntent(MusicIntent.PlayAlbum(intent.album))
             }
         }
     }
