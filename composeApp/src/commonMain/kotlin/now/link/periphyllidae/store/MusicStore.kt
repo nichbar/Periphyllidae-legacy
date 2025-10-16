@@ -1,8 +1,5 @@
 package now.link.periphyllidae.store
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +17,7 @@ import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.HomeContentCache
 import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.utils.LogManager
+import now.link.periphyllidae.utils.ApplicationScopeManager
 
 class MusicStore(
     private val subsonicRepositoryManager: SubsonicRepositoryManager,
@@ -29,9 +27,9 @@ class MusicStore(
     companion object {
         private const val TAG = "MusicStore"
     }
-    
-    // App-scoped coroutine scope for the store
-    private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Use shared application scope to prevent memory leaks
+    private val storeScope = ApplicationScopeManager.scope
 
     // Track which song IDs have been scrobbled in this session
     private val scrobbledSongIds = mutableSetOf<String>()

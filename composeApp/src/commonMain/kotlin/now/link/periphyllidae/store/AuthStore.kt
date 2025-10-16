@@ -1,8 +1,5 @@
 package now.link.periphyllidae.store
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,14 +9,15 @@ import now.link.periphyllidae.mvi.AuthIntent
 import now.link.periphyllidae.mvi.AuthState
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.repository.SubsonicRepositoryManager
+import now.link.periphyllidae.utils.ApplicationScopeManager
 import java.net.URI
 
 class AuthStore(
     private val subsonicRepositoryManager: SubsonicRepositoryManager,
     private val settingsRepository: SettingsRepository,
 ) {
-    // App-scoped coroutine scope for the store
-    private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    // Use shared application scope to prevent memory leaks
+    private val storeScope = ApplicationScopeManager.scope
 
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state.asStateFlow()

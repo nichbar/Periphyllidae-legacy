@@ -32,11 +32,12 @@ import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.utils.LogManager
+import now.link.periphyllidae.utils.ApplicationScopeManager
 import org.koin.android.ext.android.inject
 
 class MusicService : Service() {
     private val musicStore: MusicStore by inject()
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val scope = ApplicationScopeManager.scope
     
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: NotificationManager
@@ -84,8 +85,16 @@ class MusicService : Service() {
     
     override fun onDestroy() {
         super.onDestroy()
-        LogManager.i(TAG, "MusicService destroyed")
+        LogManager.i(TAG, "MusicService destroyed - cleanup started")
+
+        // Release media session resources
         mediaSession.release()
+
+        // Note: We DON'T shutdown ApplicationScopeManager here because:
+        // 1. The service might be recreated quickly
+        // 2. Other components might still need the scope
+        // 3. The scope will be cleaned up when the entire app process ends
+        LogManager.i(TAG, "MusicService cleanup completed")
     }
     
     private fun createNotificationChannel() {

@@ -49,14 +49,13 @@ val commonModule = module {
     // Global Stores (App-scoped state containers)
     single<AuthStore> { AuthStore(get(), get()) }
     single<MusicStore> { MusicStore(get(), get(), get()) }
-    single<AppStore> { AppStore(get(), get()) }
-    single<SearchStore> { SearchStore(get()) } // SearchStore as singleton for now
+    single<AppStore> { AppStore( get()) }
     
     // ViewModels - Use factory for proper lifecycle management
     factory<HomeViewModel> { HomeViewModel(get(), get()) }
     factory<LoginViewModel> { LoginViewModel(get()) }
     factory<AddServerViewModel> { AddServerViewModel(get()) }
-    factory<SearchViewModel> { SearchViewModel(get(), get()) }
+    factory<SearchViewModel> { SearchViewModel(get(), get()) } // Now manages its own search state
     factory<NowPlayingViewModel> { NowPlayingViewModel(get()) }
     factory<SettingsViewModel> { SettingsViewModel(get(), get(), get()) }
     factory<ArtistDetailViewModel> { ArtistDetailViewModel(get(), get()) }

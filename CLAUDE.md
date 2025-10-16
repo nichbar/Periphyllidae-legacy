@@ -164,6 +164,8 @@ The project uses version catalogs (`libs.versions.toml`) for dependency manageme
 
 ## Testing
 
+Check if the project is compilable by running `./gradlew :composeApp:run`.
+
 Tests are organized by platform:
 - `commonTest` - Shared unit tests
 - `androidTest` - Android-specific tests

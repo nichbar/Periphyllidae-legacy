@@ -18,6 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -38,7 +41,8 @@ fun SearchScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val viewModel: SearchViewModel = koinInject()
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.searchState.collectAsStateWithLifecycle()
+    val isSearchBarFocused by viewModel.isSearchBarFocused.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -58,6 +62,8 @@ fun SearchScreen(
                 onQueryChange = { viewModel.updateQuery(it) },
                 onSearch = { viewModel.performSearch(it) },
                 onClear = { viewModel.clearSearch() },
+                onFocusChange = { viewModel.setSearchBarFocus(it) },
+                isFocused = isSearchBarFocused,
                 isLoading = state.isLoading,
                 modifier = Modifier.padding(16.dp)
             )
@@ -138,13 +144,22 @@ private fun SearchTextField(
     onQueryChange: (String) -> Unit,
     onSearch: (String) -> Unit,
     onClear: () -> Unit,
+    onFocusChange: (Boolean) -> Unit,
+    isFocused: Boolean,
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val focusRequester = remember { FocusRequester() }
+
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { focusState ->
+                onFocusChange(focusState.isFocused)
+            },
         placeholder = { Text("Search music...") },
         leadingIcon = {
             Icon(Icons.Default.Search, contentDescription = "Search")

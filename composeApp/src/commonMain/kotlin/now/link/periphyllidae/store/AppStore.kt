@@ -1,8 +1,5 @@
 package now.link.periphyllidae.store
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,13 +8,13 @@ import now.link.periphyllidae.mvi.AppIntent
 import now.link.periphyllidae.mvi.AppState
 import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.repository.SettingsRepository
+import now.link.periphyllidae.utils.ApplicationScopeManager
 
 class AppStore(
-    private val authStore: AuthStore,
     private val settingsRepository: SettingsRepository
 ) {
-    // App-scoped coroutine scope for the store
-    private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    // Use shared application scope to prevent memory leaks
+    private val storeScope = ApplicationScopeManager.scope
 
     private val _state = MutableStateFlow(
         AppState(
