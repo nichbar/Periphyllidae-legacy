@@ -16,7 +16,11 @@ import org.koin.compose.KoinApplication
 import com.arkivanov.decompose.ComponentContext
 import now.link.periphyllidae.cache.CacheInitializer
 import now.link.periphyllidae.utils.LogManager
-import now.link.periphyllidae.di.commonModule
+import now.link.periphyllidae.di.networkModule
+import now.link.periphyllidae.di.dataModule
+import now.link.periphyllidae.di.cacheModule
+import now.link.periphyllidae.di.storeModule
+import now.link.periphyllidae.di.viewModelModule
 import now.link.periphyllidae.di.platformModule
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.ui.theme.PeriphyllidaeTheme
@@ -38,7 +42,14 @@ fun App(
     showDesktopToolbar: Boolean = false
 ) {
     KoinApplication(application = {
-        modules(commonModule, platformModule)
+        modules(
+            networkModule,
+            dataModule,
+            cacheModule,
+            storeModule,
+            viewModelModule,
+            platformModule
+        )
     }) {
         AppContent(
             rootComponentContext = rootComponentContext,

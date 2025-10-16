@@ -9,6 +9,11 @@ import now.link.periphyllidae.service.MusicServiceManager
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext.startKoin
+import now.link.periphyllidae.di.networkModule
+import now.link.periphyllidae.di.dataModule
+import now.link.periphyllidae.di.cacheModule
+import now.link.periphyllidae.di.storeModule
+import now.link.periphyllidae.di.viewModelModule
 
 class MainActivity : ComponentActivity() {
     
@@ -20,7 +25,14 @@ class MainActivity : ComponentActivity() {
         if (org.koin.core.context.GlobalContext.getOrNull() == null) {
             startKoin {
                 androidContext(this@MainActivity)
-                modules(now.link.periphyllidae.di.commonModule, now.link.periphyllidae.di.platformModule)
+                modules(
+                    networkModule,
+                    dataModule,
+                    cacheModule,
+                    storeModule,
+                    viewModelModule,
+                    now.link.periphyllidae.di.platformModule
+                )
             }
         }
         
