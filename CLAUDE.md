@@ -30,20 +30,6 @@ Periphyllidae is a Kotlin Multiplatform music client for Subsonic-compatible ser
 ./gradlew clean
 ```
 
-### Testing and Quality
-
-```bash
-# Run all tests
-./gradlew test
-
-# Run tests for specific platform
-./gradlew :composeApp:testDebugUnitTest
-./gradlew :composeApp:jvmTest
-
-# Check for dependency updates
-./gradlew dependencyUpdates
-```
-
 ## Architecture Overview
 
 ### Core Technologies
@@ -173,38 +159,13 @@ The project uses version catalogs (`libs.versions.toml`) for dependency manageme
 - Koin for DI
 - Kermit for logging
 
-## Recent Architecture Improvements
-
-### ✅ Memory Leak Prevention (October 2025)
-- **ApplicationScopeManager**: Centralized coroutine scope management prevents memory leaks
-- **Platform-specific cleanup**: JVM shutdown hooks and Android service lifecycle integration
-- **Updated all Store classes**: Now use shared application scope instead of private scopes
-
-### ✅ Search Architecture Simplification (October 2025)
-- **SearchStore-SearchViewModel Merge**: Eliminated architectural redundancy
-- **Enhanced Focus Handling**: Added proper focus state management to search UI
-- **Direct State Management**: SearchViewModel now manages its own search state
-- **Memory Optimization**: Reduced object allocations and simplified DI configuration
-
 ## Testing
 
 Check if the project is compilable by running `./gradlew :composeApp:run`.
 
-Tests are organized by platform:
-- `commonTest` - Shared unit tests
-- `androidTest` - Android-specific tests
-- `jvmTest` - Desktop-specific tests
-
-Run tests with `./gradlew test` and ensure all platforms pass before submitting changes.
-
 ## Current Code Quality Status
 
 **Overall Grade: A- (Excellent with Minor Improvements)**
-
-### ✅ Resolved Issues
-- Memory leaks in Store classes - Implemented ApplicationScopeManager
-- SearchStore wrong scoping - Merged into SearchViewModel
-- Search functionality - Enhanced with proper focus handling
 
 ### ⚠️ Remaining Areas for Improvement
 - Missing comprehensive testing infrastructure
