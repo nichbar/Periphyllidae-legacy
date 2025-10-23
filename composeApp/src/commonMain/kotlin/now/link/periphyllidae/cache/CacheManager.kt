@@ -471,7 +471,7 @@ class CacheManager private constructor(
         val stats = CacheStats(
             currentSize = diskCache.size(),
             maxSize = diskCache.maxSize,
-            entryCount = diskCache.size() // Approximation - DiskLruCache doesn't provide exact count
+            entryCount = diskCache.directory.list().size - 1 / 2
         )
         val statsTime = System.currentTimeMillis() - statsStartTime
         LogManager.d(TAG, "Cache stats: ${stats.currentSize / (1024 * 1024)}MB / ${stats.maxSize / (1024 * 1024)}MB, ~${stats.entryCount} entries (calculated in ${statsTime}ms)")
@@ -510,7 +510,48 @@ class CacheManager private constructor(
         LogManager.d(TAG, "Cache removal for URL: $url -> $removed (${removeTime}ms)")
         removed
     }
-    
+
+    /**
+     * Update cache size limit and reinitialize cache with new size
+     */
+    suspend fun updateCacheSize(newMaxSize: Long): Boolean = withContext(Dispatchers.IO) {
+        val updateStartTime = System.currentTimeMillis()
+        LogManager.i(TAG, "Updating cache size from ${maxCacheSize / (1024 * 1024)}MB to ${newMaxSize / (1024 * 1024)}MB")
+
+        return@withContext try {
+            // Close current cache
+            val currentSize = diskCache.size()
+            diskCache.close()
+
+            // Reopen with new size
+            val cacheDir = File(cacheDirectory.toString())
+            diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, newMaxSize)
+
+            val updateTime = System.currentTimeMillis() - updateStartTime
+            LogManager.i(TAG, "Cache size updated successfully in ${updateTime}ms (current usage: ${currentSize / (1024 * 1024)}MB)")
+
+            true
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Failed to update cache size", e)
+
+            // Try to restore original cache
+            try {
+                val cacheDir = File(cacheDirectory.toString())
+                diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
+                LogManager.i(TAG, "Restored original cache size after failure")
+            } catch (restoreException: Exception) {
+                LogManager.e(TAG, "Failed to restore original cache size", restoreException)
+            }
+
+            false
+        }
+    }
+
+    /**
+     * Get current cache directory path
+     */
+    fun getCacheDirectoryPath(): String = cacheDirectory.toString()
+
     /**
      * REQ-NF-03: Stop server gracefully on application exit
      */
@@ -569,7 +610,7 @@ class CacheManager private constructor(
 data class CacheStats(
     val currentSize: Long,
     val maxSize: Long,
-    val entryCount: Long
+    val entryCount: Int
 )
 
 // Utility function to hash a string to create a valid cache key

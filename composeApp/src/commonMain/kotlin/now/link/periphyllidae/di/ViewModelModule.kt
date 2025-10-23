@@ -80,4 +80,12 @@ val viewModelModule = module {
     factory<AlbumDetailViewModel> {
         AlbumDetailViewModel(get(), get())
     }
+
+    /**
+     * Cache Management screen ViewModel for cache statistics and controls.
+     * Depends on MusicPlayer for cache operations and AppStore for settings.
+     */
+    factory<CacheManagementViewModel> {
+        CacheManagementViewModel(get(), get())
+    }
 }

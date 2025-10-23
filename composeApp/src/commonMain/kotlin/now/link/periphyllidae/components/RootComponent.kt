@@ -20,6 +20,7 @@ sealed class Nav {
     data object Logs : Nav()
     data object ServerManagement : Nav()
     data object AddServer : Nav()
+    data object CacheManagement : Nav()
     data object Login : Nav()
     data object Logout : Nav()
     data class ArtistDetail(val artistId: String) : Nav()
@@ -38,6 +39,7 @@ interface RootComponent {
         class LogsChild(val component: LogsComponent) : Child()
         class ServerManagementChild(val component: ServerManagementComponent) : Child()
         class AddServerChild(val component: AddServerComponent) : Child()
+        class CacheManagementChild(val component: CacheManagementComponent) : Child()
         class ArtistDetailChild(val component: ArtistDetailComponent) : Child()
         class AlbumDetailChild(val component: AlbumDetailComponent) : Child()
     }
@@ -63,6 +65,7 @@ class DefaultRootComponent(
             is Nav.Logs -> navigation.push(Config.Logs)
             is Nav.ServerManagement -> navigation.push(Config.ServerManagement)
             is Nav.AddServer -> navigation.push(Config.AddServer)
+            is Nav.CacheManagement -> navigation.push(Config.CacheManagement)
             is Nav.Login -> navigation.push(Config.Login)
             is Nav.Logout -> navigation.push(Config.Login)
         }
@@ -85,6 +88,7 @@ class DefaultRootComponent(
             is Config.Logs -> RootComponent.Child.LogsChild(logsComponent(componentContext))
             is Config.ServerManagement -> RootComponent.Child.ServerManagementChild(serverManagementComponent(componentContext))
             is Config.AddServer -> RootComponent.Child.AddServerChild(addServerComponent(componentContext))
+            is Config.CacheManagement -> RootComponent.Child.CacheManagementChild(cacheManagementComponent(componentContext))
             is Config.ArtistDetail -> RootComponent.Child.ArtistDetailChild(artistDetailComponent(componentContext, config))
             is Config.AlbumDetail -> RootComponent.Child.AlbumDetailChild(albumDetailComponent(componentContext, config))
         }
@@ -156,31 +160,42 @@ class DefaultRootComponent(
             },
             nav = nav
         )
-    
+
+    private fun cacheManagementComponent(componentContext: ComponentContext): CacheManagementComponent =
+        DefaultCacheManagementComponent(
+            componentContext = componentContext,
+            onNavigateBack = {
+                navigation.pop()
+            }
+        )
+
     override fun onBackClicked(toIndex: Int) {
         navigation.pop()
     }
-    
+
     @Serializable
     private sealed interface Config {
         @Serializable
         data object Login : Config
-        
+
         @Serializable
         data object Main : Config
-        
+
         @Serializable
         data object NowPlaying : Config
-        
+
         @Serializable
         data object Logs : Config
-        
+
         @Serializable
         data object ServerManagement : Config
-        
+
         @Serializable
         data object AddServer : Config
-        
+
+        @Serializable
+        data object CacheManagement : Config
+
         @Serializable
         data class ArtistDetail(val artistId: String) : Config
 

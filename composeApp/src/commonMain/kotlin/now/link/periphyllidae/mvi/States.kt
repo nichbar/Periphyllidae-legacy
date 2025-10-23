@@ -14,6 +14,7 @@ interface State
 data class AppState(
     val theme: AppTheme = AppTheme.SYSTEM,
     val appVersion: String = "1.0.0",
+    val cacheSizeMB: Int = 1024, // Default 1GB
     val isLoading: Boolean = false
 ) : State
 
@@ -55,6 +56,7 @@ data class MusicState(
 // Global App Intents
 sealed interface AppIntent : Intent {
     data class ChangeTheme(val theme: AppTheme) : AppIntent
+    data class ChangeCacheSize(val sizeMB: Int) : AppIntent
 }
 
 // Global Auth Intents (authentication operations only)

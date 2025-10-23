@@ -150,9 +150,27 @@ fun SettingsScreen(
                     },
                     onClick = { showThemeDialog = true }
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
+                // Storage Section
+                Text(
+                    text = "Storage",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                SettingsItem(
+                    icon = Icons.Default.Storage,
+                    title = "Cache Management",
+                    subtitle = "Manage cached music and storage",
+                    onClick = { onNavigateTo(Nav.CacheManagement) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Debugging Section
                 Text(
                     text = "Debugging",

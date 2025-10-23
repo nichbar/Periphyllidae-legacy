@@ -29,6 +29,7 @@ fun RootContent(
             is RootComponent.Child.LogsChild -> LogsContent(child.component)
             is RootComponent.Child.ServerManagementChild -> ServerManagementContent(child.component)
             is RootComponent.Child.AddServerChild -> AddServerContent(child.component)
+            is RootComponent.Child.CacheManagementChild -> CacheManagementContent(child.component)
             is RootComponent.Child.ArtistDetailChild -> ArtistDetailContent(child.component)
             is RootComponent.Child.AlbumDetailChild -> AlbumDetailContent(child.component)
         }
@@ -93,5 +94,12 @@ private fun AddServerContent(component: now.link.periphyllidae.components.AddSer
         viewModel = koinInject(),
         onServerAdded = component::onServerAdded,
         onNavigateBack = component::onNavigateBack
+    )
+}
+
+@Composable
+private fun CacheManagementContent(component: now.link.periphyllidae.components.CacheManagementComponent) {
+    CacheManagementScreen(
+        component = component
     )
 }

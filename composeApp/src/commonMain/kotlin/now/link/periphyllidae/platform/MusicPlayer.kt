@@ -544,6 +544,29 @@ class MusicPlayer(
         cacheManager?.clearCache()
         LogManager.i(TAG, "Music cache cleared")
     }
+
+    /**
+     * Update cache size limit
+     */
+    suspend fun updateCacheSize(newMaxSize: Long): Boolean {
+        return try {
+            val result = cacheManager?.updateCacheSize(newMaxSize) ?: false
+            if (result) {
+                LogManager.i(TAG, "Cache size updated to ${newMaxSize / (1024 * 1024)}MB")
+            } else {
+                LogManager.w(TAG, "Failed to update cache size")
+            }
+            result
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Error updating cache size", e)
+            false
+        }
+    }
+
+    /**
+     * Get cache directory path
+     */
+    fun getCacheDirectoryPath(): String? = cacheManager?.getCacheDirectoryPath()
     
     private fun updateCurrentIndex(song: Song) {
         LogManager.v(TAG, "Updating current index for song: ${song.title}")

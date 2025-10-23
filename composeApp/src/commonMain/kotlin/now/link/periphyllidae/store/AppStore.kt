@@ -22,6 +22,11 @@ class AppStore(
                 AppTheme.valueOf(settingsRepository.getTheme())
             } catch (e: Exception) {
                 AppTheme.SYSTEM
+            },
+            cacheSizeMB = try {
+                settingsRepository.getCacheSize()
+            } catch (e: Exception) {
+                1024 // Default 1GB
             }
         )
     )
@@ -30,6 +35,7 @@ class AppStore(
     fun handleIntent(intent: AppIntent) {
         when (intent) {
             is AppIntent.ChangeTheme -> changeTheme(intent.theme)
+            is AppIntent.ChangeCacheSize -> changeCacheSize(intent.sizeMB)
         }
     }
 
@@ -37,6 +43,13 @@ class AppStore(
         storeScope.launch {
             settingsRepository.saveTheme(theme.name)
             _state.value = _state.value.copy(theme = theme)
+        }
+    }
+
+    private fun changeCacheSize(sizeMB: Int) {
+        storeScope.launch {
+            settingsRepository.saveCacheSize(sizeMB)
+            _state.value = _state.value.copy(cacheSizeMB = sizeMB)
         }
     }
 }

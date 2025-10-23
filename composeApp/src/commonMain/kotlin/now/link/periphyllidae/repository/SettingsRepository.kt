@@ -46,6 +46,8 @@ interface SettingsRepository {
     fun getShuffle(): Boolean
     fun saveRepeat(enabled: Boolean)
     fun getRepeat(): Boolean
+    fun saveCacheSize(sizeMB: Int)
+    fun getCacheSize(): Int
 }
 
 class SettingsRepositoryImpl(
@@ -70,6 +72,7 @@ class SettingsRepositoryImpl(
         private const val KEY_VOLUME = "volume"
         private const val KEY_SHUFFLE = "shuffle"
         private const val KEY_REPEAT = "repeat"
+        private const val KEY_CACHE_SIZE = "cache_size"
     }
 
     override fun addServerConfig(config: ServerConfig) {
@@ -278,5 +281,13 @@ class SettingsRepositoryImpl(
     
     override fun getRepeat(): Boolean {
         return settings.getBoolean(KEY_REPEAT, false) // Default repeat off
+    }
+
+    override fun saveCacheSize(sizeMB: Int) {
+        settings.putInt(KEY_CACHE_SIZE, sizeMB)
+    }
+
+    override fun getCacheSize(): Int {
+        return settings.getInt(KEY_CACHE_SIZE, 1024) // Default 1GB
     }
 }

@@ -161,7 +161,7 @@ The project uses version catalogs (`libs.versions.toml`) for dependency manageme
 
 ## Testing
 
-Check if the project is compilable by running `./gradlew :composeApp:run`.
+Check if the project is compilable by running `./gradlew :composeApp:run` after every major changes.
 
 ## Current Code Quality Status
 
