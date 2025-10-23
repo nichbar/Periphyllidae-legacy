@@ -13,18 +13,46 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import now.link.periphyllidae.di.commonModule
+import now.link.periphyllidae.di.networkModule
+import now.link.periphyllidae.di.dataModule
+import now.link.periphyllidae.di.cacheModule
+import now.link.periphyllidae.di.storeModule
+import now.link.periphyllidae.di.viewModelModule
 import now.link.periphyllidae.di.platformModule
+import now.link.periphyllidae.di.desktopModule
+import now.link.periphyllidae.platform.SystemTray
+import now.link.periphyllidae.platform.SystemTrayController
 import now.link.periphyllidae.repository.SettingsRepository
+import now.link.periphyllidae.store.MusicStore
+import now.link.periphyllidae.utils.LogManager
+import now.link.periphyllidae.utils.ApplicationScopeManager
 
 @OptIn(DelicateCoroutinesApi::class)
 fun main() {
-    // Initialize Koin once, outside of the application scope
+    // Initialize Koin with modular dependency injection
     val koinApplication = startKoin {
-        modules(commonModule, platformModule)
+        modules(
+            networkModule,
+            dataModule,
+            cacheModule,
+            storeModule,
+            viewModelModule,
+            platformModule,
+            desktopModule
+        )
     }
-    
+
     val settingsRepository = koinApplication.koin.get<SettingsRepository>()
+    val musicStore = koinApplication.koin.get<MusicStore>()
+    val systemTray = koinApplication.koin.get<SystemTray>()
+
+    // Setup cleanup hook for proper shutdown
+    Runtime.getRuntime().addShutdownHook(Thread {
+        LogManager.i("Main", "Application shutdown initiated")
+        ApplicationScopeManager.shutdown()
+        koinApplication.close()
+        LogManager.i("Main", "Application cleanup completed")
+    })
     
     application {
         // Load saved window dimensions and position
@@ -32,6 +60,9 @@ fun main() {
         val savedHeight = settingsRepository.getWindowHeight()
         val savedPosX = settingsRepository.getWindowPosX()
         val savedPosY = settingsRepository.getWindowPosY()
+
+        // Window visibility state
+        var windowVisible by remember { mutableStateOf(true) }
         
         // Create window state with saved values
         val windowState = remember {
@@ -43,6 +74,30 @@ fun main() {
                     WindowPosition.Aligned(androidx.compose.ui.Alignment.Center)
                 }
             )
+        }
+        
+        // System tray controller
+        val systemTrayController = remember {
+            SystemTrayController(
+                musicStore = musicStore,
+                systemTray = systemTray,
+                onShowWindow = { windowVisible = true },
+                onExit = {
+                    ApplicationScopeManager.shutdown()
+                    stopKoin()
+                    exitApplication()
+                }
+            )
+        }
+        
+        // Initialize system tray
+        LaunchedEffect(Unit) {
+            val success = systemTrayController.initialize()
+            if (success) {
+                LogManager.i("Main", "System tray initialized successfully")
+            } else {
+                LogManager.w("Main", "Failed to initialize system tray")
+            }
         }
         
         // Save window state whenever it changes (with a small delay to avoid excessive saves)
@@ -69,23 +124,40 @@ fun main() {
         }
 
         val closeRequest = {
-            stopKoin()
-            exitApplication()
+            // If system tray is supported, minimize to tray instead of exiting
+            if (systemTray.isSupported()) {
+                windowVisible = false
+            } else {
+                systemTrayController.dispose()
+                ApplicationScopeManager.shutdown()
+                stopKoin()
+                exitApplication()
+            }
         }
 
-        Window(
-            onCloseRequest = { closeRequest() },
-            title = "Periphyllidae",
-            state = windowState,
-            undecorated = true
-        ) {
-            // Pass the window state and close request to App()
-            App(
-                windowScope = this,
-                windowState = windowState,
-                onCloseRequest = closeRequest,
-                showDesktopToolbar = true
-            )
+        if (windowVisible) {
+            Window(
+                onCloseRequest = { closeRequest() },
+                title = "Periphyllidae",
+                state = windowState,
+                undecorated = true,
+                transparent = true
+            ) {
+                // Pass the window state and close request to App()
+                App(
+                    windowScope = this,
+                    windowState = windowState,
+                    onCloseRequest = closeRequest,
+                    showDesktopToolbar = true
+                )
+            }
+        }
+
+        // Cleanup on application exit
+        DisposableEffect(Unit) {
+            onDispose {
+                systemTrayController.dispose()
+            }
         }
     }
 }
