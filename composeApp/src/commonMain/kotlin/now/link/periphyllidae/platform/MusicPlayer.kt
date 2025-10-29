@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 import now.link.periphyllidae.cache.CacheManager
 import now.link.periphyllidae.getPlatform
 import now.link.periphyllidae.models.Song
@@ -188,36 +189,59 @@ class MusicPlayer(
         _currentSong.value = song
         
         scope.launch {
-            try {
-                LogManager.d(TAG, "Starting MediaMP playback")
-                
-                // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
-                val playbackUrl = if (getPlatform().isAndroid) {
-                    song.streamUrl
-                } else {
-                    getPlaybackUrl(song.streamUrl)
-                }
+            var playbackSuccessful = false
+            var lastException: Exception? = null
 
-                LogManager.d(TAG, "Playback URL: $playbackUrl")
-                
-                mediaPlayer.playUri(playbackUrl)
-                
-                // Update the duration from the song metadata
-                val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
-                _duration.value = songDuration
-                LogManager.d(TAG, "Song duration set to: ${songDuration}ms")
-                
-                // Reset position to start
-                _currentPosition.value = 0L
-                
-                // Update current index and playing state
-                updateCurrentIndex(song)
-                _isPlaying.value = true
-                
-                // State will be automatically updated via MediaMP state observation
-                LogManager.i(TAG, "Song playback initiated: ${song.title}")
-            } catch (e: Exception) {
-                LogManager.e(TAG, "Failed to play song: ${song.title}", e)
+            // Retry logic with exponential backoff
+            val maxRetries = 3
+            val baseDelayMs = 1000L
+
+            for (attempt in 0..maxRetries) {
+                try {
+                    LogManager.d(TAG, "Starting MediaMP playback (attempt ${attempt + 1}/${maxRetries + 1})")
+
+                    // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
+                    val playbackUrl = if (getPlatform().isAndroid) {
+                        song.streamUrl
+                    } else {
+                        getPlaybackUrlWithFallback(song.streamUrl, attempt)
+                    }
+
+                    LogManager.d(TAG, "Playback URL (attempt ${attempt + 1}): $playbackUrl")
+
+                    mediaPlayer.playUri(playbackUrl)
+
+                    // Update the duration from the song metadata
+                    val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
+                    _duration.value = songDuration
+                    LogManager.d(TAG, "Song duration set to: ${songDuration}ms")
+
+                    // Reset position to start
+                    _currentPosition.value = 0L
+
+                    // Update current index and playing state
+                    updateCurrentIndex(song)
+                    _isPlaying.value = true
+
+                    // State will be automatically updated via MediaMP state observation
+                    LogManager.i(TAG, "Song playback initiated: ${song.title} (attempt ${attempt + 1})")
+                    playbackSuccessful = true
+                    break // Success, exit retry loop
+
+                } catch (e: Exception) {
+                    lastException = e
+                    LogManager.w(TAG, "Playback failed for song: ${song.title} (attempt ${attempt + 1})", e)
+
+                    if (attempt < maxRetries) {
+                        val delayMs = baseDelayMs * (2.0.pow(attempt)).toLong()
+                        LogManager.d(TAG, "Retrying playback in ${delayMs}ms...")
+                        kotlinx.coroutines.delay(delayMs)
+                    }
+                }
+            }
+
+            if (!playbackSuccessful) {
+                LogManager.e(TAG, "All playback attempts failed for song: ${song.title}", lastException ?: Exception("Unknown playback error"))
                 _playbackState.value = PlaybackState.ERROR
                 _isPlaying.value = false
             }
@@ -227,8 +251,24 @@ class MusicPlayer(
     /**
      * Get the appropriate playback URL, using cache if available
      */
-    private fun getPlaybackUrl(originalUrl: String): String {
-        return cacheManager?.getLocalPlaybackUrl(originalUrl) ?: run {
+    private fun getPlaybackUrlWithFallback(originalUrl: String, attempt: Int): String {
+        return if (cacheManager != null) {
+            // On first attempt, try cache
+            if (attempt == 0) {
+                try {
+                    val cacheUrl = cacheManager!!.getLocalPlaybackUrl(originalUrl)
+                    LogManager.d(TAG, "Using cache URL (attempt 0): $cacheUrl")
+                    cacheUrl
+                } catch (e: Exception) {
+                    LogManager.w(TAG, "Cache URL generation failed, falling back to original URL", e)
+                    originalUrl
+                }
+            } else {
+                // On subsequent attempts, use original URL to bypass potential cache issues
+                LogManager.d(TAG, "Using original URL (attempt $attempt, bypassing cache)")
+                originalUrl
+            }
+        } else {
             LogManager.d(TAG, "Using original URL (cache not available)")
             originalUrl
         }

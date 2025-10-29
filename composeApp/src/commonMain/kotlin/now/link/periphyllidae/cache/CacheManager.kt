@@ -65,6 +65,8 @@ class CacheManager private constructor(
         private const val SERVER_HOST = "127.0.0.1"
         private const val CACHE_VERSION = 1
         private const val VALUE_COUNT = 2  // 0: content, 1: metadata
+        private const val WARNING_THRESHOLD_PERCENTAGE = 0.90  // Warn at 90% capacity
+        private const val CLEANUP_THRESHOLD_PERCENTAGE = 0.95   // Force cleanup at 95% capacity
         
         suspend fun create(
             cacheDirectory: Path,
@@ -81,6 +83,13 @@ class CacheManager private constructor(
     private val downloadMutex = Mutex()
     private val activeDownloads = mutableMapOf<String, Channel<CachedContent>>()
     private val json = Json { ignoreUnknownKeys = true }
+
+    // Circuit breaker for cache operations
+    private var cacheFailureCount = 0
+    private var lastCacheFailureTime = 0L
+    private var circuitBreakerOpen = false
+    private val circuitBreakerThreshold = 3
+    private val circuitBreakerResetTimeMs = 30000L // 30 seconds
 
     // REQ-FS-03: Use Jake Wharton's DiskLruCache for cache management
     private lateinit var diskCache: DiskLruCache
@@ -277,11 +286,24 @@ class CacheManager private constructor(
         LogManager.i(TAG, "Starting download and cache for: $originalUrl (key: $key)")
         
         withContext(Dispatchers.IO) {
+            // Check circuit breaker state
+            if (isCircuitBreakerOpen()) {
+                LogManager.w(TAG, "Cache circuit breaker is open - bypassing cache for key: $key")
+                streamDirectlyWithoutCaching(originalUrl, downloadChannel)
+                return@withContext
+            }
+
+            // Check cache capacity before attempting to cache
+            checkCacheCapacityAndCleanup()
+
             // REQ-FW-02: Use DiskLruCache.Editor for writing
             val editorStartTime = System.currentTimeMillis()
             val editor = diskCache.edit(key)
             if (editor == null) {
-                LogManager.w(TAG, "Could not create cache editor for key: $key (possibly already being written)")
+                recordCacheFailure()
+                LogManager.w(TAG, "Could not create cache editor for key: $key (cache possibly full or locked) - falling back to direct streaming")
+                // Fallback: stream directly without caching when editor creation fails
+                streamDirectlyWithoutCaching(originalUrl, downloadChannel)
                 return@withContext
             }
             val editorCreateTime = System.currentTimeMillis() - editorStartTime
@@ -343,6 +365,7 @@ class CacheManager private constructor(
                 // REQ-FW-03: Commit editor on successful download
                 val commitStartTime = System.currentTimeMillis()
                 editor.commit()
+                recordCacheSuccess() // Record successful cache operation
                 val commitTime = System.currentTimeMillis() - commitStartTime
                 val totalDownloadTime = System.currentTimeMillis() - downloadStartTime
                 LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key (total: ${totalDownloadTime}ms, commit: ${commitTime}ms)")
@@ -360,7 +383,159 @@ class CacheManager private constructor(
             }
         }
     }
-    
+
+    private suspend fun checkCacheCapacityAndCleanup() = withContext(Dispatchers.IO) {
+        try {
+            val currentSize = diskCache.size()
+            val maxSize = diskCache.maxSize
+            val usagePercentage = currentSize.toDouble() / maxSize
+
+            val currentSizeMB = currentSize / (1024 * 1024)
+            val maxSizeMB = maxSize / (1024 * 1024)
+            val usagePercentageFormatted = String.format("%.1f", usagePercentage * 100)
+
+            LogManager.v(TAG, "Cache capacity: ${currentSizeMB}MB / ${maxSizeMB}MB (${usagePercentageFormatted}%)")
+
+            when {
+                usagePercentage >= CLEANUP_THRESHOLD_PERCENTAGE -> {
+                    LogManager.w(TAG, "Cache at ${usagePercentageFormatted}% capacity - triggering proactive cleanup")
+                    performProactiveCleanup()
+                }
+
+                usagePercentage >= WARNING_THRESHOLD_PERCENTAGE -> {
+                    LogManager.w(TAG, "Cache at ${usagePercentageFormatted}% capacity - approaching limit, consider cleanup")
+                }
+
+                else -> {
+                    LogManager.v(TAG, "Cache usage at ${usagePercentageFormatted}% - OK")
+                }
+            }
+        } catch (e: Exception) {
+            LogManager.w(TAG, "Failed to check cache capacity", e)
+        }
+    }
+
+    private suspend fun performProactiveCleanup() = withContext(Dispatchers.IO) {
+        try {
+            val cleanupStartTime = System.currentTimeMillis()
+            val sizeBefore = diskCache.size()
+            val entriesBefore = diskCache.directory.list()?.size ?: 0
+
+            LogManager.i(TAG, "Starting proactive cache cleanup (current: ${sizeBefore / (1024 * 1024)}MB)")
+
+            // Force DiskLruCache to run cleanup and eviction
+            diskCache.flush()
+
+            // Check if cleanup helped
+            val sizeAfter = diskCache.size()
+            val entriesAfter = diskCache.directory.list()?.size ?: 0
+            val cleanupTime = System.currentTimeMillis() - cleanupStartTime
+
+            val spaceFreed = sizeBefore - sizeAfter
+            val entriesRemoved = entriesBefore - entriesAfter
+
+            LogManager.i(TAG, "Proactive cleanup completed in ${cleanupTime}ms - freed ${spaceFreed / (1024 * 1024)}MB, removed $entriesRemoved entries")
+            LogManager.i(TAG, "Cache size after cleanup: ${sizeAfter / (1024 * 1024)}MB")
+
+            if (spaceFreed == 0L) {
+                LogManager.w(TAG, "Cleanup didn't free significant space - cache may be fragmented or all entries in use")
+            }
+
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Proactive cache cleanup failed", e)
+        }
+    }
+
+    private fun isCircuitBreakerOpen(): Boolean {
+        val currentTime = System.currentTimeMillis()
+
+        // Check if circuit breaker should be reset
+        if (circuitBreakerOpen && (currentTime - lastCacheFailureTime) > circuitBreakerResetTimeMs) {
+            LogManager.i(TAG, "Cache circuit breaker resetting after timeout")
+            circuitBreakerOpen = false
+            cacheFailureCount = 0
+            return false
+        }
+
+        return circuitBreakerOpen
+    }
+
+    private fun recordCacheFailure() {
+        cacheFailureCount++
+        lastCacheFailureTime = System.currentTimeMillis()
+
+        if (cacheFailureCount >= circuitBreakerThreshold) {
+            circuitBreakerOpen = true
+            LogManager.w(TAG, "Cache circuit breaker opened after $cacheFailureCount consecutive failures")
+        }
+
+        LogManager.v(TAG, "Cache failure recorded: $cacheFailureCount/$circuitBreakerThreshold (breaker open: $circuitBreakerOpen)")
+    }
+
+    private fun recordCacheSuccess() {
+        // Reset failure count on success
+        if (cacheFailureCount > 0) {
+            LogManager.d(TAG, "Cache operation succeeded - resetting failure count from $cacheFailureCount to 0")
+            cacheFailureCount = 0
+        }
+
+        // Close circuit breaker if it was open
+        if (circuitBreakerOpen) {
+            LogManager.i(TAG, "Cache operation succeeded - closing circuit breaker")
+            circuitBreakerOpen = false
+        }
+    }
+
+    private suspend fun streamDirectlyWithoutCaching(originalUrl: String, downloadChannel: Channel<CachedContent>?) {
+        val streamStartTime = System.currentTimeMillis()
+        LogManager.i(TAG, "Starting direct streaming (no caching) for: $originalUrl")
+
+        withContext(Dispatchers.IO) {
+            try {
+                val httpStartTime = System.currentTimeMillis()
+                LogManager.d(TAG, "Starting direct HTTP request to: $originalUrl")
+                val response = httpClient.get(originalUrl)
+                val httpResponseTime = System.currentTimeMillis() - httpStartTime
+
+                if (response.status != HttpStatusCode.OK) {
+                    LogManager.w(TAG, "Direct HTTP error ${response.status} for URL: $originalUrl")
+                    downloadChannel?.close()
+                    return@withContext
+                }
+
+                LogManager.d(TAG, "Direct HTTP response received in ${httpResponseTime}ms for: $originalUrl")
+
+                // Get response as byte array
+                val bodyStartTime = System.currentTimeMillis()
+                val responseBytes: ByteArray = response.body()
+                val bodyReadTime = System.currentTimeMillis() - bodyStartTime
+                LogManager.d(TAG, "Direct download ${responseBytes.size} bytes in ${bodyReadTime}ms from: $originalUrl")
+
+                // Extract content type from response headers
+                val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
+                val contentLength = response.headers["Content-Length"]?.toLongOrNull()
+
+                val metadata = CacheMetadata(
+                    contentType = contentTypeHeader,
+                    contentLength = contentLength
+                )
+
+                // Send to waiting clients
+                val cachedContent = CachedContent(responseBytes, metadata)
+                val channelResult = downloadChannel?.trySend(cachedContent)
+                LogManager.v(TAG, "Direct content sent to download channel: ${channelResult?.isSuccess ?: "no channel"}")
+
+                val totalStreamTime = System.currentTimeMillis() - streamStartTime
+                LogManager.i(TAG, "Direct streaming completed successfully for ${responseBytes.size} bytes in ${totalStreamTime}ms")
+
+            } catch (e: Exception) {
+                val failureTime = System.currentTimeMillis() - streamStartTime
+                LogManager.e(TAG, "Direct streaming failed for URL: $originalUrl after ${failureTime}ms", e)
+                downloadChannel?.close()
+            }
+        }
+    }
+
     private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: ApplicationCall, key: String) {
         val streamStartTime = System.currentTimeMillis()
         LogManager.d(TAG, "Waiting for download content to stream for key: $key")
