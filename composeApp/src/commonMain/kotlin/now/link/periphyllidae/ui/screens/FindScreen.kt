@@ -17,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.Layout
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -968,48 +970,56 @@ private fun BrowseArtistsContent(
                 }
             }
             else -> {
-                // Use a fixed 4-column grid layout that adapts well to different screen sizes
-                val numberOfColumns = 4
+                BoxWithConstraints {
+                    val box = this
 
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    val chunkedArtists = artists.chunked(numberOfColumns)
+                    val availableWidth = box.maxWidth
+                    val minItemWidth = 100.dp
+                    val spacing = 12.dp
+                    val padding = 32.dp // 16dp on each side
+                    val availableWidthForItems = availableWidth - padding
+                    val numberOfColumns = ((availableWidthForItems + spacing) / (minItemWidth + spacing)).toInt().coerceAtLeast(1)
 
-                    items(chunkedArtists, key = { chunk -> chunk.map { it.id }.hashCode() }) { rowArtists ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            for (i in 0 until numberOfColumns) {
-                                if (i < rowArtists.size) {
-                                    Box(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        ArtistGridItem(
-                                            artist = rowArtists[i],
-                                            onArtistClick = { onArtistClick(rowArtists[i]) }
-                                        )
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        val chunkedArtists = artists.chunked(numberOfColumns)
+
+                        items(chunkedArtists, key = { chunk -> chunk.map { it.id }.hashCode() }) { rowArtists ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(spacing)
+                            ) {
+                                for (i in 0 until numberOfColumns) {
+                                    if (i < rowArtists.size) {
+                                        Box(
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            ArtistGridItem(
+                                                artist = rowArtists[i],
+                                                onArtistClick = { onArtistClick(rowArtists[i]) }
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
-                    }
 
-                    if (isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp)
-                                )
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1025,51 +1035,6 @@ private fun BrowseArtistsContent(
                     .padding(16.dp)
             ) {
                 Text("Load More")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ArtistListItem(
-    artist: Artist,
-    onArtistClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onArtistClick() }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = artist.coverArt,
-                contentDescription = "Artist image for ${artist.name}",
-                modifier = Modifier.size(56.dp),
-                contentScale = ContentScale.Crop
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = artist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${artist.albumCount} albums",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
             }
         }
     }
