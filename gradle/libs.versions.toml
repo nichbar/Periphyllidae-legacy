@@ -30,7 +30,7 @@ mediamp = "0.0.29"
 mediamp-vlc = "0.0.26"
 kotlinx-datetime = "0.6.1"
 okio = "3.9.1"
-disklrucache = "2.0.2"
+kache = "2.1.1"
 jna = "5.14.0"
 
 [libraries]
@@ -83,7 +83,7 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 
 # I/O
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
-disklrucache = { module = "com.jakewharton:disklrucache", version.ref = "disklrucache" }
+kache-file-kache = { module = "com.mayakapps.kache:file-kache", version.ref = "kache" }
 
 # Native Integration
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }

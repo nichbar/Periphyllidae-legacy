@@ -1,6 +1,8 @@
 package now.link.periphyllidae.cache
 
-import com.jakewharton.disklrucache.DiskLruCache
+import com.mayakapps.kache.FileKache
+import com.mayakapps.kache.JavaFileKache
+import com.mayakapps.kache.KacheStrategy
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -51,8 +53,8 @@ data class CachedContent(
 )
 
 /**
- * Cache Manager that provides HTTP-based caching proxy functionality using Jake Wharton's DiskLruCache.
- * Implements all requirements from cache-requirements.md with a battle-tested cache implementation.
+ * Cache Manager that provides HTTP-based caching proxy functionality using Kache with dual cache architecture.
+ * Uses separate content and metadata caches for improved flexibility and modern Kotlin multiplatform support.
  */
 class CacheManager private constructor(
     private val cacheDirectory: Path,
@@ -63,8 +65,8 @@ class CacheManager private constructor(
         private const val TAG = "CacheManager"
         private const val DEFAULT_MAX_CACHE_SIZE = 1024L * 1024L * 1024L // 1GB
         private const val SERVER_HOST = "127.0.0.1"
-        private const val CACHE_VERSION = 1
-        private const val VALUE_COUNT = 2  // 0: content, 1: metadata
+        private const val CONTENT_CACHE_SIZE_RATIO = 0.95  // 95% for content, 5% for metadata
+        private const val METADATA_CACHE_SIZE_RATIO = 0.05  // 5% for metadata
         private const val WARNING_THRESHOLD_PERCENTAGE = 0.90  // Warn at 90% capacity
         private const val CLEANUP_THRESHOLD_PERCENTAGE = 0.95   // Force cleanup at 95% capacity
         
@@ -91,31 +93,65 @@ class CacheManager private constructor(
     private val circuitBreakerThreshold = 3
     private val circuitBreakerResetTimeMs = 30000L // 30 seconds
 
-    // REQ-FS-03: Use Jake Wharton's DiskLruCache for cache management
-    private lateinit var diskCache: DiskLruCache
+    // Dual cache architecture: separate caches for content and metadata
+    private lateinit var contentCache: JavaFileKache
+    private lateinit var metadataCache: JavaFileKache
+    private lateinit var contentCacheDir: File
+    private lateinit var metadataCacheDir: File
     private var serverPort: Int = 0
     private var server: io.ktor.server.engine.EmbeddedServer<*, *>? = null
 
     private suspend fun initialize() = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
-        LogManager.i(TAG, "Initializing CacheManager with Jake Wharton's DiskLruCache")
+        LogManager.i(TAG, "Initializing CacheManager with Kache dual cache architecture")
         LogManager.d(TAG, "Cache directory: $cacheDirectory")
         LogManager.d(TAG, "Max cache size: ${maxCacheSize / (1024 * 1024)}MB")
-        
-        // REQ-FS-03: Use DiskLruCache for cache management
-        val cacheDir = File(cacheDirectory.toString())
-        val dirCreated = cacheDir.mkdirs()
-        LogManager.v(TAG, "Cache directory creation result: $dirCreated (exists: ${cacheDir.exists()})")
-        
-        diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
+
+        // Create directory structure for dual caches
+        val baseCacheDir = File(cacheDirectory.toString())
+        val dirCreated = baseCacheDir.mkdirs()
+        LogManager.v(TAG, "Base cache directory creation result: $dirCreated (exists: ${baseCacheDir.exists()})")
+
+        contentCacheDir = File(baseCacheDir, "content")
+        metadataCacheDir = File(baseCacheDir, "metadata")
+        contentCacheDir.mkdirs()
+        metadataCacheDir.mkdirs()
+
+        // Calculate size distribution between caches
+        val contentMaxSize = (maxCacheSize * CONTENT_CACHE_SIZE_RATIO).toLong()
+        val metadataMaxSize = (maxCacheSize * METADATA_CACHE_SIZE_RATIO).toLong()
+
+        LogManager.d(TAG, "Content cache: ${contentMaxSize / (1024 * 1024)}MB, Metadata cache: ${metadataMaxSize / (1024 * 1024)}MB")
+
+        // Initialize dual caches with Kache
+        contentCache = JavaFileKache(
+            directory = contentCacheDir,
+            maxSize = contentMaxSize
+        ) {
+            strategy = KacheStrategy.LRU
+        }
+
+        metadataCache = JavaFileKache(
+            directory = metadataCacheDir,
+            maxSize = metadataMaxSize
+        ) {
+            strategy = KacheStrategy.LRU
+        }
+
         val initTime = System.currentTimeMillis() - startTime
-        LogManager.d(TAG, "DiskLruCache initialized in ${initTime}ms with max size: ${maxCacheSize / (1024 * 1024)}MB")
-        
+        LogManager.d(TAG, "Kache dual caches initialized in ${initTime}ms")
+        LogManager.d(TAG, "Content cache max size: ${contentMaxSize / (1024 * 1024)}MB")
+        LogManager.d(TAG, "Metadata cache max size: ${metadataMaxSize / (1024 * 1024)}MB")
+
         // REQ-NF-03: Start Ktor server on application launch
         startServer()
         val totalInitTime = System.currentTimeMillis() - startTime
         LogManager.i(TAG, "CacheManager initialized successfully on port $serverPort in ${totalInitTime}ms")
     }
+
+    // Helper methods for dual cache key management
+    private fun String.toContentKey(): String = "${this}_content"
+    private fun String.toMetadataKey(): String = "${this}_metadata"
     
     private fun startServer() {
         val serverStartTime = System.currentTimeMillis()
@@ -163,31 +199,30 @@ class CacheManager private constructor(
     private suspend fun handleCacheRequest(key: String, call: ApplicationCall) {
         val handleStartTime = System.currentTimeMillis()
         LogManager.d(TAG, "Processing cache request for key: $key")
-        
+
         // REQ-FSV-03: Check if fully cached, serve from local file
         withContext(Dispatchers.IO) {
             val cacheCheckTime = System.currentTimeMillis()
-            val snapshot = diskCache.get(key)
+
+            // LRU Tracking: Call cache.get() to update LRU order before serving content
+            val contentFile = contentCache.get(key.toContentKey())
+            val metadataFile = metadataCache.get(key.toMetadataKey())
             val cacheCheckDuration = System.currentTimeMillis() - cacheCheckTime
-            
-            if (snapshot != null) {
+
+            if (contentFile != null && metadataFile != null) {
                 LogManager.d(TAG, "Cache HIT for key: $key (lookup took ${cacheCheckDuration}ms)")
-                
+
                 try {
-                    // Read content from index 0
+                    // Read content file
                     val contentReadTime = System.currentTimeMillis()
-                    val contentStream = snapshot.getInputStream(0)
-                    val bytes = contentStream.readBytes()
-                    contentStream.close()
+                    val bytes = contentFile.readBytes()
                     val contentReadDuration = System.currentTimeMillis() - contentReadTime
                     LogManager.v(TAG, "Read ${bytes.size} bytes from cache in ${contentReadDuration}ms for key: $key")
-                    
-                    // Read metadata from index 1
+
+                    // Read metadata file
                     val metadata = try {
                         val metadataReadTime = System.currentTimeMillis()
-                        val metadataStream = snapshot.getInputStream(1)
-                        val metadataJson = metadataStream.readBytes().decodeToString()
-                        metadataStream.close()
+                        val metadataJson = metadataFile.readText()
                         val metadataReadDuration = System.currentTimeMillis() - metadataReadTime
                         val parsedMetadata = json.decodeFromString<CacheMetadata>(metadataJson)
                         LogManager.v(TAG, "Read metadata in ${metadataReadDuration}ms for key: $key")
@@ -197,14 +232,12 @@ class CacheManager private constructor(
                         // Fallback to default metadata
                         CacheMetadata(contentType = "audio/mpeg")
                     }
-                    
-                    snapshot.close()
-                    
+
                     val responseTime = System.currentTimeMillis()
                     withContext(Dispatchers.Main) {
                         call.response.headers.append("Content-Length", bytes.size.toString())
                         call.response.headers.append("Cache-Control", "public, max-age=31536000")
-                        
+
                         // Use the stored content type
                         val contentType = try {
                             ContentType.parse(metadata.contentType)
@@ -212,23 +245,22 @@ class CacheManager private constructor(
                             LogManager.w(TAG, "Invalid content type: ${metadata.contentType}, using audio/mpeg")
                             ContentType.Audio.MPEG
                         }
-                        
+
                         call.respondBytes(bytes, contentType)
                     }
                     val responseSetupDuration = System.currentTimeMillis() - responseTime
                     val totalCacheServeTime = System.currentTimeMillis() - handleStartTime
-                    
+
                     LogManager.v(TAG, "Successfully served ${bytes.size} bytes with content-type ${metadata.contentType} from cache for key: $key (total: ${totalCacheServeTime}ms, response setup: ${responseSetupDuration}ms)")
                     return@withContext
                 } catch (e: Exception) {
-                    LogManager.e(TAG, "Error reading cached file for key: $key", e)
-                    snapshot.close()
+                    LogManager.e(TAG, "Error reading cached files for key: $key", e)
                     // Fall through to streaming
                 }
             } else {
-                LogManager.d(TAG, "Cache MISS for key: $key (lookup took ${cacheCheckDuration}ms) - will stream and cache")
+                LogManager.d(TAG, "Cache MISS for key: $key (lookup took ${cacheCheckDuration}ms) - content exists: ${contentFile != null}, metadata exists: ${metadataFile != null}")
             }
-            
+
             // REQ-FSV-04: Stream from remote while caching
             val originalUrl = getOriginalUrlForKey(key)
             if (originalUrl != null) {
@@ -284,7 +316,7 @@ class CacheManager private constructor(
     private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>?) {
         val downloadStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Starting download and cache for: $originalUrl (key: $key)")
-        
+
         withContext(Dispatchers.IO) {
             // Check circuit breaker state
             if (isCircuitBreakerOpen()) {
@@ -296,105 +328,121 @@ class CacheManager private constructor(
             // Check cache capacity before attempting to cache
             checkCacheCapacityAndCleanup()
 
-            // REQ-FW-02: Use DiskLruCache.Editor for writing
-            val editorStartTime = System.currentTimeMillis()
-            val editor = diskCache.edit(key)
-            if (editor == null) {
-                recordCacheFailure()
-                LogManager.w(TAG, "Could not create cache editor for key: $key (cache possibly full or locked) - falling back to direct streaming")
-                // Fallback: stream directly without caching when editor creation fails
-                streamDirectlyWithoutCaching(originalUrl, downloadChannel)
-                return@withContext
-            }
-            val editorCreateTime = System.currentTimeMillis() - editorStartTime
-            LogManager.v(TAG, "Cache editor created in ${editorCreateTime}ms for key: $key")
-            
             try {
                 // REQ-FW-01: Use Ktor HTTP client to download
                 val httpStartTime = System.currentTimeMillis()
                 LogManager.d(TAG, "Starting HTTP request to: $originalUrl")
                 val response = httpClient.get(originalUrl)
                 val httpResponseTime = System.currentTimeMillis() - httpStartTime
-                
+
                 if (response.status != HttpStatusCode.OK) {
                     LogManager.w(TAG, "HTTP error ${response.status} for URL: $originalUrl (after ${httpResponseTime}ms)")
-                    editor.abort()
                     return@withContext
                 }
-                
+
                 LogManager.d(TAG, "HTTP response received in ${httpResponseTime}ms for: $originalUrl (status: ${response.status})")
-                
+
                 // Get response as byte array - simple and reliable approach
                 val bodyStartTime = System.currentTimeMillis()
                 val responseBytes: ByteArray = response.body()
                 val bodyReadTime = System.currentTimeMillis() - bodyStartTime
                 LogManager.d(TAG, "Downloaded ${responseBytes.size} bytes in ${bodyReadTime}ms from: $originalUrl")
-                
+
                 // Extract content type from response headers
                 val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
                 val contentLength = response.headers["Content-Length"]?.toLongOrNull()
                 LogManager.v(TAG, "Response headers - Content-Type: $contentTypeHeader, Content-Length: $contentLength")
-                
+
                 val metadata = CacheMetadata(
                     contentType = contentTypeHeader,
                     contentLength = contentLength
                 )
-                
-                // Write content to cache (index 0)
-                val cacheWriteStartTime = System.currentTimeMillis()
-                val contentStream = editor.newOutputStream(0)
-                contentStream.write(responseBytes)
-                contentStream.close()
-                val contentWriteTime = System.currentTimeMillis() - cacheWriteStartTime
+
+                // Store content in content cache
+                val contentWriteStartTime = System.currentTimeMillis()
+                val contentFile = contentCache.put(key.toContentKey()) { tempFile ->
+                    try {
+                        tempFile.writeBytes(responseBytes)
+                        true
+                    } catch (e: Exception) {
+                        LogManager.e(TAG, "Failed to write content to cache", e)
+                        false
+                    }
+                }
+
+                if (contentFile == null) {
+                    recordCacheFailure()
+                    LogManager.w(TAG, "Failed to store content in cache for key: $key")
+                    streamDirectlyWithoutCaching(originalUrl, downloadChannel)
+                    return@withContext
+                }
+
+                val contentWriteTime = System.currentTimeMillis() - contentWriteStartTime
                 LogManager.v(TAG, "Content written to cache in ${contentWriteTime}ms for key: $key")
-                
-                // Write metadata to cache (index 1)
+
+                // Store metadata in metadata cache
                 val metadataWriteStartTime = System.currentTimeMillis()
                 val metadataJson = json.encodeToString(metadata)
-                val metadataStream = editor.newOutputStream(1)
-                metadataStream.write(metadataJson.toByteArray())
-                metadataStream.close()
+                val metadataFile = metadataCache.put(key.toMetadataKey()) { tempFile ->
+                    try {
+                        tempFile.writeText(metadataJson)
+                        true
+                    } catch (e: Exception) {
+                        LogManager.e(TAG, "Failed to write metadata to cache", e)
+                        false
+                    }
+                }
+
+                if (metadataFile == null) {
+                    recordCacheFailure()
+                    // Rollback content if metadata storage fails
+                    contentCache.remove(key.toContentKey())
+                    LogManager.w(TAG, "Failed to store metadata in cache for key: $key, rolled back content")
+                    streamDirectlyWithoutCaching(originalUrl, downloadChannel)
+                    return@withContext
+                }
+
                 val metadataWriteTime = System.currentTimeMillis() - metadataWriteStartTime
                 LogManager.v(TAG, "Metadata written to cache in ${metadataWriteTime}ms for key: $key")
-                
+
                 // Send to all waiting clients
                 val cachedContent = CachedContent(responseBytes, metadata)
                 val channelResult = downloadChannel?.trySend(cachedContent)
                 LogManager.v(TAG, "Content sent to download channel: ${channelResult?.isSuccess ?: "no channel"}")
 
-                // REQ-FW-03: Commit editor on successful download
-                val commitStartTime = System.currentTimeMillis()
-                editor.commit()
                 recordCacheSuccess() // Record successful cache operation
-                val commitTime = System.currentTimeMillis() - commitStartTime
                 val totalDownloadTime = System.currentTimeMillis() - downloadStartTime
-                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key (total: ${totalDownloadTime}ms, commit: ${commitTime}ms)")
+                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key (total: ${totalDownloadTime}ms)")
 
             } catch (e: Exception) {
                 val failureTime = System.currentTimeMillis() - downloadStartTime
                 LogManager.e(TAG, "Download failed for URL: $originalUrl after ${failureTime}ms", e)
-                // REQ-FW-04: Abort editor on download failure
-                try {
-                    editor.abort()
-                    LogManager.v(TAG, "Cache editor aborted for key: $key")
-                } catch (abortException: Exception) {
-                    LogManager.w(TAG, "Error aborting editor for key: $key", abortException)
-                }
+                recordCacheFailure()
+                // Cleanup any partially written cache entries
+                contentCache.remove(key.toContentKey())
+                metadataCache.remove(key.toMetadataKey())
             }
         }
     }
 
     private suspend fun checkCacheCapacityAndCleanup() = withContext(Dispatchers.IO) {
         try {
-            val currentSize = diskCache.size()
-            val maxSize = diskCache.maxSize
-            val usagePercentage = currentSize.toDouble() / maxSize
+            val contentCurrentSize = contentCache.size
+            val contentMaxSize = contentCache.maxSize
+            val metadataCurrentSize = metadataCache.size
+            val metadataMaxSize = metadataCache.maxSize
 
-            val currentSizeMB = currentSize / (1024 * 1024)
-            val maxSizeMB = maxSize / (1024 * 1024)
+            val totalCurrentSize = contentCurrentSize + metadataCurrentSize
+            val totalMaxSize = contentMaxSize + metadataMaxSize
+            val usagePercentage = totalCurrentSize.toDouble() / totalMaxSize
+
+            val totalCurrentSizeMB = totalCurrentSize / (1024 * 1024)
+            val totalMaxSizeMB = totalMaxSize / (1024 * 1024)
             val usagePercentageFormatted = String.format("%.1f", usagePercentage * 100)
 
-            LogManager.v(TAG, "Cache capacity: ${currentSizeMB}MB / ${maxSizeMB}MB (${usagePercentageFormatted}%)")
+            LogManager.v(TAG, "Cache capacity: ${totalCurrentSizeMB}MB / ${totalMaxSizeMB}MB (${usagePercentageFormatted}%)")
+            LogManager.v(TAG, "Content: ${contentCurrentSize / (1024 * 1024)}MB / ${contentMaxSize / (1024 * 1024)}MB")
+            LogManager.v(TAG, "Metadata: ${metadataCurrentSize / (1024 * 1024)}MB / ${metadataMaxSize / (1024 * 1024)}MB")
 
             when {
                 usagePercentage >= CLEANUP_THRESHOLD_PERCENTAGE -> {
@@ -418,27 +466,37 @@ class CacheManager private constructor(
     private suspend fun performProactiveCleanup() = withContext(Dispatchers.IO) {
         try {
             val cleanupStartTime = System.currentTimeMillis()
-            val sizeBefore = diskCache.size()
-            val entriesBefore = diskCache.directory.list()?.size ?: 0
+            val contentSizeBefore = contentCache.size
+            val metadataSizeBefore = metadataCache.size
+            val totalSizeBefore = contentSizeBefore + metadataSizeBefore
 
-            LogManager.i(TAG, "Starting proactive cache cleanup (current: ${sizeBefore / (1024 * 1024)}MB)")
+            LogManager.i(TAG, "Starting proactive cache cleanup (current: ${totalSizeBefore / (1024 * 1024)}MB)")
 
-            // Force DiskLruCache to run cleanup and eviction
-            diskCache.flush()
+            // Trim both caches to 80% of their capacity
+            val contentTargetSize = (contentCache.maxSize * 0.8).toLong()
+            val metadataTargetSize = (metadataCache.maxSize * 0.8).toLong()
+
+            contentCache.trimToSize(contentTargetSize)
+            metadataCache.trimToSize(metadataTargetSize)
 
             // Check if cleanup helped
-            val sizeAfter = diskCache.size()
-            val entriesAfter = diskCache.directory.list()?.size ?: 0
+            val contentSizeAfter = contentCache.size
+            val metadataSizeAfter = metadataCache.size
+            val totalSizeAfter = contentSizeAfter + metadataSizeAfter
             val cleanupTime = System.currentTimeMillis() - cleanupStartTime
 
-            val spaceFreed = sizeBefore - sizeAfter
-            val entriesRemoved = entriesBefore - entriesAfter
+            val spaceFreed = totalSizeBefore - totalSizeAfter
+            val contentSpaceFreed = contentSizeBefore - contentSizeAfter
+            val metadataSpaceFreed = metadataSizeBefore - metadataSizeAfter
 
-            LogManager.i(TAG, "Proactive cleanup completed in ${cleanupTime}ms - freed ${spaceFreed / (1024 * 1024)}MB, removed $entriesRemoved entries")
-            LogManager.i(TAG, "Cache size after cleanup: ${sizeAfter / (1024 * 1024)}MB")
+            LogManager.i(TAG, "Proactive cleanup completed in ${cleanupTime}ms")
+            LogManager.i(TAG, "Content cache freed: ${contentSpaceFreed / (1024 * 1024)}MB")
+            LogManager.i(TAG, "Metadata cache freed: ${metadataSpaceFreed / (1024 * 1024)}MB")
+            LogManager.i(TAG, "Total space freed: ${spaceFreed / (1024 * 1024)}MB")
+            LogManager.i(TAG, "Cache size after cleanup: ${totalSizeAfter / (1024 * 1024)}MB")
 
             if (spaceFreed == 0L) {
-                LogManager.w(TAG, "Cleanup didn't free significant space - cache may be fragmented or all entries in use")
+                LogManager.w(TAG, "Cleanup didn't free significant space - cache may be already below target size")
             }
 
         } catch (e: Exception) {
@@ -630,9 +688,9 @@ class CacheManager private constructor(
     suspend fun isCached(url: String): Boolean = withContext(Dispatchers.IO) {
         val checkStartTime = System.currentTimeMillis()
         val key = url.toCacheKey()
-        val snapshot = diskCache.get(key)
-        val cached = snapshot != null
-        snapshot?.close()
+        val contentFile = contentCache.get(key.toContentKey())
+        val metadataFile = metadataCache.get(key.toMetadataKey())
+        val cached = contentFile != null && metadataFile != null
         val checkTime = System.currentTimeMillis() - checkStartTime
         LogManager.v(TAG, "Cache check for URL: $url -> $cached (${checkTime}ms)")
         cached
@@ -644,12 +702,22 @@ class CacheManager private constructor(
     suspend fun getCacheStats(): CacheStats = withContext(Dispatchers.IO) {
         val statsStartTime = System.currentTimeMillis()
         val stats = CacheStats(
-            currentSize = diskCache.size(),
-            maxSize = diskCache.maxSize,
-            entryCount = diskCache.directory.list().size - 1 / 2
+            contentCurrentSize = contentCache.size,
+            contentMaxSize = contentCache.maxSize,
+            metadataCurrentSize = metadataCache.size,
+            metadataMaxSize = metadataCache.maxSize,
+            contentEntryCount = try {
+                File(contentCacheDir, "files").listFiles()?.size ?: 0
+            } catch (e: Exception) { 0 },
+            metadataEntryCount = try {
+                File(metadataCacheDir, "files").listFiles()?.size ?: 0
+            } catch (e: Exception) { 0 }
         )
         val statsTime = System.currentTimeMillis() - statsStartTime
-        LogManager.d(TAG, "Cache stats: ${stats.currentSize / (1024 * 1024)}MB / ${stats.maxSize / (1024 * 1024)}MB, ~${stats.entryCount} entries (calculated in ${statsTime}ms)")
+        LogManager.d(TAG, "Cache stats calculated in ${statsTime}ms")
+        LogManager.d(TAG, "Content: ${stats.contentCurrentSize / (1024 * 1024)}MB / ${stats.contentMaxSize / (1024 * 1024)}MB, ${stats.contentEntryCount} entries")
+        LogManager.d(TAG, "Metadata: ${stats.metadataCurrentSize / (1024 * 1024)}MB / ${stats.metadataMaxSize / (1024 * 1024)}MB, ${stats.metadataEntryCount} entries")
+        LogManager.d(TAG, "Total: ${stats.totalCurrentSize / (1024 * 1024)}MB / ${stats.totalMaxSize / (1024 * 1024)}MB, ${stats.totalEntryCount} entries")
         stats
     }
     
@@ -659,16 +727,19 @@ class CacheManager private constructor(
     suspend fun clearCache() = withContext(Dispatchers.IO) {
         val clearStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Clearing all cache content")
-        val sizeBefore = diskCache.size()
+        val contentSizeBefore = contentCache.size
+        val metadataSizeBefore = metadataCache.size
+        val totalSizeBefore = contentSizeBefore + metadataSizeBefore
         val entriesBefore = urlMappings.size
-        
-        diskCache.delete()
-        
-        val cacheDir = File(cacheDirectory.toString())
-        diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
+
+        contentCache.clear()
+        metadataCache.clear()
         urlMappings.clear()
+
         val clearTime = System.currentTimeMillis() - clearStartTime
-        LogManager.i(TAG, "Cache cleared successfully: removed ${sizeBefore / (1024 * 1024)}MB and $entriesBefore URL mappings in ${clearTime}ms")
+        LogManager.i(TAG, "Cache cleared successfully: removed ${totalSizeBefore / (1024 * 1024)}MB and $entriesBefore URL mappings in ${clearTime}ms")
+        LogManager.i(TAG, "Content cache cleared: ${contentSizeBefore / (1024 * 1024)}MB")
+        LogManager.i(TAG, "Metadata cache cleared: ${metadataSizeBefore / (1024 * 1024)}MB")
     }
     
     /**
@@ -678,12 +749,13 @@ class CacheManager private constructor(
         val removeStartTime = System.currentTimeMillis()
         val key = url.toCacheKey()
         LogManager.d(TAG, "Removing cached content for URL: $url (key: $key)")
-        
+
         urlMappings.remove(key)
-        val removed = diskCache.remove(key)
+        contentCache.remove(key.toContentKey())
+        metadataCache.remove(key.toMetadataKey())
         val removeTime = System.currentTimeMillis() - removeStartTime
-        LogManager.d(TAG, "Cache removal for URL: $url -> $removed (${removeTime}ms)")
-        removed
+        LogManager.d(TAG, "Cache removal for URL: $url completed (${removeTime}ms)")
+        true // Consider removal successful since remove() doesn't return a status
     }
 
     /**
@@ -694,30 +766,25 @@ class CacheManager private constructor(
         LogManager.i(TAG, "Updating cache size from ${maxCacheSize / (1024 * 1024)}MB to ${newMaxSize / (1024 * 1024)}MB")
 
         return@withContext try {
-            // Close current cache
-            val currentSize = diskCache.size()
-            diskCache.close()
+            // Calculate new size distribution
+            val newContentMaxSize = (newMaxSize * CONTENT_CACHE_SIZE_RATIO).toLong()
+            val newMetadataMaxSize = (newMaxSize * METADATA_CACHE_SIZE_RATIO).toLong()
 
-            // Reopen with new size
-            val cacheDir = File(cacheDirectory.toString())
-            diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, newMaxSize)
+            val currentContentSize = contentCache.size
+            val currentMetadataSize = metadataCache.size
+
+            // Resize both caches
+            contentCache.resize(newContentMaxSize)
+            metadataCache.resize(newMetadataMaxSize)
 
             val updateTime = System.currentTimeMillis() - updateStartTime
-            LogManager.i(TAG, "Cache size updated successfully in ${updateTime}ms (current usage: ${currentSize / (1024 * 1024)}MB)")
+            LogManager.i(TAG, "Cache size updated successfully in ${updateTime}ms")
+            LogManager.i(TAG, "Content cache: ${currentContentSize / (1024 * 1024)}MB -> ${newContentMaxSize / (1024 * 1024)}MB")
+            LogManager.i(TAG, "Metadata cache: ${currentMetadataSize / (1024 * 1024)}MB -> ${newMetadataMaxSize / (1024 * 1024)}MB")
 
             true
         } catch (e: Exception) {
             LogManager.e(TAG, "Failed to update cache size", e)
-
-            // Try to restore original cache
-            try {
-                val cacheDir = File(cacheDirectory.toString())
-                diskCache = DiskLruCache.open(cacheDir, CACHE_VERSION, VALUE_COUNT, maxCacheSize)
-                LogManager.i(TAG, "Restored original cache size after failure")
-            } catch (restoreException: Exception) {
-                LogManager.e(TAG, "Failed to restore original cache size", restoreException)
-            }
-
             false
         }
     }
@@ -735,7 +802,7 @@ class CacheManager private constructor(
         LogManager.i(TAG, "Shutting down CacheManager")
         LogManager.d(TAG, "Active downloads at shutdown: ${activeDownloads.size}")
         LogManager.d(TAG, "URL mappings at shutdown: ${urlMappings.size}")
-        
+
         try {
             val serverStopStartTime = System.currentTimeMillis()
             server?.stop(1000, 2000)
@@ -744,17 +811,25 @@ class CacheManager private constructor(
         } catch (e: Exception) {
             LogManager.e(TAG, "Error stopping cache server", e)
         }
-        
+
         try {
             val cacheCloseStartTime = System.currentTimeMillis()
-            val finalCacheSize = diskCache.size()
-            diskCache.close()
+            val finalContentSize = contentCache.size
+            val finalMetadataSize = metadataCache.size
+            val finalTotalSize = finalContentSize + finalMetadataSize
+
+            contentCache.close()
+            metadataCache.close()
+
             val cacheCloseTime = System.currentTimeMillis() - cacheCloseStartTime
-            LogManager.d(TAG, "DiskLruCache closed in ${cacheCloseTime}ms (final size: ${finalCacheSize / (1024 * 1024)}MB)")
+            LogManager.d(TAG, "Kache caches closed in ${cacheCloseTime}ms")
+            LogManager.d(TAG, "Final content cache size: ${finalContentSize / (1024 * 1024)}MB")
+            LogManager.d(TAG, "Final metadata cache size: ${finalMetadataSize / (1024 * 1024)}MB")
+            LogManager.d(TAG, "Final total cache size: ${finalTotalSize / (1024 * 1024)}MB")
         } catch (e: Exception) {
-            LogManager.e(TAG, "Error closing DiskLruCache", e)
+            LogManager.e(TAG, "Error closing Kache caches", e)
         }
-        
+
         scope.cancel()
         val totalShutdownTime = System.currentTimeMillis() - shutdownStartTime
         LogManager.i(TAG, "CacheManager shutdown complete in ${totalShutdownTime}ms")
@@ -783,9 +858,15 @@ class CacheManager private constructor(
 }
 
 data class CacheStats(
-    val currentSize: Long,
-    val maxSize: Long,
-    val entryCount: Int
+    val contentCurrentSize: Long,
+    val contentMaxSize: Long,
+    val metadataCurrentSize: Long,
+    val metadataMaxSize: Long,
+    val totalCurrentSize: Long = contentCurrentSize + metadataCurrentSize,
+    val totalMaxSize: Long = contentMaxSize + metadataMaxSize,
+    val contentEntryCount: Int = 0,
+    val metadataEntryCount: Int = 0,
+    val totalEntryCount: Int = contentEntryCount + metadataEntryCount
 )
 
 // Utility function to hash a string to create a valid cache key

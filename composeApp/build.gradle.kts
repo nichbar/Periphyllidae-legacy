@@ -83,7 +83,7 @@ kotlin {
             
             // I/O
             implementation(libs.okio)
-            implementation(libs.disklrucache)
+            implementation(libs.kache.file.kache)
             
             // Image Loading
             implementation(libs.coil.compose)

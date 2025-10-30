@@ -148,8 +148,8 @@ private fun CacheStatsCard(
 
             uiState.cacheStats?.let { stats ->
                 // Cache Size Progress
-                val progress = if (stats.maxSize > 0) {
-                    stats.currentSize.toFloat() / stats.maxSize.toFloat()
+                val progress = if (stats.totalMaxSize > 0) {
+                    stats.totalCurrentSize.toFloat() / stats.totalMaxSize.toFloat()
                 } else 0f
 
                 Column {
@@ -158,11 +158,11 @@ private fun CacheStatsCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Cache Usage",
+                            text = "Total Cache Usage",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = "${viewModel.formatSize(stats.currentSize)} / ${viewModel.formatSize(stats.maxSize)}",
+                            text = "${viewModel.formatSize(stats.totalCurrentSize)} / ${viewModel.formatSize(stats.totalMaxSize)}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
@@ -191,6 +191,60 @@ private fun CacheStatsCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Content Cache Breakdown
+                Column {
+                    Text(
+                        text = "Content Cache",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Music files",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${viewModel.formatSize(stats.contentCurrentSize)} / ${viewModel.formatSize(stats.contentMaxSize)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Metadata Cache Breakdown
+                Column {
+                    Text(
+                        text = "Metadata Cache",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Track information",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${viewModel.formatSize(stats.metadataCurrentSize)} / ${viewModel.formatSize(stats.metadataMaxSize)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Additional Stats
@@ -200,14 +254,14 @@ private fun CacheStatsCard(
                 ) {
                     StatItem(
                         icon = Icons.Default.MusicNote,
-                        label = "Cached Items",
-                        value = stats.entryCount.toString()
+                        label = "Total Items",
+                        value = stats.totalEntryCount.toString()
                     )
 
                     StatItem(
                         icon = Icons.Default.Storage,
                         label = "Available Space",
-                        value = viewModel.formatSize(stats.maxSize - stats.currentSize)
+                        value = viewModel.formatSize(stats.totalMaxSize - stats.totalCurrentSize)
                     )
                 }
             } ?: run {
