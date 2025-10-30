@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
@@ -967,28 +968,50 @@ private fun BrowseArtistsContent(
                 }
             }
             else -> {
-                LazyRow(
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(artists, key = { it.id }) { artist ->
-                        ArtistGridItem(
-                            artist = artist,
-                            onArtistClick = { onArtistClick(artist) }
-                        )
-                    }
-                }
+                // Use a fixed 4-column grid layout that adapts well to different screen sizes
+                val numberOfColumns = 4
 
-                if (isLoadingMore) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp)
-                        )
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    val chunkedArtists = artists.chunked(numberOfColumns)
+
+                    items(chunkedArtists, key = { chunk -> chunk.map { it.id }.hashCode() }) { rowArtists ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            for (i in 0 until numberOfColumns) {
+                                if (i < rowArtists.size) {
+                                    Box(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        ArtistGridItem(
+                                            artist = rowArtists[i],
+                                            onArtistClick = { onArtistClick(rowArtists[i]) }
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
+                    if (isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
