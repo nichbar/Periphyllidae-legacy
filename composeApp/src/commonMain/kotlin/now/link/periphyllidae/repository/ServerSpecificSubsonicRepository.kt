@@ -403,6 +403,111 @@ class ServerSpecificSubsonicRepository(
         return getAlbum(albumId).map { album -> album.songs }
     }
 
+    override suspend fun getAllArtists(size: Int): Result<List<Artist>> {
+        return try {
+            val response = httpClient.get("${serverConfig.url}/rest/getArtists") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("musicFolderId", "")
+            }
+
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+
+                if (subsonicResponse.status == "ok" && subsonicResponse.artists != null) {
+                    val allArtists = subsonicResponse.artists.index.flatMap { it.artist }
+                        .take(size)
+                        .map { it.toDomainModel(this) }
+                    LogManager.i(TAG, "Fetched ${allArtists.size} artists")
+                    Result.success(allArtists)
+                } else {
+                    val error = subsonicResponse.error
+                    val errorMsg = if (error != null) {
+                        "Subsonic API error ${error.code}: ${error.message}"
+                    } else {
+                        "Failed to get artists: Unknown error"
+                    }
+                    LogManager.e(TAG, errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                val errorMsg = "Failed to get artists: HTTP ${response.status.value}"
+                LogManager.e(TAG, errorMsg)
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Exception getting artists", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getAllAlbums(size: Int): Result<List<Album>> {
+        return getAlbumList("alphabeticalByName", size)
+    }
+
+    override suspend fun getAllSongs(size: Int): Result<List<Song>> {
+        return try {
+            // Use search3 with empty query to get all songs, with pagination
+            val allSongs = mutableListOf<Song>()
+            var offset = 0
+            val batchSize = 500
+
+            while (allSongs.size < size) {
+                val currentBatchSize = minOf(batchSize, size - allSongs.size)
+                val response = httpClient.get("${serverConfig.url}/rest/search3") {
+                    authParams.forEach { (key, value) ->
+                        parameter(key, value)
+                    }
+                    parameter("query", "") // Empty query to get all
+                    parameter("artistCount", "0")
+                    parameter("albumCount", "0")
+                    parameter("songCount", currentBatchSize.toString())
+                    parameter("artistOffset", "0")
+                    parameter("albumOffset", "0")
+                    parameter("songOffset", offset.toString())
+                }
+
+                if (response.status.isSuccess()) {
+                    val responseBody = response.bodyAsText()
+                    val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                    val subsonicResponse = jsonResponse.subsonicResponse
+
+                    if (subsonicResponse.status == "ok" && subsonicResponse.searchResult3 != null) {
+                        val songs = subsonicResponse.searchResult3.song.map { it.toDomainModel(this) }
+                        if (songs.isEmpty()) break // No more songs available
+                        allSongs.addAll(songs)
+                        offset += songs.size
+
+                        // If we got fewer songs than requested, we've reached the end
+                        if (songs.size < currentBatchSize) break
+                    } else {
+                        val error = subsonicResponse.error
+                        val errorMsg = if (error != null) {
+                            "Subsonic API error ${error.code}: ${error.message}"
+                        } else {
+                            "Failed to get all songs: Unknown error"
+                        }
+                        LogManager.e(TAG, errorMsg)
+                        return Result.failure(Exception(errorMsg))
+                    }
+                } else {
+                    val errorMsg = "Failed to get all songs: HTTP ${response.status.value}"
+                    LogManager.e(TAG, errorMsg)
+                    return Result.failure(Exception(errorMsg))
+                }
+            }
+
+            LogManager.i(TAG, "Fetched ${allSongs.size} songs")
+            Result.success(allSongs.take(size))
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Exception getting all songs", e)
+            Result.failure(e)
+        }
+    }
+
     override fun refreshConfig() {
         // In the new architecture, each repository instance is immutable
         // So this method is no longer needed - server changes create new instances

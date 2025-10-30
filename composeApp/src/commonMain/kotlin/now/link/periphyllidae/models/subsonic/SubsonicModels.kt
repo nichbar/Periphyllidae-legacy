@@ -18,6 +18,8 @@ data class SubsonicResponse(
     val searchResult3: SearchResult3? = null,
     val album: SubsonicAlbum? = null,
     val playlist: SubsonicPlaylist? = null,
+    val artist: SubsonicArtist? = null,
+    val artists: ArtistsIndex? = null,
     val ping: Ping? = null
 )
 
@@ -52,6 +54,17 @@ data class SearchResult3(
     val artist: List<SubsonicArtist> = emptyList(),
     val album: List<SubsonicAlbum> = emptyList(),
     val song: List<SubsonicSong> = emptyList()
+)
+
+@Serializable
+data class ArtistsIndex(
+    val index: List<ArtistsIndexEntry> = emptyList()
+)
+
+@Serializable
+data class ArtistsIndexEntry(
+    val name: String? = null,
+    val artist: List<SubsonicArtist> = emptyList()
 )
 
 @Serializable

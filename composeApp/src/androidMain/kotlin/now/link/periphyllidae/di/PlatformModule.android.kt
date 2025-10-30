@@ -9,20 +9,26 @@ import now.link.periphyllidae.platform.AndroidMediampPlayerFactory
 import now.link.periphyllidae.platform.SystemTray
 import now.link.periphyllidae.platform.SystemTrayManager
 import now.link.periphyllidae.service.MusicServiceManager
+import now.link.periphyllidae.utils.PlatformStorage
 
 actual val platformModule = module {
-    single<Settings> { 
+    single<Settings> {
         SharedPreferencesSettings(
             androidContext().getSharedPreferences("periphyllidae_settings", android.content.Context.MODE_PRIVATE)
         )
     }
 
+    // Override PlatformStorage for Android with proper context
+    single<PlatformStorage> {
+        PlatformStorage.create(androidContext())
+    }
+
     // MediaMP player factory for Android
     single<MediampPlayerFactory> { AndroidMediampPlayerFactory(androidContext()) }
-    
+
     // System tray (not supported on Android)
     single<SystemTray> { SystemTrayManager() }
-    
+
     // Music service manager for Android
     single { MusicServiceManager(androidContext()) }
 }

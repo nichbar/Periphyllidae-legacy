@@ -15,7 +15,7 @@ interface MainComponent: NavigationComponent {
 
     sealed class TabChild {
         class HomeChild(val component: HomeTabComponent) : TabChild()
-        class SearchChild(val component: SearchTabComponent) : TabChild()
+        class FindChild(val component: FindTabComponent) : TabChild()
         class PlaylistsChild(val component: PlaylistsTabComponent) : TabChild()
         class SettingsChild(val component: SettingsTabComponent) : TabChild()
     }
@@ -45,8 +45,8 @@ class DefaultMainComponent(
                     nav = nav
                 )
             )
-            TabConfig.Search -> MainComponent.TabChild.SearchChild(
-                DefaultSearchTabComponent(
+            TabConfig.Find -> MainComponent.TabChild.FindChild(
+                DefaultFindTabComponent(
                     componentContext = componentContext,
                     nav = nav
                 )
@@ -65,7 +65,7 @@ class DefaultMainComponent(
     override fun selectTab(index: Int) {
         val config = when (index) {
             0 -> TabConfig.Home
-            1 -> TabConfig.Search
+            1 -> TabConfig.Find
             2 -> TabConfig.Playlists
             3 -> TabConfig.Settings
             else -> TabConfig.Home
@@ -83,7 +83,7 @@ class DefaultMainComponent(
         data object Home : TabConfig
 
         @Serializable
-        data object Search : TabConfig
+        data object Find : TabConfig
 
         @Serializable
         data object Playlists : TabConfig
@@ -106,12 +106,12 @@ class DefaultHomeTabComponent(
     }
 }
 
-interface SearchTabComponent: NavigationComponent
+interface FindTabComponent: NavigationComponent
 
-class DefaultSearchTabComponent(
+class DefaultFindTabComponent(
     componentContext: ComponentContext,
     private val nav: (Nav) -> Unit
-) : SearchTabComponent, ComponentContext by componentContext {
+) : FindTabComponent, ComponentContext by componentContext {
 
     override fun onNavigateTo(nav: Nav) {
         this.nav(nav)

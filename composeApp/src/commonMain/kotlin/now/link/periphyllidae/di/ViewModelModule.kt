@@ -49,6 +49,16 @@ val viewModelModule = module {
     }
 
     /**
+     * Find screen ViewModel managing search, browsing, and search history functionality.
+     * Enhanced search with history tracking and quick actions for browsing all content.
+     * Depends on SubsonicRepositoryManager for data access, MusicStore for playback,
+     * and SearchHistoryManager for history persistence.
+     */
+    factory<FindViewModel> {
+        FindViewModel(get(), get(), get())
+    }
+
+    /**
      * Now Playing screen ViewModel for current playback interface.
      * Depends on MusicStore for current player state and controls.
      */

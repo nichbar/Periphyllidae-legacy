@@ -110,6 +110,58 @@ data class SearchState(
     val error: String? = null
 ) : State
 
+// Find Screen MVI Components
+data class HistoryItem(
+    val id: String,
+    val type: HistoryItemType,
+    val name: String,
+    val subtitle: String? = null,
+    val imageUrl: String? = null,
+    val timestamp: Long,
+    val data: Any // Song, Album, or Artist
+)
+
+sealed interface HistoryItemType {
+    object Song : HistoryItemType
+    object Album : HistoryItemType
+    object Artist : HistoryItemType
+}
+
+sealed interface FindView {
+    object Search : FindView
+    object AllSongs : FindView
+    object AllAlbums : FindView
+    object AllArtists : FindView
+}
+
+data class FindState(
+    val currentView: FindView = FindView.Search,
+    val searchQuery: String = "",
+    val searchResults: SearchResult? = null,
+    val searchHistory: List<HistoryItem> = emptyList(),
+    val browseSongs: List<Song> = emptyList(),
+    val browseAlbums: List<Album> = emptyList(),
+    val browseArtists: List<Artist> = emptyList(),
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val error: String? = null
+) : State
+
+sealed interface FindIntent : Intent {
+    data class SearchQuery(val query: String) : FindIntent
+    data class SelectHistoryItem(val item: HistoryItem) : FindIntent
+    object BrowseAllSongs : FindIntent
+    object BrowseAllAlbums : FindIntent
+    object BrowseAllArtists : FindIntent
+    object ClearHistory : FindIntent
+    data class AddToHistory(val item: HistoryItem) : FindIntent
+    data class LoadMoreSongs(val offset: Int) : FindIntent
+    data class LoadMoreAlbums(val offset: Int) : FindIntent
+    data class LoadMoreArtists(val offset: Int) : FindIntent
+    object ClearError : FindIntent
+    object BackToSearch : FindIntent
+}
+
 // Artist Detail State
 data class ArtistDetailState(
     val artist: Artist? = null,

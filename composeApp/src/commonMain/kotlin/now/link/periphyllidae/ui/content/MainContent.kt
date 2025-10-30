@@ -42,7 +42,7 @@ fun MainContent(
 
     val tabs = listOf(
         TabItem("Home", Icons.Filled.Home, Icons.Outlined.Home),
-        TabItem("Search", Icons.Filled.Search, Icons.Outlined.Search),
+        TabItem("Find", Icons.Filled.Search, Icons.Outlined.Search),
         TabItem("Playlists", Icons.AutoMirrored.Filled.List, Icons.AutoMirrored.Outlined.List),
         TabItem("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
@@ -50,7 +50,7 @@ fun MainContent(
     val stack by component.tabStack.subscribeAsState()
     val selectedTabIndex = when (stack.active.instance) {
         is MainComponent.TabChild.HomeChild -> 0
-        is MainComponent.TabChild.SearchChild -> 1
+        is MainComponent.TabChild.FindChild -> 1
         is MainComponent.TabChild.PlaylistsChild -> 2
         is MainComponent.TabChild.SettingsChild -> 3
     }
@@ -237,8 +237,8 @@ private fun TabContent(
                     )
                 }
 
-                is MainComponent.TabChild.SearchChild -> {
-                    SearchScreen(
+                is MainComponent.TabChild.FindChild -> {
+                    FindScreen(
                         onNavigateTo = { nav ->
                             child.component.onNavigateTo(nav)
                         }
