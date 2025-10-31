@@ -18,13 +18,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.ServerConfig
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.utils.NetworkUtils
 
 private const val TAG = "ServerManagementScreen"
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerManagementScreen(
     viewModel: SettingsViewModel,
@@ -53,20 +53,14 @@ fun ServerManagementScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Server Management") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        },
+    val topBarConfig = TopBarConfig(
+        title = "Server Management",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onNavigateBack
+    )
+
+    ScreenContainer(
+        topBarConfig = topBarConfig,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onNavigateTo(Nav.AddServer) },

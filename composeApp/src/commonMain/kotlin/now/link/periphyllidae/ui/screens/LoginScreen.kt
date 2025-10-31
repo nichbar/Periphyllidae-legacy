@@ -10,16 +10,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.ui.components.ServerConfigurationForm
+import now.link.periphyllidae.ui.layout.SimpleScreenContainer
 import now.link.periphyllidae.viewmodels.LoginViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel,
     onNavigateTo: (Nav) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     // Navigate on successful authentication
     LaunchedEffect(state.isAuthenticated) {
         if (state.isAuthenticated) {
@@ -27,7 +27,7 @@ fun LoginScreen(
         }
     }
 
-    Scaffold { paddingValues ->
+    SimpleScreenContainer {
         ServerConfigurationForm(
             serverUrl = state.serverUrl,
             username = state.username,
@@ -45,7 +45,6 @@ fun LoginScreen(
             subtitle = "Subsonic Music Player",
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         )

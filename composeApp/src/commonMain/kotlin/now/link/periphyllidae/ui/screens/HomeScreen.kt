@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
+import now.link.periphyllidae.ui.layout.ScreenContainer
 import org.koin.compose.koinInject
 import now.link.periphyllidae.viewmodels.HomeViewModel
 import now.link.periphyllidae.models.Album
@@ -59,7 +60,6 @@ sealed class HomeSection {
     data class ErrorSection(val errorMessage: String?) : HomeSection()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateTo: (Nav) -> Unit,
@@ -79,11 +79,11 @@ fun HomeScreen(
         val box = this
         val isLandscape = box.maxWidth > box.maxHeight
 
-        Scaffold(
+        ScreenContainer(
+            modifier = modifier,
             floatingActionButton = {
                 ShuffleFloatingActionButton(
-                    onClick = { viewModel.playRandomSong() },
-                    modifier = modifier
+                    onClick = { viewModel.playRandomSong() }
                 )
             }
         ) { paddingValues ->

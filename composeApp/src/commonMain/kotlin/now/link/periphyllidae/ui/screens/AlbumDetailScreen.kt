@@ -24,9 +24,9 @@ import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.AlbumDetailViewModel
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
     albumId: String,
@@ -35,23 +35,18 @@ fun AlbumDetailScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     LaunchedEffect(albumId) {
         viewModel.loadAlbumDetail(albumId)
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.album?.name ?: "Album") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+
+    val topBarConfig = TopBarConfig(
+        title = state.album?.name ?: "Album",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onNavigateBack
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         when {
             state.isLoading -> {
                 Box(

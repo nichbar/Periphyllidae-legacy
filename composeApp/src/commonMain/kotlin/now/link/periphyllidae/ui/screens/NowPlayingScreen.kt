@@ -19,6 +19,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.NowPlayingViewModel
 import now.link.periphyllidae.mvi.MusicState
 
@@ -46,7 +48,6 @@ private fun getScreenLayout(maxWidth: Float, maxHeight: Float): ScreenLayout {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
     viewModel: NowPlayingViewModel,
@@ -54,17 +55,14 @@ fun NowPlayingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Now Playing") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
+    val topBarConfig = TopBarConfig(
+        title = "Now Playing",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onNavigateBack
+    )
+
+    ScreenContainer(
+        topBarConfig = topBarConfig
     ) { paddingValues ->
         BoxWithConstraints {
             val boxConstraintsScope = this

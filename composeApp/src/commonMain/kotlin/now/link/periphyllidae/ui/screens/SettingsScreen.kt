@@ -19,11 +19,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.mvi.AppTheme
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.SettingsViewModel
 import now.link.periphyllidae.utils.NetworkUtils
 import org.koin.compose.koinInject
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateTo: (Nav) -> Unit,
@@ -35,7 +36,7 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isLogEnabled by remember { mutableStateOf(viewModel.isLogEnabled()) }
     var latency by remember { mutableLongStateOf(-1L) }
-    
+
     // Measure latency every 30 seconds
     LaunchedEffect(authState.currentServer?.url) {
         while (true) {
@@ -45,13 +46,13 @@ fun SettingsScreen(
             delay(30_000) // 30 seconds
         }
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-            )
-        }
+
+    val topBarConfig = TopBarConfig(
+        title = "Settings"
+    )
+
+    ScreenContainer(
+        topBarConfig = topBarConfig
     ) { paddingValues ->
         Column(
             modifier = Modifier

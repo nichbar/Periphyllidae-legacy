@@ -11,9 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.ui.components.ServerConfigurationForm
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.AddServerViewModel
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddServerScreen(
     viewModel: AddServerViewModel,
@@ -21,7 +21,7 @@ fun AddServerScreen(
     onNavigateBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     // Navigate on successful server addition
     LaunchedEffect(state.isServerAdded) {
         if (state.isServerAdded) {
@@ -36,21 +36,13 @@ fun AddServerScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Add New Server") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    val topBarConfig = TopBarConfig(
+        title = "Add New Server",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onNavigateBack
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         ServerConfigurationForm(
             serverUrl = state.serverUrl,
             username = state.username,

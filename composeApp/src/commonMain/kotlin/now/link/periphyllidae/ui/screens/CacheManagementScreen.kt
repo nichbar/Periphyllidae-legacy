@@ -15,12 +15,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import now.link.periphyllidae.components.CacheManagementComponent
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.CacheManagementIntent
 import now.link.periphyllidae.viewmodels.CacheManagementUiState
 import now.link.periphyllidae.viewmodels.CacheManagementViewModel
 import org.koin.compose.koinInject
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CacheManagementScreen(
     component: CacheManagementComponent,
@@ -28,21 +28,13 @@ fun CacheManagementScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Cache Management") },
-                navigationIcon = {
-                    IconButton(onClick = component::onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    val topBarConfig = TopBarConfig(
+        title = "Cache Management",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = component::onNavigateBack
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

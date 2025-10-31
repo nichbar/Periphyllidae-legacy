@@ -32,10 +32,10 @@ import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.SearchViewModel
 import org.koin.compose.koinInject
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onNavigateTo: (Nav) -> Unit
@@ -44,13 +44,11 @@ fun SearchScreen(
     val state by viewModel.searchState.collectAsStateWithLifecycle()
     val isSearchBarFocused by viewModel.isSearchBarFocused.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Search") }
-            )
-        }
-    ) { paddingValues ->
+    val topBarConfig = TopBarConfig(
+        title = "Search"
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

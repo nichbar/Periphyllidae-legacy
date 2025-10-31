@@ -23,9 +23,9 @@ import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Album
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.ArtistDetailViewModel
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistDetailScreen(
     artistId: String,
@@ -34,23 +34,18 @@ fun ArtistDetailScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     LaunchedEffect(artistId) {
         viewModel.loadArtistDetail(artistId)
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.artist?.name ?: "Artist") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+
+    val topBarConfig = TopBarConfig(
+        title = state.artist?.name ?: "Artist",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onNavigateBack
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         when {
             state.isLoading -> {
                 Box(

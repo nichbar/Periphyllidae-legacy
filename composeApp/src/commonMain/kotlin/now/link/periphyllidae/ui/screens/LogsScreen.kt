@@ -47,11 +47,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.models.Log
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.utils.LogManager
 
 private const val TAG = "LogsScreen"
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogsScreen(
     onBackClick: () -> Unit = {}
@@ -70,71 +70,60 @@ fun LogsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Logs") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Menu"
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Scroll to Top") },
-                            onClick = {
-                                showMenu = false
-                                coroutineScope.launch {
-                                    listState.scrollToItem(0)
-                                }
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Scroll to Bottom") },
-                            onClick = {
-                                showMenu = false
-                                coroutineScope.launch {
-                                    if (logEntries.isNotEmpty()) {
-                                        listState.scrollToItem(logEntries.size - 1)
-                                    }
-                                }
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Copy Logs") },
-                            onClick = {
-                                showMenu = false
-                                copyLogsToClipboard(logEntries)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Clear Logs") },
-                            onClick = {
-                                showMenu = false
-                                LogManager.clearLogs()
-                            }
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+    val topBarConfig = TopBarConfig(
+        title = "Logs",
+        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        onNavigationClick = onBackClick,
+        actions = {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Menu"
                 )
-            )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Scroll to Top") },
+                    onClick = {
+                        showMenu = false
+                        coroutineScope.launch {
+                            listState.scrollToItem(0)
+                        }
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Scroll to Bottom") },
+                    onClick = {
+                        showMenu = false
+                        coroutineScope.launch {
+                            if (logEntries.isNotEmpty()) {
+                                listState.scrollToItem(logEntries.size - 1)
+                            }
+                        }
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Copy Logs") },
+                    onClick = {
+                        showMenu = false
+                        copyLogsToClipboard(logEntries)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Clear Logs") },
+                    onClick = {
+                        showMenu = false
+                        LogManager.clearLogs()
+                    }
+                )
+            }
         }
-    ) { paddingValues ->
+    )
+
+    ScreenContainer(topBarConfig = topBarConfig) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

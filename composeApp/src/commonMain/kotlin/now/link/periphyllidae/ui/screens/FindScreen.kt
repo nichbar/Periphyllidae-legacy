@@ -35,10 +35,11 @@ import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.mvi.FindView
 import now.link.periphyllidae.mvi.HistoryItemType
+import now.link.periphyllidae.ui.layout.ScreenContainer
+import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.FindViewModel
 import org.koin.compose.koinInject
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FindScreen(
     onNavigateTo: (Nav) -> Unit
@@ -47,19 +48,14 @@ fun FindScreen(
     val state by viewModel.findState.collectAsStateWithLifecycle()
     val isSearchBarFocused by viewModel.isSearchBarFocused.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Find") },
-                navigationIcon = {
-                    if (state.currentView != FindView.Search) {
-                        IconButton(onClick = { viewModel.backToSearch() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back to search")
-                        }
-                    }
-                }
-            )
-        }
+    val topBarConfig = TopBarConfig(
+        title = "Find",
+        navigationIcon = if (state.currentView != FindView.Search) Icons.Default.ArrowBack else null,
+        onNavigationClick = if (state.currentView != FindView.Search) { { viewModel.backToSearch() } } else null
+    )
+
+    ScreenContainer(
+        topBarConfig = topBarConfig
     ) { paddingValues ->
         Column(
             modifier = Modifier
