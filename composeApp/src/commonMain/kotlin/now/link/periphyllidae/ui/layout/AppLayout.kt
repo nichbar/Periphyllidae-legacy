@@ -86,48 +86,47 @@ private fun PortraitAppLayout(
 ) {
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                tabs.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTabIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title
-                            )
+            Column {
+                // Floating Music Bar Overlay (appears above bottom nav)
+                val currentSong = musicState.currentSong
+                if (currentSong != null) {
+                    MusicBarOverlay(
+                        currentSong = currentSong,
+                        isPlaying = musicState.isPlaying,
+                        onBarClick = { component.onNavigateTo(now.link.periphyllidae.components.Nav.NowPlaying) },
+                        onPlayPauseClick = {
+                            if (musicState.isPlaying) {
+                                musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Pause)
+                            } else {
+                                musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Play)
+                            }
                         },
-                        label = { Text(tab.title) },
-                        selected = selectedTabIndex == index,
-                        onClick = { component.selectTab(index) }
+                        onNextClick = {
+                            musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Next)
+                        }
                     )
+                }
+
+                // Bottom Navigation Bar
+                NavigationBar {
+                    tabs.forEachIndexed { index, tab ->
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    imageVector = if (selectedTabIndex == index) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.title
+                                )
+                            },
+                            label = { Text(tab.title) },
+                            selected = selectedTabIndex == index,
+                            onClick = { component.selectTab(index) }
+                        )
+                    }
                 }
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Main content
-            content(paddingValues)
-
-            // Floating Music Bar Overlay
-            val currentSong = musicState.currentSong
-            if (currentSong != null) {
-                MusicBarOverlay(
-                    currentSong = currentSong,
-                    isPlaying = musicState.isPlaying,
-                    onBarClick = { component.onNavigateTo(now.link.periphyllidae.components.Nav.NowPlaying) },
-                    onPlayPauseClick = {
-                        if (musicState.isPlaying) {
-                            musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Pause)
-                        } else {
-                            musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Play)
-                        }
-                    },
-                    onNextClick = {
-                        musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Next)
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-        }
+        content(paddingValues)
     }
 }
 
