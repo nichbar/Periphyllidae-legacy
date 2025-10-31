@@ -21,7 +21,7 @@ So Periphyllidae was born. It's buggy and incomplete, but it just works for me. 
 - **MediaMP** for cross-platform audio playback
   - ExoPlayer backend on Android for optimized mobile playback
   - VLC backend on Desktop for comprehensive codec support
-- **Intelligent Disk Cache** with embedded HTTP server for transparent music streaming and caching
+- **Kache Dual Cache System** with embedded HTTP server for transparent music streaming and caching
 - **Ktor** for HTTP networking and Subsonic API communication
 - **Koin** for dependency injection and service management
 - **Kermit** wrapped by custom LogManager for enhanced debugging and logging
@@ -40,7 +40,7 @@ This project follows modern Android architecture principles:
 
 - **LogManager**: Custom logging wrapper with 10,000-entry circular buffer and StateFlow updates
 - **HomeContentCache**: Intelligent caching system for home screen data
-- **DiskLruCache**: Advanced music streaming cache with embedded HTTP server for transparent caching and storage
+- **Kache Dual Cache**: Modern LRU cache system with separate content and metadata storage and embedded HTTP server for transparent caching
 - **AuthStore**: Secure authentication state management with server configuration
 - **MusicPlayer**: Unified player interface abstracting MediaMP implementations
 - **SubsonicRepository**: Comprehensive API interface for Subsonic servers
