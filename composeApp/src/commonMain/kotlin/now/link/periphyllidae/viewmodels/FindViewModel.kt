@@ -19,6 +19,7 @@ import now.link.periphyllidae.utils.SearchHistoryManager
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
+import now.link.periphyllidae.ui.screens.find.utils.customAlphabeticalComparator
 
 /**
  * ViewModel for the Find screen
@@ -148,9 +149,12 @@ class FindViewModel(
                 val result = repository.getAllSongs(DEFAULT_PAGE_SIZE)
 
                 if (result.isSuccess) {
+                    val sortedSongs = result.getOrThrow().sortedWith { a, b ->
+                        customAlphabeticalComparator(a.title, b.title)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
-                        browseSongs = result.getOrThrow(),
+                        browseSongs = sortedSongs,
                         error = null
                     )
                     LogManager.i(TAG, "Loaded ${_findState.value.browseSongs.size} songs")
@@ -183,9 +187,12 @@ class FindViewModel(
                 val result = repository.getAllAlbums(DEFAULT_PAGE_SIZE)
 
                 if (result.isSuccess) {
+                    val sortedAlbums = result.getOrThrow().sortedWith { a, b ->
+                        customAlphabeticalComparator(a.name, b.name)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
-                        browseAlbums = result.getOrThrow(),
+                        browseAlbums = sortedAlbums,
                         error = null
                     )
                     LogManager.i(TAG, "Loaded ${_findState.value.browseAlbums.size} albums")
@@ -218,9 +225,12 @@ class FindViewModel(
                 val result = repository.getAllArtists(DEFAULT_PAGE_SIZE)
 
                 if (result.isSuccess) {
+                    val sortedArtists = result.getOrThrow().sortedWith { a, b ->
+                        customAlphabeticalComparator(a.name, b.name)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
-                        browseArtists = result.getOrThrow(),
+                        browseArtists = sortedArtists,
                         error = null
                     )
                     LogManager.i(TAG, "Loaded ${_findState.value.browseArtists.size} artists")
@@ -250,9 +260,12 @@ class FindViewModel(
 
                 if (result.isSuccess) {
                     val newSongs = result.getOrThrow()
+                    val allSongsSorted = (_findState.value.browseSongs + newSongs).sortedWith { a, b ->
+                        customAlphabeticalComparator(a.title, b.title)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
-                        browseSongs = _findState.value.browseSongs + newSongs
+                        browseSongs = allSongsSorted
                     )
                     LogManager.i(TAG, "Loaded ${newSongs.size} additional songs")
                 } else {
@@ -275,9 +288,12 @@ class FindViewModel(
 
                 if (result.isSuccess) {
                     val newAlbums = result.getOrThrow()
+                    val allAlbumsSorted = (_findState.value.browseAlbums + newAlbums).sortedWith { a, b ->
+                        customAlphabeticalComparator(a.name, b.name)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
-                        browseAlbums = _findState.value.browseAlbums + newAlbums
+                        browseAlbums = allAlbumsSorted
                     )
                     LogManager.i(TAG, "Loaded ${newAlbums.size} additional albums")
                 } else {
@@ -300,9 +316,12 @@ class FindViewModel(
 
                 if (result.isSuccess) {
                     val newArtists = result.getOrThrow()
+                    val allArtistsSorted = (_findState.value.browseArtists + newArtists).sortedWith { a, b ->
+                        customAlphabeticalComparator(a.name, b.name)
+                    }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
-                        browseArtists = _findState.value.browseArtists + newArtists
+                        browseArtists = allArtistsSorted
                     )
                     LogManager.i(TAG, "Loaded ${newArtists.size} additional artists")
                 } else {
