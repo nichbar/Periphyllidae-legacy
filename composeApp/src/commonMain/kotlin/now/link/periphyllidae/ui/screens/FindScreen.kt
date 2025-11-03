@@ -52,7 +52,12 @@ fun FindScreen(
     val isSearchBarFocused by viewModel.isSearchBarFocused.collectAsStateWithLifecycle()
 
     val topBarConfig = TopBarConfig(
-        title = "Find",
+        title = when (state.currentView) {
+            FindView.Search -> "Find"
+            FindView.AllSongs -> "All Songs"
+            FindView.AllAlbums -> "All Albums"
+            FindView.AllArtists -> "All Artists"
+        },
         navigationIcon = if (state.currentView != FindView.Search) Icons.Default.ArrowBack else null,
         onNavigationClick = if (state.currentView != FindView.Search) { { viewModel.backToSearch() } } else null
     )
@@ -765,15 +770,7 @@ private fun BrowseSongsContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item {
-            Text(
-                text = "All Songs",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
-
+  
         if (isLoading && songs.isEmpty()) {
             item {
                 Box(
@@ -854,15 +851,7 @@ private fun BrowseAlbumsContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item {
-            Text(
-                text = "All Albums",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
-
+  
         if (isLoading && albums.isEmpty()) {
             item {
                 Box(
@@ -940,13 +929,6 @@ private fun BrowseArtistsContent(
     onLoadMore: () -> Unit
 ) {
     Column {
-        Text(
-            text = "All Artists",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(16.dp, bottom = 8.dp)
-        )
-
         when {
             isLoading && artists.isEmpty() -> {
                 Box(
