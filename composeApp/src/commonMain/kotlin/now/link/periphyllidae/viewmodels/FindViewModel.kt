@@ -416,6 +416,10 @@ class FindViewModel(
     }
 
     fun updateSearchQuery(query: String) {
+        _findState.value = _findState.value.copy(searchQuery = query)
+    }
+
+    fun performSearch(query: String) {
         handleIntent(FindIntent.SearchQuery(query))
     }
 

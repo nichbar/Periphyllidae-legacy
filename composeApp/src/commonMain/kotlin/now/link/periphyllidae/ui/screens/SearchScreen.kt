@@ -58,7 +58,7 @@ fun SearchScreen(
             SearchTextField(
                 query = state.query,
                 onQueryChange = { viewModel.updateQuery(it) },
-                onSearch = { viewModel.performSearch(it) },
+                onSearch = { viewModel.performSearch(state.query) },
                 onClear = { viewModel.clearSearch() },
                 onFocusChange = { viewModel.setSearchBarFocus(it) },
                 isFocused = isSearchBarFocused,
@@ -140,7 +140,7 @@ fun SearchScreen(
 private fun SearchTextField(
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearch: (String) -> Unit,
+    onSearch: () -> Unit,
     onClear: () -> Unit,
     onFocusChange: (Boolean) -> Unit,
     isFocused: Boolean,
@@ -160,18 +160,22 @@ private fun SearchTextField(
             },
         placeholder = { Text("Search music...") },
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+            IconButton(onClick = onSearch, enabled = !isLoading) {
+                Icon(Icons.Default.Search, contentDescription = "Search")
+            }
         },
         trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+            Row {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClear) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
                 }
             }
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(
-            onSearch = { onSearch(query) }
+            onSearch = { onSearch() }
         ),
         enabled = !isLoading,
         singleLine = true

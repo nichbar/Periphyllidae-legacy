@@ -1,6 +1,9 @@
 package now.link.periphyllidae.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -115,6 +118,7 @@ private fun SearchViewContent(
             SearchTextField(
                 query = state.searchQuery,
                 onQueryChange = { viewModel.updateSearchQuery(it) },
+                onSearch = { viewModel.performSearch(state.searchQuery) },
                 onClear = { viewModel.clearSearch() },
                 onFocusChange = { viewModel.setSearchBarFocus(it) },
                 isFocused = isSearchBarFocused,
@@ -254,6 +258,7 @@ private fun SearchViewContent(
 private fun SearchTextField(
     query: String,
     onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
     onClear: () -> Unit,
     onFocusChange: (Boolean) -> Unit,
     isFocused: Boolean,
@@ -272,16 +277,23 @@ private fun SearchTextField(
             },
         placeholder = { Text("Search music...") },
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+            IconButton(onClick = onSearch, enabled = !isLoading) {
+                Icon(Icons.Default.Search, contentDescription = "Search")
+            }
         },
         trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+            Row {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClear) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
                 }
             }
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { onSearch() }
+        ),
         enabled = !isLoading,
         singleLine = true
     )
