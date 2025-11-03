@@ -1,13 +1,12 @@
 package now.link.periphyllidae.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -20,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.layout.Layout
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.focusRequester
@@ -29,8 +27,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
@@ -43,9 +41,113 @@ import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.FindViewModel
 import org.koin.compose.koinInject
 
+/**
+ * Utility function to extract the primary sorting character from a string
+ * Numbers are grouped under '0', letters A-Z, others under '#'
+ */
+private fun getSortingChar(text: String): Char {
+    if (text.isEmpty()) return '#'
+
+    val firstChar = text.first().uppercaseChar()
+    return when {
+        firstChar.isDigit() -> '0'  // All numbers grouped under '0'
+        firstChar.isLetter() -> firstChar
+        else -> '#'
+    }
+}
+
+/**
+ * Creates a mapping of characters to their first occurrence index in a list
+ * Only includes characters that actually have items
+ */
+private fun <T> createCharIndexMap(
+    items: List<T>,
+    extractText: (T) -> String,
+): Map<Char, Int> {
+    val charIndexMap = mutableMapOf<Char, Int>()
+
+    items.forEachIndexed { index, item ->
+        val text = extractText(item)
+        val sortingChar = getSortingChar(text)
+
+        // Only add the first occurrence of each character
+        if (!charIndexMap.containsKey(sortingChar)) {
+            charIndexMap[sortingChar] = index
+        }
+    }
+
+    return charIndexMap
+}
+
+/**
+ * Gets the sorted list of available characters based on the data
+ * Order: 0, A-Z, #
+ */
+private fun getAvailableChars(charIndexMap: Map<Char, Int>): List<Char> {
+    return charIndexMap.keys.sortedWith { a, b ->
+        when {
+            a == '0' && b != '0' -> -1
+            a != '0' && b == '0' -> 1
+            a == '#' && b != '#' -> 1
+            a != '#' && b == '#' -> -1
+            else -> a.compareTo(b)
+        }
+    }
+}
+
+/**
+ * A minimal vertical A-Z quick locate sidebar that floats over the content
+ * Shows only available characters and scrolls to corresponding items when clicked
+ */
+@Composable
+private fun AlphabetSidebar(
+    availableChars: List<Char>,
+    charIndexMap: Map<Char, Int>,
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    val coroutineScope = rememberCoroutineScope()
+
+    Surface(
+        modifier = modifier
+            .width(40.dp)
+            .fillMaxHeight()
+            .padding(vertical = 8.dp, horizontal = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+        shadowElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            availableChars.forEach { char ->
+                Text(
+                    text = char.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable {
+                            val index = charIndexMap[char]
+                            if (index != null) {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(index)
+                                }
+                            }
+                        }
+                        .padding(5.dp)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun FindScreen(
-    onNavigateTo: (Nav) -> Unit
+    onNavigateTo: (Nav) -> Unit,
 ) {
     val viewModel: FindViewModel = koinInject()
     val state by viewModel.findState.collectAsStateWithLifecycle()
@@ -59,7 +161,9 @@ fun FindScreen(
             FindView.AllArtists -> "All Artists"
         },
         navigationIcon = if (state.currentView != FindView.Search) Icons.Default.ArrowBack else null,
-        onNavigationClick = if (state.currentView != FindView.Search) { { viewModel.backToSearch() } } else null
+        onNavigationClick = if (state.currentView != FindView.Search) {
+            { viewModel.backToSearch() }
+        } else null
     )
 
     ScreenContainer(
@@ -77,14 +181,22 @@ fun FindScreen(
                     isSearchBarFocused = isSearchBarFocused,
                     onNavigateTo = onNavigateTo
                 )
+
                 FindView.AllSongs -> BrowseSongsContent(
                     songs = state.browseSongs,
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
                     onPlaySong = viewModel::playSong,
-                    onLoadMore = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.LoadMoreSongs(state.browseSongs.size)) }
+                    onLoadMore = {
+                        viewModel.handleIntent(
+                            now.link.periphyllidae.mvi.FindIntent.LoadMoreSongs(
+                                state.browseSongs.size
+                            )
+                        )
+                    }
                 )
+
                 FindView.AllAlbums -> BrowseAlbumsContent(
                     albums = state.browseAlbums,
                     isLoading = state.isLoading,
@@ -92,15 +204,28 @@ fun FindScreen(
                     error = state.error,
                     onPlayAlbum = viewModel::playAlbum,
                     onAlbumClick = { album -> onNavigateTo.invoke(Nav.AlbumDetail(album.id)) },
-                    onLoadMore = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.LoadMoreAlbums(state.browseAlbums.size)) }
+                    onLoadMore = {
+                        viewModel.handleIntent(
+                            now.link.periphyllidae.mvi.FindIntent.LoadMoreAlbums(
+                                state.browseAlbums.size
+                            )
+                        )
+                    }
                 )
+
                 FindView.AllArtists -> BrowseArtistsContent(
                     artists = state.browseArtists,
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
                     onArtistClick = { artist -> onNavigateTo.invoke(Nav.ArtistDetail(artist.id)) },
-                    onLoadMore = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.LoadMoreArtists(state.browseArtists.size)) }
+                    onLoadMore = {
+                        viewModel.handleIntent(
+                            now.link.periphyllidae.mvi.FindIntent.LoadMoreArtists(
+                                state.browseArtists.size
+                            )
+                        )
+                    }
                 )
             }
         }
@@ -112,7 +237,7 @@ private fun SearchViewContent(
     state: now.link.periphyllidae.mvi.FindState,
     viewModel: FindViewModel,
     isSearchBarFocused: Boolean,
-    onNavigateTo: (Nav) -> Unit
+    onNavigateTo: (Nav) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -138,15 +263,21 @@ private fun SearchViewContent(
                 SearchHistorySection(
                     historyItems = state.searchHistory,
                     onHistoryItemClick = { item ->
-                        viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.SelectHistoryItem(item))
+                        viewModel.handleIntent(
+                            now.link.periphyllidae.mvi.FindIntent.SelectHistoryItem(
+                                item
+                            )
+                        )
                         when (item.type) {
                             is HistoryItemType.Song -> {
                                 // Song is played automatically by ViewModel
                             }
+
                             is HistoryItemType.Album -> {
                                 val album = item.data as? Album
                                 album?.let { onNavigateTo.invoke(Nav.AlbumDetail(it.id)) }
                             }
+
                             is HistoryItemType.Artist -> {
                                 val artist = item.data as? Artist
                                 artist?.let { onNavigateTo.invoke(Nav.ArtistDetail(it.id)) }
@@ -268,7 +399,7 @@ private fun SearchTextField(
     onFocusChange: (Boolean) -> Unit,
     isFocused: Boolean,
     isLoading: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
 
@@ -308,7 +439,7 @@ private fun SearchTextField(
 private fun SearchHistorySection(
     historyItems: List<now.link.periphyllidae.mvi.HistoryItem>,
     onHistoryItemClick: (now.link.periphyllidae.mvi.HistoryItem) -> Unit,
-    onClearHistory: () -> Unit
+    onClearHistory: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -354,7 +485,7 @@ private fun SearchHistorySection(
 @Composable
 private fun HistoryItemRow(
     item: now.link.periphyllidae.mvi.HistoryItem,
-    onItemClick: () -> Unit
+    onItemClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -410,6 +541,7 @@ private fun HistoryItemRow(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+
             is HistoryItemType.Album -> {
                 Icon(
                     Icons.Default.Album,
@@ -417,6 +549,7 @@ private fun HistoryItemRow(
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
+
             is HistoryItemType.Artist -> {
                 Icon(
                     Icons.Default.Person,
@@ -432,7 +565,7 @@ private fun HistoryItemRow(
 private fun QuickActionsSection(
     onBrowseAllSongs: () -> Unit,
     onBrowseAllAlbums: () -> Unit,
-    onBrowseAllArtists: () -> Unit
+    onBrowseAllArtists: () -> Unit,
 ) {
     Column {
         Text(
@@ -475,7 +608,7 @@ private fun QuickActionCard(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier
@@ -515,7 +648,7 @@ private fun SearchResults(
     onPlaySong: (Song) -> Unit,
     onPlayAlbum: (Album) -> Unit,
     onArtistClick: (Artist) -> Unit,
-    onAlbumClick: (Album) -> Unit
+    onAlbumClick: (Album) -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -608,7 +741,7 @@ private fun SearchResults(
 @Composable
 private fun ArtistIconItem(
     artist: Artist,
-    onArtistClick: () -> Unit
+    onArtistClick: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -645,7 +778,7 @@ private fun ArtistIconItem(
 private fun AlbumListItem(
     album: Album,
     onPlay: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -706,7 +839,7 @@ private fun AlbumListItem(
 @Composable
 private fun SongSearchItem(
     song: Song,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -764,75 +897,106 @@ private fun BrowseSongsContent(
     isLoadingMore: Boolean,
     error: String?,
     onPlaySong: (Song) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-  
-        if (isLoading && songs.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+    val listState = rememberLazyListState()
+
+    // Calculate character index mapping for quick locate
+    val charIndexMap = remember(songs) {
+        createCharIndexMap(songs) { song -> song.title }
+    }
+    val availableChars = remember(songs) {
+        getAvailableChars(charIndexMap)
+    }
+
+    // Only show sidebar if we have enough items and multiple characters
+    val shouldShowSidebar = songs.size > 10 && availableChars.size > 1
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            if (isLoading && songs.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            if (error != null) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+
+            items(songs, key = { it.id }) { song ->
+                SongSearchItem(
+                    song = song,
+                    onPlay = { onPlaySong(song) }
+                )
+            }
+
+            if (isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            if (!isLoading && !isLoadingMore && songs.isNotEmpty()) {
+                item {
+                    TextButton(
+                        onClick = onLoadMore,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Load More")
+                    }
                 }
             }
         }
 
-        if (error != null) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-        }
-
-        items(songs, key = { it.id }) { song ->
-            SongSearchItem(
-                song = song,
-                onPlay = { onPlaySong(song) }
+        // Quick locate sidebar
+        if (shouldShowSidebar) {
+            AlphabetSidebar(
+                availableChars = availableChars,
+                charIndexMap = charIndexMap,
+                listState = listState,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
-        }
-
-        if (isLoadingMore) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-
-        if (!isLoading && !isLoadingMore && songs.isNotEmpty()) {
-            item {
-                TextButton(
-                    onClick = onLoadMore,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Load More")
-                }
-            }
         }
     }
 }
@@ -845,76 +1009,107 @@ private fun BrowseAlbumsContent(
     error: String?,
     onPlayAlbum: (Album) -> Unit,
     onAlbumClick: (Album) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-  
-        if (isLoading && albums.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+    val listState = rememberLazyListState()
+
+    // Calculate character index mapping for quick locate
+    val charIndexMap = remember(albums) {
+        createCharIndexMap(albums) { album -> album.name }
+    }
+    val availableChars = remember(albums) {
+        getAvailableChars(charIndexMap)
+    }
+
+    // Only show sidebar if we have enough items and multiple characters
+    val shouldShowSidebar = albums.size > 10 && availableChars.size > 1
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            if (isLoading && albums.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            if (error != null) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+
+            items(albums, key = { it.id }) { album ->
+                AlbumListItem(
+                    album = album,
+                    onPlay = { onPlayAlbum(album) },
+                    onClick = { onAlbumClick(album) }
+                )
+            }
+
+            if (isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            if (!isLoading && !isLoadingMore && albums.isNotEmpty()) {
+                item {
+                    TextButton(
+                        onClick = onLoadMore,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Load More")
+                    }
                 }
             }
         }
 
-        if (error != null) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-        }
-
-        items(albums, key = { it.id }) { album ->
-            AlbumListItem(
-                album = album,
-                onPlay = { onPlayAlbum(album) },
-                onClick = { onAlbumClick(album) }
+        // Quick locate sidebar
+        if (shouldShowSidebar) {
+            AlphabetSidebar(
+                availableChars = availableChars,
+                charIndexMap = charIndexMap,
+                listState = listState,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
-        }
-
-        if (isLoadingMore) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-
-        if (!isLoading && !isLoadingMore && albums.isNotEmpty()) {
-            item {
-                TextButton(
-                    onClick = onLoadMore,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Load More")
-                }
-            }
         }
     }
 }
@@ -926,8 +1121,21 @@ private fun BrowseArtistsContent(
     isLoadingMore: Boolean,
     error: String?,
     onArtistClick: (Artist) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+
+    // Calculate character index mapping for quick locate
+    val charIndexMap = remember(artists) {
+        createCharIndexMap(artists) { artist -> artist.name }
+    }
+    val availableChars = remember(artists) {
+        getAvailableChars(charIndexMap)
+    }
+
+    // Only show sidebar if we have enough items and multiple characters
+    val shouldShowSidebar = artists.size > 10 && availableChars.size > 1
+
     Column {
         when {
             isLoading && artists.isEmpty() -> {
@@ -940,6 +1148,7 @@ private fun BrowseArtistsContent(
                     CircularProgressIndicator()
                 }
             }
+
             error != null -> {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -957,59 +1166,79 @@ private fun BrowseArtistsContent(
                     )
                 }
             }
+
             else -> {
-                BoxWithConstraints {
-                    val box = this
-
-                    val availableWidth = box.maxWidth
-                    val minItemWidth = 100.dp
-                    val spacing = 12.dp
-                    val padding = 32.dp // 16dp on each side
-                    val availableWidthForItems = availableWidth - padding
-                    val numberOfColumns = ((availableWidthForItems + spacing) / (minItemWidth + spacing)).toInt().coerceAtLeast(1)
-
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    BoxWithConstraints(
+                        modifier = Modifier
                     ) {
-                        val chunkedArtists = artists.chunked(numberOfColumns)
+                        val box = this
 
-                        items(chunkedArtists, key = { chunk -> chunk.map { it.id }.hashCode() }) { rowArtists ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(spacing)
-                            ) {
-                                for (i in 0 until numberOfColumns) {
-                                    if (i < rowArtists.size) {
-                                        Box(
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            ArtistGridItem(
-                                                artist = rowArtists[i],
-                                                onArtistClick = { onArtistClick(rowArtists[i]) }
-                                            )
+                        val availableWidth = box.maxWidth
+                        val minItemWidth = 100.dp
+                        val spacing = 12.dp
+                        val padding = 32.dp // 16dp on each side
+                        val availableWidthForItems = availableWidth - padding
+                        val numberOfColumns =
+                            ((availableWidthForItems + spacing) / (minItemWidth + spacing)).toInt()
+                                .coerceAtLeast(1)
+
+                        LazyColumn(
+                            state = listState,
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            val chunkedArtists = artists.chunked(numberOfColumns)
+
+                            items(
+                                chunkedArtists,
+                                key = { chunk -> chunk.map { it.id }.hashCode() }) { rowArtists ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                                ) {
+                                    for (i in 0 until numberOfColumns) {
+                                        if (i < rowArtists.size) {
+                                            Box(
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                ArtistGridItem(
+                                                    artist = rowArtists[i],
+                                                    onArtistClick = { onArtistClick(rowArtists[i]) }
+                                                )
+                                            }
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f))
                                         }
-                                    } else {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+
+                            if (isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp)
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
 
-                        if (isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
+                    // Quick locate sidebar
+                    if (shouldShowSidebar) {
+                        AlphabetSidebar(
+                            availableChars = availableChars,
+                            charIndexMap = charIndexMap,
+                            listState = listState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
                     }
                 }
             }
@@ -1031,7 +1260,7 @@ private fun BrowseArtistsContent(
 @Composable
 private fun ArtistGridItem(
     artist: Artist,
-    onArtistClick: () -> Unit
+    onArtistClick: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
