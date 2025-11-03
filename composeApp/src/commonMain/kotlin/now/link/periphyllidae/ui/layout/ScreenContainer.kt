@@ -52,9 +52,11 @@ fun ScreenContainer(
         }
     } else {
         // Simple container without top bar
-        Box(modifier = modifier) {
-            content(PaddingValues(0.dp))
-            floatingActionButton()
+        Scaffold(
+            modifier = modifier,
+            floatingActionButton = floatingActionButton
+        ) { paddingValues ->
+            content(paddingValues)
         }
     }
 }

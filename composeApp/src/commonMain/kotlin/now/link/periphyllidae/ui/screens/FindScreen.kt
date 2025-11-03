@@ -503,86 +503,84 @@ private fun SearchResults(
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
+        Column(
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Artists
             if (results.artists.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Artists",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                item {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(results.artists, key = { it.id }) { artist ->
-                            ArtistIconItem(
-                                artist = artist,
-                                onArtistClick = { onArtistClick(artist) }
-                            )
-                        }
+                Text(
+                    text = "Artists",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(results.artists, key = { it.id }) { artist ->
+                        ArtistIconItem(
+                            artist = artist,
+                            onArtistClick = { onArtistClick(artist) }
+                        )
                     }
                 }
             }
 
             // Albums
             if (results.albums.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Albums",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = if (results.artists.isNotEmpty()) 16.dp else 0.dp)
-                    )
-                }
-                items(results.albums, key = { it.id }) { album ->
-                    AlbumListItem(
-                        album = album,
-                        onPlay = { onPlayAlbum(album) },
-                        onClick = { onAlbumClick(album) }
-                    )
+                Text(
+                    text = "Albums",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = if (results.artists.isNotEmpty()) 0.dp else 0.dp)
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    results.albums.forEach { album ->
+                        AlbumListItem(
+                            album = album,
+                            onPlay = { onPlayAlbum(album) },
+                            onClick = { onAlbumClick(album) }
+                        )
+                    }
                 }
             }
 
             // Songs
             if (results.songs.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Songs",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = if (results.artists.isNotEmpty() || results.albums.isNotEmpty()) 16.dp else 0.dp)
-                    )
-                }
-                items(results.songs, key = { it.id }) { song ->
-                    SongSearchItem(
-                        song = song,
-                        onPlay = { onPlaySong(song) }
-                    )
+                Text(
+                    text = "Songs",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = if (results.artists.isNotEmpty() || results.albums.isNotEmpty()) 0.dp else 0.dp)
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    results.songs.forEach { song ->
+                        SongSearchItem(
+                            song = song,
+                            onPlay = { onPlaySong(song) }
+                        )
+                    }
                 }
             }
 
             // Empty results
             if (results.artists.isEmpty() && results.albums.isEmpty() && results.songs.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No results found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No results found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
