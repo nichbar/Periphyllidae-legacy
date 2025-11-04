@@ -27,7 +27,6 @@ import now.link.periphyllidae.mvi.MusicState
 // Enum for different screen layouts
 private enum class ScreenLayout {
     PORTRAIT,
-    COMPACT,
     LANDSCAPE
 }
 
@@ -36,15 +35,15 @@ private fun getScreenLayout(maxWidth: Float, maxHeight: Float): ScreenLayout {
     // Calculate the aspect ratio of the available space.
     val aspectRatio = maxWidth / maxHeight
 
-    // Use a 'when' statement to select the appropriate layout
-    // based on the calculated aspect ratio.
+    // Use updated thresholds that better match modern devices:
+    // - < 0.65f: Portrait phones (including modern 18:9, 20:9 ratios)
+    // - ≥ 1.5f: Landscape tablets, desktop monitors, ultra-wide screens
+    // - 0.65f-1.5f: Medium aspect ratios use responsive portrait layout
     return when {
-        // If the height is much greater than the width, use a portrait layout.
-        aspectRatio < 0.8f -> ScreenLayout.PORTRAIT
-        // If the width is much greater than the height, use a landscape layout.
-        aspectRatio > 1.2f -> ScreenLayout.LANDSCAPE
-        // Otherwise, the shape is close to a square.
-        else -> ScreenLayout.COMPACT
+        // Ultra-wide screens (landscape tablets, desktop monitors)
+        aspectRatio >= 1.5f -> ScreenLayout.LANDSCAPE
+        // Standard phones (including modern 18:9, 20:9 ratios) and medium aspect ratios
+        else -> ScreenLayout.PORTRAIT
     }
 }
 
@@ -80,12 +79,6 @@ fun NowPlayingScreen(
             } else {
                 when (screenLayout) {
                     ScreenLayout.LANDSCAPE -> WideLayoutContent(
-                        state = state,
-                        viewModel = viewModel,
-                        paddingValues = paddingValues
-                    )
-
-                    ScreenLayout.COMPACT -> CompactLayoutContent(
                         state = state,
                         viewModel = viewModel,
                         paddingValues = paddingValues
@@ -165,27 +158,58 @@ private fun DefaultLayoutContent(
     viewModel: NowPlayingViewModel,
     paddingValues: PaddingValues,
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(top = 36.dp, start = 36.dp, end = 36.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AlbumArtSection(state)
-        Spacer(modifier = Modifier.height(32.dp))
-        SongInfoSection(state)
-        Spacer(modifier = Modifier.height(32.dp))
-        ProgressSection(state, viewModel)
-        Spacer(modifier = Modifier.height(32.dp))
-        PlaybackControlsSection(state, viewModel, showAllControls = true)
-        Spacer(modifier = Modifier.weight(1f))
-        QueueInfoSection(state)
+        val boxConstraintsScope = this
+        val isCompactScreen = boxConstraintsScope.maxWidth < 600.dp
+
+        // Responsive padding based on screen size
+        val responsivePadding = if (isCompactScreen) 24.dp else 36.dp
+        val responsiveSpacing = if (isCompactScreen) 24.dp else 32.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = responsivePadding,
+                    start = responsivePadding,
+                    end = responsivePadding
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Responsive album art size
+            val albumArtSize = if (isCompactScreen) {
+                minOf(
+                    boxConstraintsScope.maxWidth - responsivePadding * 2,
+                    boxConstraintsScope.maxHeight * 0.4f
+                )
+            } else {
+                boxConstraintsScope.maxWidth * 0.7f
+            }
+
+            AlbumArtSection(
+                state = state,
+                modifier = Modifier.size(albumArtSize)
+            )
+
+            Spacer(modifier = Modifier.height(responsiveSpacing))
+            SongInfoSection(state)
+            Spacer(modifier = Modifier.height(responsiveSpacing))
+            ProgressSection(state, viewModel)
+            Spacer(modifier = Modifier.height(responsiveSpacing))
+            PlaybackControlsSection(state, viewModel, showAllControls = true)
+            Spacer(modifier = Modifier.weight(1f))
+            QueueInfoSection(state)
+        }
     }
 }
 
+
 @Composable
-private fun CompactLayoutContent(
+private fun WideLayoutContent(
     state: MusicState,
     viewModel: NowPlayingViewModel,
     paddingValues: PaddingValues,
@@ -194,124 +218,59 @@ private fun CompactLayoutContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(24.dp)
     ) {
         val boxConstraintsScope = this
+        val isUltraWide = boxConstraintsScope.maxWidth > 1200.dp
 
-        // Calculate album size based on available space (80% of smaller dimension)
-        val availableSize =
-            minOf(boxConstraintsScope.maxWidth, boxConstraintsScope.maxHeight) * 0.8f
+        // Responsive spacing based on screen width
+        val responsiveSpacing = when {
+            isUltraWide -> 64.dp
+            boxConstraintsScope.maxWidth > 800.dp -> 48.dp
+            else -> 32.dp
+        }
 
-        // Album art centered in the screen
-        AlbumArtSection(
-            state = state,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(availableSize)
-        )
-
-        // Transparent mask with control buttons centered over the album
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(availableSize)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black.copy(alpha = 0.3f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(responsiveSpacing)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(
-                    (availableSize * 0.15f).coerceAtLeast(
-                        16.dp
-                    )
-                ),
-                verticalAlignment = Alignment.CenterVertically
+            // Left side: Album art with responsive sizing
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                // Previous - size based on album size
-                val iconButtonSize = (availableSize * 0.12f).coerceIn(32.dp, 48.dp)
-                val iconSize = (availableSize * 0.08f).coerceIn(24.dp, 32.dp)
-
-                IconButton(
-                    onClick = { viewModel.skipPrevious() },
-                    enabled = state.currentIndex > 0,
-                    modifier = Modifier.size(iconButtonSize)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous song",
-                        modifier = Modifier.size(iconSize),
-                        tint = Color.White
-                    )
+                val albumArtSize = if (isUltraWide) {
+                    boxConstraintsScope.maxHeight * 0.8f
+                } else {
+                    boxConstraintsScope.maxHeight * 0.7f
                 }
 
-                // Play/Pause - larger, based on album size
-                val fabSize = (availableSize * 0.2f).coerceIn(64.dp, 96.dp)
-                val playIconSize = (availableSize * 0.12f).coerceIn(32.dp, 48.dp)
-
-                FloatingActionButton(
-                    onClick = { viewModel.togglePlayPause() },
-                    modifier = Modifier.size(fabSize),
-                    containerColor = Color.White.copy(alpha = 0.9f),
-                    contentColor = Color.Black
-                ) {
-                    Icon(
-                        imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(playIconSize)
-                    )
-                }
-
-                // Next - size based on album size
-                IconButton(
-                    onClick = { viewModel.skipNext() },
-                    enabled = state.currentIndex < state.queue.size - 1,
-                    modifier = Modifier.size(iconButtonSize)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next song",
-                        modifier = Modifier.size(iconSize),
-                        tint = Color.White
-                    )
-                }
+                AlbumArtSection(
+                    state = state,
+                    modifier = Modifier.size(albumArtSize)
+                )
             }
-        }
-    }
-}
 
-@Composable
-private fun WideLayoutContent(
-    state: MusicState,
-    viewModel: NowPlayingViewModel,
-    paddingValues: PaddingValues,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues),
-        horizontalArrangement = Arrangement.spacedBy(48.dp)
-    ) {
-        // Left side: Album art
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            AlbumArtSection(state)
-        }
+            // Right side: Controls and info with responsive layout
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                val controlSpacing = if (isUltraWide) 40.dp else 32.dp
 
-        // Right side: Controls and info
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            SongInfoSection(state)
-            Spacer(modifier = Modifier.height(32.dp))
-            ProgressSection(state, viewModel)
-            Spacer(modifier = Modifier.height(32.dp))
-            PlaybackControlsSection(state, viewModel, showAllControls = true)
-            Spacer(modifier = Modifier.height(24.dp))
-            QueueInfoSection(state)
+                SongInfoSection(state)
+                Spacer(modifier = Modifier.height(controlSpacing))
+                ProgressSection(state, viewModel)
+                Spacer(modifier = Modifier.height(controlSpacing))
+                PlaybackControlsSection(state, viewModel, showAllControls = true)
+                Spacer(modifier = Modifier.height(24.dp))
+                QueueInfoSection(state)
+            }
         }
     }
 }
