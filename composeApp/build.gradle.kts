@@ -160,9 +160,20 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "now.link.periphyllidae"
             packageVersion = "1.0.0"
-            
+
             // Configure appResources for VLC binaries
             appResourcesRootDir.set(file("appResources"))
+
+            // Configure icons
+            macOS {
+                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.icns"))
+            }
+            windows {
+                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.ico"))
+            }
+            linux {
+                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.png"))
+            }
 
             modules("java.net.http")
         }

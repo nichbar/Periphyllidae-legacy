@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <g transform="rotate(45 36 31)">
+
+    <!-- Main jellyfish bell/dome - smaller and centered to fit rotation -->
+    <path d="M40,20C40,12 48,4 60,4C72,4 80,12 80,20C80,28 72,32 60,32C48,32 40,28 40,20Z"
+          fill="#444444"
+          fill-opacity="0.8"/>
+
+    <!-- Inner bell detail - centered -->
+    <path d="M45,22C45,17 51,13 60,13C69,13 75,17 75,22C75,26 69,29 60,29C51,29 45,26 45,22Z"
+          fill="#444444"
+          fill-opacity="0.4"/>
+
+    <!-- Long flowing tentacles - shorter to fit rotation -->
+    <!-- Left outer tentacle -->
+    <path d="M45,30Q42,35 44,42Q46,49 42,53Q40,57 42,62"
+          stroke="#444444"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.8"/>
+
+    <!-- Left inner tentacle -->
+    <path d="M50,32Q48,37 50,44Q52,51 48,55Q46,59 48,64"
+          stroke="#444444"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.7"/>
+
+    <!-- Center left tentacle -->
+    <path d="M54,32Q52,38 54,45Q56,52 52,56Q50,60 52,65"
+          stroke="#444444"
+          stroke-width="2.2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Center tentacle -->
+    <path d="M60,32Q60,38 60,45Q60,52 60,56Q60,59 60,62"
+          stroke="#444444"
+          stroke-width="2.2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Center right tentacle -->
+    <path d="M66,32Q68,38 66,45Q64,52 68,56Q70,60 68,65"
+          stroke="#444444"
+          stroke-width="2.2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Right inner tentacle -->
+    <path d="M70,32Q72,37 70,44Q68,51 72,55Q74,59 72,64"
+          stroke="#444444"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.7"/>
+
+    <!-- Right outer tentacle -->
+    <path d="M75,30Q78,35 76,42Q74,49 78,53Q80,57 78,62"
+          stroke="#444444"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.8"/>
+
+    <!-- Additional flowing tentacles - shorter -->
+    <!-- Extra left tentacle -->
+    <path d="M48,31Q45,36 47,43Q49,50 45,54Q43,58 45,63"
+          stroke="#444444"
+          stroke-width="1.5"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.6"/>
+
+    <!-- Extra right tentacle -->
+    <path d="M72,31Q75,36 73,43Q71,50 75,54Q77,58 75,63"
+          stroke="#444444"
+          stroke-width="1.5"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-opacity="0.6"/>
+
+  </g>
+</svg>
