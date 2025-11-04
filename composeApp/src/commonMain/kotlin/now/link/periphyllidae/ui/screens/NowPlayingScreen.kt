@@ -1,5 +1,12 @@
 package now.link.periphyllidae.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,31 +71,36 @@ fun NowPlayingScreen(
         topBarConfig = topBarConfig
     ) { paddingValues ->
         BoxWithConstraints {
-            val boxConstraintsScope = this
-            val screenLayout by remember {
-                derivedStateOf {
-                    getScreenLayout(
-                        boxConstraintsScope.maxWidth.value,
-                        boxConstraintsScope.maxHeight.value
-                    )
-                }
-            }
+            // Dynamic layout detection that updates when constraints change
+            val currentLayout = getScreenLayout(
+                this.maxWidth.value,
+                this.maxHeight.value
+            )
 
             if (state.currentSong == null) {
                 EmptyStateContent(paddingValues)
             } else {
-                when (screenLayout) {
-                    ScreenLayout.LANDSCAPE -> WideLayoutContent(
-                        state = state,
-                        viewModel = viewModel,
-                        paddingValues = paddingValues
-                    )
+                // Animated content switcher for smooth layout transitions
+                AnimatedContent(
+                    targetState = currentLayout,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "layout_transition"
+                ) { layout ->
+                    when (layout) {
+                        ScreenLayout.LANDSCAPE -> WideLayoutContent(
+                            state = state,
+                            viewModel = viewModel,
+                            paddingValues = paddingValues
+                        )
 
-                    ScreenLayout.PORTRAIT -> DefaultLayoutContent(
-                        state = state,
-                        viewModel = viewModel,
-                        paddingValues = paddingValues
-                    )
+                        ScreenLayout.PORTRAIT -> DefaultLayoutContent(
+                            state = state,
+                            viewModel = viewModel,
+                            paddingValues = paddingValues
+                        )
+                    }
                 }
             }
         }
@@ -177,6 +189,9 @@ private fun DefaultLayoutContent(
                     top = responsivePadding,
                     start = responsivePadding,
                     end = responsivePadding
+                )
+                .animateContentSize(
+                    animationSpec = tween(300)
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -192,7 +207,11 @@ private fun DefaultLayoutContent(
 
             AlbumArtSection(
                 state = state,
-                modifier = Modifier.size(albumArtSize)
+                modifier = Modifier
+                    .size(albumArtSize)
+                    .animateContentSize(
+                        animationSpec = tween(300)
+                    )
             )
 
             Spacer(modifier = Modifier.height(responsiveSpacing))
@@ -230,7 +249,11 @@ private fun WideLayoutContent(
         }
 
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .animateContentSize(
+                    animationSpec = tween(300)
+                ),
             horizontalArrangement = Arrangement.spacedBy(responsiveSpacing)
         ) {
             // Left side: Album art with responsive sizing
@@ -249,7 +272,11 @@ private fun WideLayoutContent(
 
                 AlbumArtSection(
                     state = state,
-                    modifier = Modifier.size(albumArtSize)
+                    modifier = Modifier
+                        .size(albumArtSize)
+                        .animateContentSize(
+                            animationSpec = tween(300)
+                        )
                 )
             }
 
