@@ -1,3 +1,4 @@
+import jdk.tools.jlink.resources.plugins
 import org.gradle.kotlin.dsl.libs
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -166,13 +167,13 @@ compose.desktop {
 
             // Configure icons
             macOS {
-                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.icns"))
+                iconFile.set(file("src/jvmMain/resources/icons/periphyllidae_icon.icns"))
             }
             windows {
-                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.ico"))
+                iconFile.set(file("src/jvmMain/resources/icons/periphyllidae_icon.ico"))
             }
             linux {
-                iconFile.set(file("composeApp/src/jvmMain/resources/icons/periphyllidae_icon.png"))
+                iconFile.set(file("src/jvmMain/resources/icons/periphyllidae_icon.png"))
             }
 
             modules("java.net.http")

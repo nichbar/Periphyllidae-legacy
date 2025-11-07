@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
-import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.NowPlayingViewModel
 import now.link.periphyllidae.mvi.MusicState
 
@@ -61,15 +60,7 @@ fun NowPlayingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val topBarConfig = TopBarConfig(
-        title = "Now Playing",
-        navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-        onNavigationClick = onNavigateBack
-    )
-
-    ScreenContainer(
-        topBarConfig = topBarConfig
-    ) { paddingValues ->
+    ScreenContainer() { paddingValues ->
         BoxWithConstraints {
             // Dynamic layout detection that updates when constraints change
             val currentLayout = getScreenLayout(
@@ -78,7 +69,7 @@ fun NowPlayingScreen(
             )
 
             if (state.currentSong == null) {
-                EmptyStateContent(paddingValues)
+                EmptyStateContent()
             } else {
                 // Animated content switcher for smooth layout transitions
                 AnimatedContent(
@@ -91,21 +82,19 @@ fun NowPlayingScreen(
                     when (layout) {
                         ScreenLayout.LANDSCAPE -> WideLayoutContent(
                             state = state,
-                            viewModel = viewModel,
-                            paddingValues = paddingValues
+                            viewModel = viewModel
                         )
 
                         ScreenLayout.PORTRAIT -> DefaultLayoutContent(
                             state = state,
-                            viewModel = viewModel,
-                            paddingValues = paddingValues
+                            viewModel = viewModel
                         )
                     }
                 }
             }
         }
 
-        // Overlay Top Bar for back navigation in case of custom layouts
+        // Floating Top Bar for back navigation
         OverlayTopBar(onNavigateBack = onNavigateBack)
     }
 }
@@ -137,11 +126,11 @@ private fun OverlayTopBar(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyStateContent(paddingValues: PaddingValues) {
+private fun EmptyStateContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
+            .padding(top = 40.dp), // Account for floating toolbar with shadow
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -168,12 +157,11 @@ private fun EmptyStateContent(paddingValues: PaddingValues) {
 private fun DefaultLayoutContent(
     state: MusicState,
     viewModel: NowPlayingViewModel,
-    paddingValues: PaddingValues,
 ) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
+            .padding(top = 40.dp) // Account for floating toolbar with shadow
     ) {
         val boxConstraintsScope = this
         val isCompactScreen = boxConstraintsScope.maxWidth < 600.dp
@@ -231,12 +219,11 @@ private fun DefaultLayoutContent(
 private fun WideLayoutContent(
     state: MusicState,
     viewModel: NowPlayingViewModel,
-    paddingValues: PaddingValues,
 ) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
+            .padding(top = 40.dp) // Account for floating toolbar with shadow
     ) {
         val boxConstraintsScope = this
         val isUltraWide = boxConstraintsScope.maxWidth > 1200.dp
