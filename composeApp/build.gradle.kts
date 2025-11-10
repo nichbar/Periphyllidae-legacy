@@ -1,4 +1,3 @@
-import jdk.tools.jlink.resources.plugins
 import org.gradle.kotlin.dsl.libs
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
