@@ -186,8 +186,22 @@ class MusicPlayer(
     
     fun play(song: Song) {
         LogManager.i(TAG, "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
+
+        // Cancel cache operations for the previous song if it's different
+        val previousSong = _currentSong.value
+        if (previousSong != null && previousSong.id != song.id) {
+            scope.launch {
+                try {
+                    LogManager.d(TAG, "Cancelling cache operations for previous song: ${previousSong.title}")
+                    cacheManager?.cancelDownloadForUrl(previousSong.streamUrl)
+                } catch (e: Exception) {
+                    LogManager.w(TAG, "Failed to cancel cache for previous song: ${previousSong.title}", e)
+                }
+            }
+        }
+
         _currentSong.value = song
-        
+
         scope.launch {
             var playbackSuccessful = false
             var lastException: Exception? = null
@@ -247,29 +261,24 @@ class MusicPlayer(
             }
         }
     }
-    
+
     /**
-     * Get the appropriate playback URL, using cache if available
+     * Get the appropriate playback URL (non-async version for compatibility)
      */
     private fun getPlaybackUrlWithFallback(originalUrl: String, attempt: Int): String {
-        return if (cacheManager != null) {
-            // On first attempt, try cache
-            if (attempt == 0) {
-                try {
-                    val cacheUrl = cacheManager!!.getLocalPlaybackUrl(originalUrl)
-                    LogManager.d(TAG, "Using cache URL (attempt 0): $cacheUrl")
-                    cacheUrl
-                } catch (e: Exception) {
-                    LogManager.w(TAG, "Cache URL generation failed, falling back to original URL", e)
-                    originalUrl
-                }
-            } else {
-                // On subsequent attempts, use original URL to bypass potential cache issues
-                LogManager.d(TAG, "Using original URL (attempt $attempt, bypassing cache)")
+        // For now, be conservative and use original URL to avoid cache conflicts
+        // TODO: Consider async cache readiness check in future improvements
+        return if (attempt == 0 && cacheManager != null) {
+            try {
+                val cacheUrl = cacheManager!!.getLocalPlaybackUrl(originalUrl)
+                LogManager.d(TAG, "Using cache URL (attempt 0): $cacheUrl")
+                cacheUrl
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Cache URL generation failed, falling back to original URL", e)
                 originalUrl
             }
         } else {
-            LogManager.d(TAG, "Using original URL (cache not available)")
+            LogManager.d(TAG, "Using original URL (attempt $attempt, bypassing cache)")
             originalUrl
         }
     }
@@ -308,6 +317,19 @@ class MusicPlayer(
         LogManager.d(TAG, "Stopping playback")
         try {
             mediaPlayer.stopPlayback()
+
+            // Cancel any ongoing cache operations for the current song
+            val currentSong = _currentSong.value
+            if (currentSong != null) {
+                scope.launch {
+                    try {
+                        LogManager.d(TAG, "Cancelling cache operations for current song: ${currentSong.title}")
+                        cacheManager?.cancelDownloadForUrl(currentSong.streamUrl)
+                    } catch (e: Exception) {
+                        LogManager.w(TAG, "Failed to cancel cache for current song: ${currentSong.title}", e)
+                    }
+                }
+            }
 
             _currentSong.value = null
             _currentPosition.value = 0L

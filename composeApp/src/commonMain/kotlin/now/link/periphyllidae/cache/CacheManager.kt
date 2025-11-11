@@ -17,6 +17,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -84,6 +85,7 @@ class CacheManager private constructor(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val downloadMutex = Mutex()
     private val activeDownloads = mutableMapOf<String, Channel<CachedContent>>()
+    private val activeDownloadJobs = mutableMapOf<String, Job>()
     private val json = Json { ignoreUnknownKeys = true }
 
     // Circuit breaker for cache operations
@@ -290,18 +292,20 @@ class CacheManager private constructor(
                 // Start new download
                 downloadChannel = Channel(Channel.UNLIMITED)
                 activeDownloads[key] = downloadChannel
-                
-                scope.launch {
+
+                val downloadJob = scope.launch {
                     try {
                         performDownloadAndCache(originalUrl, key, downloadChannel)
                     } finally {
                         downloadMutex.withLock {
                             activeDownloads.remove(key)
-                            LogManager.v(TAG, "Removed download channel for key: $key (remaining: ${activeDownloads.size})")
+                            activeDownloadJobs.remove(key)
+                            LogManager.v(TAG, "Removed download channel and job for key: $key (remaining: ${activeDownloads.size})")
                         }
                         downloadChannel.close()
                     }
                 }
+                activeDownloadJobs[key] = downloadJob
             } else {
                 LogManager.d(TAG, "Joining existing download for key: $key")
             }
@@ -524,7 +528,16 @@ class CacheManager private constructor(
 
         if (cacheFailureCount >= circuitBreakerThreshold) {
             circuitBreakerOpen = true
-            LogManager.w(TAG, "Cache circuit breaker opened after $cacheFailureCount consecutive failures")
+            LogManager.w(TAG, "Cache circuit breaker opened after $cacheFailureCount consecutive failures, cancelling all downloads")
+
+            // Cancel all active downloads when circuit breaker opens
+            scope.launch {
+                try {
+                    cancelAllDownloads()
+                } catch (e: Exception) {
+                    LogManager.w(TAG, "Error cancelling downloads when circuit breaker opened", e)
+                }
+            }
         }
 
         LogManager.v(TAG, "Cache failure recorded: $cacheFailureCount/$circuitBreakerThreshold (breaker open: $circuitBreakerOpen)")
@@ -695,6 +708,71 @@ class CacheManager private constructor(
         LogManager.v(TAG, "Cache check for URL: $url -> $cached (${checkTime}ms)")
         cached
     }
+
+    /**
+     * Cancel download for a specific URL
+     */
+    suspend fun cancelDownloadForUrl(url: String) {
+        val key = url.toCacheKey()
+        LogManager.d(TAG, "Cancelling download for URL: $url (key: $key)")
+
+        downloadMutex.withLock {
+            try {
+                // Cancel the download job
+                activeDownloadJobs[key]?.let { job ->
+                    LogManager.d(TAG, "Cancelling download job for key: $key")
+                    job.cancel()
+                    activeDownloadJobs.remove(key)
+                }
+
+                // Close and remove the download channel
+                activeDownloads[key]?.let { channel ->
+                    LogManager.d(TAG, "Closing download channel for key: $key")
+                    channel.close()
+                    activeDownloads.remove(key)
+                }
+
+                LogManager.d(TAG, "Download cancelled successfully for key: $key (remaining downloads: ${activeDownloads.size})")
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Error cancelling download for key: $key", e)
+            }
+        }
+    }
+
+    /**
+     * Cancel all active downloads
+     */
+    suspend fun cancelAllDownloads() {
+        LogManager.i(TAG, "Cancelling all active downloads (${activeDownloads.size} total)")
+
+        downloadMutex.withLock {
+            try {
+                // Cancel all download jobs
+                activeDownloadJobs.values.forEach { job ->
+                    try {
+                        job.cancel()
+                    } catch (e: Exception) {
+                        LogManager.w(TAG, "Error cancelling download job", e)
+                    }
+                }
+                activeDownloadJobs.clear()
+
+                // Close all download channels
+                activeDownloads.values.forEach { channel ->
+                    try {
+                        channel.close()
+                    } catch (e: Exception) {
+                        LogManager.w(TAG, "Error closing download channel", e)
+                    }
+                }
+                activeDownloads.clear()
+
+                LogManager.i(TAG, "All downloads cancelled successfully")
+            } catch (e: Exception) {
+                LogManager.e(TAG, "Error cancelling all downloads", e)
+            }
+        }
+    }
     
     /**
      * Get cache statistics
@@ -801,7 +879,11 @@ class CacheManager private constructor(
         val shutdownStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Shutting down CacheManager")
         LogManager.d(TAG, "Active downloads at shutdown: ${activeDownloads.size}")
+        LogManager.d(TAG, "Active download jobs at shutdown: ${activeDownloadJobs.size}")
         LogManager.d(TAG, "URL mappings at shutdown: ${urlMappings.size}")
+
+        // Cancel all active downloads first
+        cancelAllDownloads()
 
         try {
             val serverStopStartTime = System.currentTimeMillis()
