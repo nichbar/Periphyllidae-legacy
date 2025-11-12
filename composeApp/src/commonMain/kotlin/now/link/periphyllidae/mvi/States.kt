@@ -1,5 +1,20 @@
 package now.link.periphyllidae.mvi
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.element
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.builtins.serializer
 import now.link.periphyllidae.models.*
 import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.viewmodels.ServerConfigFormState
@@ -111,6 +126,7 @@ data class SearchState(
 ) : State
 
 // Find Screen MVI Components
+@Serializable
 data class HistoryItem(
     val id: String,
     val type: HistoryItemType,
@@ -118,12 +134,17 @@ data class HistoryItem(
     val subtitle: String? = null,
     val imageUrl: String? = null,
     val timestamp: Long,
+    @Serializable(with = HistoryItemDataSerializer::class)
     val data: Any // Song, Album, or Artist
 )
 
+@Serializable
 sealed interface HistoryItemType {
+    @Serializable
     object Song : HistoryItemType
+    @Serializable
     object Album : HistoryItemType
+    @Serializable
     object Artist : HistoryItemType
 }
 
@@ -213,3 +234,47 @@ data class AddServerState(
     val error: String? = null,
     val isServerAdded: Boolean = false
 ) : State, ServerConfigFormState
+
+// Custom serializer for HistoryItem data field (polymorphic serialization)
+object HistoryItemDataSerializer : KSerializer<Any> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("HistoryItemData") {
+        element<String>("type")
+        element<JsonElement>("data")
+    }
+
+    override fun serialize(encoder: Encoder, value: Any) {
+        val jsonElement = when (value) {
+            is Song -> Json.encodeToJsonElement(Song.serializer(), value)
+            is Album -> Json.encodeToJsonElement(Album.serializer(), value)
+            is Artist -> Json.encodeToJsonElement(Artist.serializer(), value)
+            else -> throw SerializationException("Unsupported type for HistoryItem data: ${value::class}")
+        }
+
+        val jsonOutput = JsonObject(mapOf(
+            "type" to Json.encodeToJsonElement(String.serializer(), value::class.simpleName ?: "Unknown"),
+            "data" to jsonElement
+        ))
+
+        encoder.encodeSerializableValue(JsonElement.serializer(), jsonOutput)
+    }
+
+    override fun deserialize(decoder: Decoder): Any {
+        val jsonDecoder = decoder as? JsonDecoder
+            ?: throw SerializationException("HistoryItemDataSerializer can only be used with JSON")
+
+        val jsonElement = jsonDecoder.decodeJsonElement()
+        val jsonObject = jsonElement.jsonObject
+        val type = jsonObject["type"]?.jsonPrimitive?.content
+            ?: throw SerializationException("Missing type field in HistoryItem data")
+
+        val dataElement = jsonObject["data"]
+            ?: throw SerializationException("Missing data field in HistoryItem data")
+
+        return when (type) {
+            "Song" -> Json.decodeFromJsonElement(Song.serializer(), dataElement)
+            "Album" -> Json.decodeFromJsonElement(Album.serializer(), dataElement)
+            "Artist" -> Json.decodeFromJsonElement(Artist.serializer(), dataElement)
+            else -> throw SerializationException("Unknown type for HistoryItem data: $type")
+        }
+    }
+}
