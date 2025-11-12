@@ -18,8 +18,9 @@ val viewModelModule = module {
     /**
      * Home screen ViewModel managing main content display and navigation.
      * Depends on AuthStore for authentication state and MusicStore for content.
+     * Using singleton scope to preserve state across tab switches and prevent unnecessary API calls.
      */
-    factory<HomeViewModel> {
+    single<HomeViewModel> {
         HomeViewModel(get(), get())
     }
 

@@ -70,9 +70,16 @@ fun HomeScreen(
     val authState by viewModel.authState.collectAsState()
 
     val currentServer = remember { authState.currentServer }
+    var lastServerIdentifier = remember { currentServer?.let { "${it.url}:${it.username}" } }
 
     LaunchedEffect(currentServer) {
-        viewModel.refreshContent()
+        // Only refresh content if this is the first initialization
+        // or if the server has actually changed (different server URL/username)
+        val currentServerIdentifier = currentServer?.let { "${it.url}:${it.username}" }
+        if (lastServerIdentifier != currentServerIdentifier) {
+            viewModel.refreshContent()
+            lastServerIdentifier = currentServerIdentifier
+        }
     }
 
     BoxWithConstraints {

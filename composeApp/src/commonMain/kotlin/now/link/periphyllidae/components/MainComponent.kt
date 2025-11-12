@@ -27,6 +27,7 @@ class DefaultMainComponent(
 ) : MainComponent, ComponentContext by componentContext {
 
     private val tabNavigation = StackNavigation<TabConfig>()
+    private var currentTab: TabConfig = TabConfig.Home
 
     override val tabStack: Value<ChildStack<*, MainComponent.TabChild>> =
         childStack(
@@ -70,7 +71,12 @@ class DefaultMainComponent(
             3 -> TabConfig.Settings
             else -> TabConfig.Home
         }
-        tabNavigation.bringToFront(config)
+
+        // Only navigate if switching to a different tab
+        if (config != currentTab) {
+            currentTab = config
+            tabNavigation.bringToFront(config)
+        }
     }
 
     override fun onNavigateTo(nav: Nav) {
