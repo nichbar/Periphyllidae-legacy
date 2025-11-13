@@ -135,6 +135,17 @@ private fun SearchViewContent(
             )
         }
 
+        // Quick Actions Section
+        if (state.searchQuery.isEmpty()) {
+            item {
+                QuickActionsSection(
+                    onBrowseAllSongs = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllSongs) },
+                    onBrowseAllAlbums = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllAlbums) },
+                    onBrowseAllArtists = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllArtists) }
+                )
+            }
+        }
+
         // Search History Section
         if (state.searchHistory.isNotEmpty() && state.searchQuery.isEmpty()) {
             item {
@@ -163,17 +174,6 @@ private fun SearchViewContent(
                         }
                     },
                     onClearHistory = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.ClearHistory) }
-                )
-            }
-        }
-
-        // Quick Actions Section
-        if (state.searchQuery.isEmpty()) {
-            item {
-                QuickActionsSection(
-                    onBrowseAllSongs = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllSongs) },
-                    onBrowseAllAlbums = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllAlbums) },
-                    onBrowseAllArtists = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllArtists) }
                 )
             }
         }
@@ -237,7 +237,7 @@ private fun SearchViewContent(
         }
 
         // Empty State
-        if (!state.isLoading && state.error == null && state.searchResults == null && state.searchQuery.isEmpty()) {
+        if (!state.isLoading && state.error == null && state.searchResults == null && state.searchQuery.isEmpty() && state.searchHistory.isEmpty()) {
             item {
                 Box(
                     modifier = Modifier

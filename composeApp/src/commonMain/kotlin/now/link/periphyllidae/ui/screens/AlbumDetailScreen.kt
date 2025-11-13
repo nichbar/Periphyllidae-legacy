@@ -27,6 +27,7 @@ import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.AlbumDetailViewModel
+
 @Composable
 fun AlbumDetailScreen(
     albumId: String,
@@ -41,7 +42,7 @@ fun AlbumDetailScreen(
     }
 
     val topBarConfig = TopBarConfig(
-        title = state.album?.name ?: "Album",
+        title = "",
         navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
         onNavigationClick = onNavigateBack
     )
@@ -65,7 +66,7 @@ fun AlbumDetailScreen(
                     }
                 }
             }
-            
+
             state.error != null -> {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -83,81 +84,100 @@ fun AlbumDetailScreen(
                     )
                 }
             }
-            
+
             state.album != null -> {
                 val currentAlbum = state.album!!
-                
-                LazyColumn(
+
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                        .padding(paddingValues)
                 ) {
-                    // Album Header
-                    item {
-                        AlbumHeader(
-                            album = currentAlbum,
-                            onPlayAll = { viewModel.playAllSongsOfAlbum() }
-                        )
-                    }
-                    
-                    // Songs Section
-                    if (currentAlbum.songs.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Album Header
                         item {
-                            Text(
-                                text = "Songs",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                            AlbumHeader(
+                                album = currentAlbum,
+                                onPlayAll = { viewModel.playAllSongsOfAlbum() }
                             )
                         }
-                        
-                        itemsIndexed(currentAlbum.songs) { index, song ->
-                            AlbumSongItem(
-                                song = song,
-                                trackNumber = index + 1,
-                                onPlay = { viewModel.playSong(song) }
-                            )
+
+                        // Songs Section
+                        if (currentAlbum.songs.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Songs",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                            }
+
+                            itemsIndexed(currentAlbum.songs) { index, song ->
+                                AlbumSongItem(
+                                    song = song,
+                                    trackNumber = index + 1,
+                                    onPlay = { viewModel.playSong(song) }
+                                )
+                            }
                         }
-                    }
-                    
-                    // Additional Information Section (Genre and Copyright)
-                    if (!currentAlbum.genre.isNullOrBlank() || !currentAlbum.copyright.isNullOrBlank()) {
-                        item {
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp)
+
+                        // Additional Information Section (Genre and Copyright)
+                        if (!currentAlbum.genre.isNullOrBlank() || !currentAlbum.copyright.isNullOrBlank()) {
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = "Additional Information",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                    if (!currentAlbum.genre.isNullOrBlank()) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
                                         Text(
-                                            text = "Genre: ${currentAlbum.genre}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(bottom = 4.dp)
+                                            text = "Additional Information",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(bottom = 8.dp)
                                         )
-                                    }
-                                    if (!currentAlbum.copyright.isNullOrBlank()) {
-                                        Text(
-                                            text = "Copyright: ${currentAlbum.copyright}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        if (!currentAlbum.genre.isNullOrBlank()) {
+                                            Text(
+                                                text = "Genre: ${currentAlbum.genre}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(bottom = 4.dp)
+                                            )
+                                        }
+                                        if (!currentAlbum.copyright.isNullOrBlank()) {
+                                            Text(
+                                                text = "Copyright: ${currentAlbum.copyright}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
+                    }
+
+                    // FAB
+                    FloatingActionButton(
+                        onClick = { viewModel.playAllSongsOfAlbum() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp),
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = "Play album",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
             }
@@ -170,94 +190,105 @@ private fun AlbumHeader(
     album: Album,
     onPlayAll: () -> Unit
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        // Album Cover
-        AsyncImage(
-            model = album.coverArt,
-            contentDescription = "Album cover for ${album.name}",
-            modifier = Modifier
-                .size(250.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            contentScale = ContentScale.Crop
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Album Name
-        Text(
-            text = album.name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Artist Name
-        Text(
-            text = "by ${album.artist}",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Album Info Row
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Song Count
-            InfoChip(
-                label = "${album.songCount} songs",
-                modifier = Modifier.weight(1f)
-            )
-            
-            // Duration
-            album.duration?.let { duration ->
-                InfoChip(
-                    label = formatDuration(duration),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            
-            // Release Year
-            album.year?.let { year ->
-                InfoChip(
-                    label = year.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Play All Button
-        Button(
-            onClick = onPlayAll,
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp)
         ) {
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Play Album",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+            // Top Row: Album Cover + Album/Artist Info
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Album Cover
+                AsyncImage(
+                    model = album.coverArt,
+                    contentDescription = "Album cover for ${album.name}",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Album Info Column
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Album Name
+                    Text(
+                        text = album.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Artist Name
+                    Text(
+                        text = album.artist,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Bottom Section: Album Info Chips (below album cover area)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Song Count
+                CompactInfoChip(
+                    label = "${album.songCount} songs"
+                )
+
+                // Duration
+                album.duration?.let { duration ->
+                    CompactInfoChip(
+                        label = "duration: ${formatDuration(duration)}"
+                    )
+                }
+
+                // Release Year
+                album.year?.let { year ->
+                    CompactInfoChip(
+                        label = "released in $year",
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun CompactInfoChip(
+    label: String
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+        )
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)
+        )
     }
 }
 
@@ -311,9 +342,9 @@ private fun AlbumSongItem(
                     .width(32.dp),
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             // Song Info
             Column(
                 modifier = Modifier.weight(1f)
@@ -325,7 +356,7 @@ private fun AlbumSongItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodyMedium,
@@ -335,7 +366,7 @@ private fun AlbumSongItem(
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
-            
+
             // Duration
             song.duration?.let { duration ->
                 Text(
