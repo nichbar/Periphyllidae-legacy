@@ -8,6 +8,8 @@ data class Song(
     val title: String,
     val artist: String,
     val album: String,
+    val artistId: String? = null,
+    val albumId: String? = null,
     val duration: Int? = null,
     val track: Int? = null,
     val year: Int? = null,

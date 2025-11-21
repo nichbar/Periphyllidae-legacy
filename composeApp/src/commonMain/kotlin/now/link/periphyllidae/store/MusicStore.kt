@@ -81,6 +81,7 @@ class MusicStore(
             is MusicIntent.PlayAlbum -> playAlbum(intent.album)
             is MusicIntent.PlayAllSongsOfArtist -> playAllSongsOfArtist(intent.artist)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
+            is MusicIntent.GetSongDetails -> getSongDetails(intent.songId)
             is MusicIntent.InvalidatePlayerState -> invalidatePlayerState()
         }
     }
@@ -765,6 +766,52 @@ class MusicStore(
                 loadHomeContent()
             } catch (e: Exception) {
                 LogManager.e(TAG, "Error invalidating player state", e)
+            }
+        }
+    }
+
+    private fun getSongDetails(songId: String) {
+        LogManager.d(TAG, "Getting song details for: $songId")
+
+        // Check if already cached
+        val currentCache = _state.value.songDetailsCache
+        if (currentCache.containsKey(songId)) {
+            LogManager.d(TAG, "Song details already cached for: $songId")
+            return
+        }
+
+        storeScope.launch {
+            try {
+                val repository = getCurrentRepository()
+                if (repository == null) {
+                    LogManager.w(TAG, "No repository available for getting song details")
+                    return@launch
+                }
+
+                val result = repository.getSong(songId)
+                if (result.isSuccess) {
+                    val song = result.getOrNull()
+                    if (song != null) {
+                        LogManager.d(TAG, "Successfully fetched song details for: ${song.title}")
+                        // Update cache with new song details
+                        val updatedCache = currentCache.toMutableMap()
+                        updatedCache[songId] = song
+                        _state.value = _state.value.copy(songDetailsCache = updatedCache)
+
+                        // Update current song if it matches
+                        val currentSong = _state.value.currentSong
+                        if (currentSong?.id == songId) {
+                            LogManager.d(TAG, "Updating current song with fetched details")
+                            _state.value = _state.value.copy(currentSong = song)
+                        }
+                    } else {
+                        LogManager.w(TAG, "Song details result was null for: $songId")
+                    }
+                } else {
+                    LogManager.w(TAG, "Failed to fetch song details for $songId: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                LogManager.e(TAG, "Exception getting song details for $songId", e)
             }
         }
     }

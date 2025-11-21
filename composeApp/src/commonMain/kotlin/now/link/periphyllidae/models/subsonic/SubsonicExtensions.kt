@@ -35,6 +35,8 @@ fun SubsonicSong.toDomainModel(repository: SubsonicRepository): Song {
         title = this.title,
         artist = this.artist ?: "Unknown Artist",
         album = this.album ?: "Unknown Album",
+        artistId = this.artistId,
+        albumId = this.albumId,
         duration = this.duration,
         track = this.track,
         year = this.year,

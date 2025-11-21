@@ -65,7 +65,8 @@ data class MusicState(
     val recentlyPlayedAlbums: List<Album> = emptyList(),
     val mostPlayedAlbums: List<Album> = emptyList(),
     val isLoadingHome: Boolean = false,
-    val homeError: String? = null
+    val homeError: String? = null,
+    val songDetailsCache: Map<String, Song> = emptyMap()
 ) : State
 
 // Global App Intents
@@ -106,7 +107,8 @@ sealed interface MusicIntent : Intent {
     data class PlayAlbum(val album: Album) : MusicIntent
     data class PlayAllSongsOfArtist(val artist: Artist) : MusicIntent
     data class SetQueue(val songs: List<Song>, val startIndex: Int = 0) : MusicIntent
-    
+    data class GetSongDetails(val songId: String) : MusicIntent
+
     // Server change handling
     object InvalidatePlayerState : MusicIntent
 }

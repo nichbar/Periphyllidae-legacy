@@ -393,7 +393,41 @@ class ServerSpecificSubsonicRepository(
             Result.failure(e)
         }
     }
-    
+
+    override suspend fun getSong(id: String): Result<Song> {
+        return try {
+            val response = httpClient.get("${serverConfig.url}/rest/getSong") {
+                authParams.forEach { (key, value) ->
+                    parameter(key, value)
+                }
+                parameter("id", id)
+            }
+
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+
+                val jsonResponse = json.decodeFromString<SubsonicJsonResponse>(responseBody)
+                val subsonicResponse = jsonResponse.subsonicResponse
+
+                if (subsonicResponse.status == "ok" && subsonicResponse.song != null) {
+                    val song = subsonicResponse.song.toDomainModel(this)
+                    LogManager.i(TAG, "Fetched song: $id")
+                    Result.success(song)
+                } else {
+                    val errorMsg = subsonicResponse.error?.message ?: "Failed to fetch song"
+                    LogManager.e(TAG, errorMsg)
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                LogManager.e(TAG, "Failed to fetch song with status: ${response.status}")
+                Result.failure(Exception("Failed to fetch song"))
+            }
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Error fetching song", e)
+            Result.failure(e)
+        }
+    }
+
     override suspend fun getTopSongs(artistId: String, count: Int): Result<List<Song>> {
         // TODO: Implement actual API call
         return Result.success(emptyList())

@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +59,8 @@ private fun getScreenLayout(maxWidth: Float, maxHeight: Float): ScreenLayout {
 fun NowPlayingScreen(
     viewModel: NowPlayingViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToArtistDetail: (String) -> Unit,
+    onNavigateToAlbumDetail: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -82,12 +86,16 @@ fun NowPlayingScreen(
                     when (layout) {
                         ScreenLayout.LANDSCAPE -> WideLayoutContent(
                             state = state,
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            onNavigateToArtistDetail = onNavigateToArtistDetail,
+                            onNavigateToAlbumDetail = onNavigateToAlbumDetail
                         )
 
                         ScreenLayout.PORTRAIT -> DefaultLayoutContent(
                             state = state,
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            onNavigateToArtistDetail = onNavigateToArtistDetail,
+                            onNavigateToAlbumDetail = onNavigateToAlbumDetail
                         )
                     }
                 }
@@ -157,6 +165,8 @@ private fun EmptyStateContent() {
 private fun DefaultLayoutContent(
     state: MusicState,
     viewModel: NowPlayingViewModel,
+    onNavigateToArtistDetail: (String) -> Unit,
+    onNavigateToAlbumDetail: (String) -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -203,7 +213,12 @@ private fun DefaultLayoutContent(
             )
 
             Spacer(modifier = Modifier.height(responsiveSpacing))
-            SongInfoSection(state)
+            SongInfoSection(
+                state = state,
+                viewModel = viewModel,
+                onNavigateToArtistDetail = onNavigateToArtistDetail,
+                onNavigateToAlbumDetail = onNavigateToAlbumDetail
+            )
             Spacer(modifier = Modifier.height(responsiveSpacing))
             ProgressSection(state, viewModel)
             Spacer(modifier = Modifier.height(responsiveSpacing))
@@ -219,6 +234,8 @@ private fun DefaultLayoutContent(
 private fun WideLayoutContent(
     state: MusicState,
     viewModel: NowPlayingViewModel,
+    onNavigateToArtistDetail: (String) -> Unit,
+    onNavigateToAlbumDetail: (String) -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -277,7 +294,12 @@ private fun WideLayoutContent(
             ) {
                 val controlSpacing = if (isUltraWide) 40.dp else 32.dp
 
-                SongInfoSection(state)
+                SongInfoSection(
+                    state = state,
+                    viewModel = viewModel,
+                    onNavigateToArtistDetail = onNavigateToArtistDetail,
+                    onNavigateToAlbumDetail = onNavigateToAlbumDetail
+                )
                 Spacer(modifier = Modifier.height(controlSpacing))
                 ProgressSection(state, viewModel)
                 Spacer(modifier = Modifier.height(controlSpacing))
@@ -314,7 +336,12 @@ private fun AlbumArtSection(
 }
 
 @Composable
-private fun SongInfoSection(state: MusicState) {
+private fun SongInfoSection(
+    state: MusicState,
+    viewModel: NowPlayingViewModel,
+    onNavigateToArtistDetail: (String) -> Unit,
+    onNavigateToAlbumDetail: (String) -> Unit
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -335,7 +362,19 @@ private fun SongInfoSection(state: MusicState) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                state.currentSong?.let { song ->
+                    viewModel.getArtistIdForCurrentSong { artistId ->
+                        artistId?.let { id ->
+                            onNavigateToArtistDetail(id)
+                        }
+                    }
+                }
+            }
         )
 
         Text(
@@ -344,7 +383,19 @@ private fun SongInfoSection(state: MusicState) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                state.currentSong?.let { song ->
+                    viewModel.getAlbumIdForCurrentSong { albumId ->
+                        albumId?.let { id ->
+                            onNavigateToAlbumDetail(id)
+                        }
+                    }
+                }
+            }
         )
     }
 }

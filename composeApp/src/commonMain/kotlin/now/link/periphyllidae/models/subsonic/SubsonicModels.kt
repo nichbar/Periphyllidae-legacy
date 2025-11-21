@@ -19,6 +19,7 @@ data class SubsonicResponse(
     val album: SubsonicAlbum? = null,
     val playlist: SubsonicPlaylist? = null,
     val artist: SubsonicArtist? = null,
+    val song: SubsonicSong? = null,
     val artists: ArtistsIndex? = null,
     val ping: Ping? = null
 )

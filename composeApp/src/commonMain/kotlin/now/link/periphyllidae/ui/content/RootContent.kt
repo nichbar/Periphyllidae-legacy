@@ -48,7 +48,9 @@ private fun LoginContent(component: LoginComponent) {
 private fun NowPlayingContent(component: now.link.periphyllidae.components.NowPlayingComponent) {
     NowPlayingScreen(
         viewModel = koinInject(),
-        onNavigateBack = component::onNavigateBack
+        onNavigateBack = component::onNavigateBack,
+        onNavigateToArtistDetail = component::onNavigateToArtistDetail,
+        onNavigateToAlbumDetail = component::onNavigateToAlbumDetail
     )
 }
 

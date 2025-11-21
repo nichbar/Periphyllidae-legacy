@@ -62,4 +62,50 @@ class NowPlayingViewModel(
             musicStore.handleIntent(MusicIntent.ToggleShuffle)
         }
     }
+
+    fun getArtistIdForCurrentSong(callback: (String?) -> Unit) {
+        viewModelScope.launch {
+            val currentSong = musicStore.state.value.currentSong
+            if (currentSong != null) {
+                // Check if we already have artistId in current song
+                if (currentSong.artistId != null) {
+                    callback(currentSong.artistId)
+                    return@launch
+                }
+
+                // If no artistId, fetch song details
+                musicStore.handleIntent(MusicIntent.GetSongDetails(currentSong.id))
+
+                // Wait a bit for the details to be fetched and try again
+                kotlinx.coroutines.delay(500)
+                val updatedSong = musicStore.state.value.currentSong
+                callback(updatedSong?.artistId)
+            } else {
+                callback(null)
+            }
+        }
+    }
+
+    fun getAlbumIdForCurrentSong(callback: (String?) -> Unit) {
+        viewModelScope.launch {
+            val currentSong = musicStore.state.value.currentSong
+            if (currentSong != null) {
+                // Check if we already have albumId in current song
+                if (currentSong.albumId != null) {
+                    callback(currentSong.albumId)
+                    return@launch
+                }
+
+                // If no albumId, fetch song details
+                musicStore.handleIntent(MusicIntent.GetSongDetails(currentSong.id))
+
+                // Wait a bit for the details to be fetched and try again
+                kotlinx.coroutines.delay(500)
+                val updatedSong = musicStore.state.value.currentSong
+                callback(updatedSong?.albumId)
+            } else {
+                callback(null)
+            }
+        }
+    }
 }

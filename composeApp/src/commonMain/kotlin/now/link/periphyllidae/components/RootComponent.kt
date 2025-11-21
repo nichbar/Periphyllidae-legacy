@@ -110,6 +110,12 @@ class DefaultRootComponent(
             componentContext = componentContext,
             onNavigateBack = {
                 navigation.pop()
+            },
+            onNavigateToArtistDetail = { artistId ->
+                nav(Nav.ArtistDetail(artistId))
+            },
+            onNavigateToAlbumDetail = { albumId ->
+                nav(Nav.AlbumDetail(albumId))
             }
         )
     

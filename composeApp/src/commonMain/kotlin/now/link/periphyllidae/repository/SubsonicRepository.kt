@@ -13,6 +13,7 @@ interface SubsonicRepository {
     suspend fun getAlbum(id: String): Result<Album>
     suspend fun getPlaylist(id: String): Result<Playlist>
     suspend fun getArtist(id: String): Result<Artist>
+    suspend fun getSong(id: String): Result<Song>
     suspend fun getTopSongs(artistId: String, limit: Int = 10): Result<List<Song>>
     suspend fun getAlbumSongs(albumId: String): Result<List<Song>>
     suspend fun getAllArtists(size: Int = 500): Result<List<Artist>>
