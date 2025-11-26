@@ -79,6 +79,7 @@ class MusicStore(
             is MusicIntent.PlayRandomSong -> playRandomSong()
             is MusicIntent.PlaySong -> playSong(intent.song)
             is MusicIntent.PlayAlbum -> playAlbum(intent.album)
+            is MusicIntent.PlayAlbumFromPosition -> playAlbumFromPosition(intent.album, intent.startIndex)
             is MusicIntent.PlayAllSongsOfArtist -> playAllSongsOfArtist(intent.artist)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
             is MusicIntent.GetSongDetails -> getSongDetails(intent.songId)
@@ -385,16 +386,19 @@ class MusicStore(
 
     private fun playAlbum(album: Album) {
         LogManager.i(TAG, "Playing album: ${album.name} by ${album.artist} (ID: ${album.id})")
+        playAlbumFromPosition(album, 0)
+    }
+
+    private fun playAlbumFromPosition(album: Album, startIndex: Int) {
+        LogManager.i(TAG, "Playing album: ${album.name} by ${album.artist} (ID: ${album.id}) starting at index $startIndex")
         storeScope.launch {
             try {
-                if (album.songs.isNotEmpty()) {
+                val songs = if (album.songs.isNotEmpty()) {
                     LogManager.d(TAG, "Album contains ${album.songs.size} songs")
-                    LogManager.i(TAG, "Starting album playback with ${album.songs.size} songs")
-                    setQueue(album.songs, 0)
-                    playSpecificSong(album.songs[0], 0)
+                    album.songs
                 } else {
                     LogManager.d(TAG, "Fetching album details for: ${album.id}")
-                    
+
                     val repository = getCurrentRepository()
                     if (repository == null) {
                         LogManager.w(TAG, "No repository available for album details")
@@ -406,16 +410,20 @@ class MusicStore(
                         val albumData = albumResult.getOrNull()
                         val songs = albumData?.songs ?: emptyList()
                         LogManager.d(TAG, "Album contains ${songs.size} songs")
-                        if (songs.isNotEmpty()) {
-                            LogManager.i(TAG, "Starting album playback with ${songs.size} songs")
-                            setQueue(songs, 0)
-                            playSpecificSong(songs[0], 0)
-                        } else {
-                            LogManager.w(TAG, "Album ${album.name} contains no songs")
-                        }
+                        songs
                     } else {
                         LogManager.e(TAG, "Failed to load album: ${albumResult.exceptionOrNull()?.message}")
+                        emptyList()
                     }
+                }
+
+                if (songs.isNotEmpty()) {
+                    val validStartIndex = startIndex.coerceIn(0, songs.size - 1)
+                    LogManager.i(TAG, "Starting album playback with ${songs.size} songs from index $validStartIndex")
+                    setQueue(songs, validStartIndex)
+                    playSpecificSong(songs[validStartIndex], validStartIndex)
+                } else {
+                    LogManager.w(TAG, "Album ${album.name} contains no playable songs")
                 }
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to load album songs for ${album.name}", e)

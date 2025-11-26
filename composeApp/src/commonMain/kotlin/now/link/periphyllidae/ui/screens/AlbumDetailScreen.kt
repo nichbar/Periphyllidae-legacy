@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,13 +37,26 @@ fun AlbumDetailScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
 
     LaunchedEffect(albumId) {
         viewModel.loadAlbumDetail(albumId)
     }
 
+    // Determine if we should show the album name in the toolbar
+    // Show when scrolled past 60dp
+    val showToolbarTitle by remember {
+        derivedStateOf {
+            val firstVisibleItemIndex = listState.firstVisibleItemIndex
+            val firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
+
+            // Show title if we're not on the first item OR if we've scrolled past threshold
+            firstVisibleItemIndex > 0 || firstVisibleItemScrollOffset > 60
+        }
+    }
+
     val topBarConfig = TopBarConfig(
-        title = "",
+        title = if (showToolbarTitle) state.album?.name ?: "" else "",
         navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
         onNavigationClick = onNavigateBack
     )
@@ -95,6 +109,7 @@ fun AlbumDetailScreen(
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        state = listState,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -121,7 +136,7 @@ fun AlbumDetailScreen(
                                 AlbumSongItem(
                                     song = song,
                                     trackNumber = index + 1,
-                                    onPlay = { viewModel.playSong(song) }
+                                    onPlay = { viewModel.playAlbumFromSong(song) }
                                 )
                             }
                         }

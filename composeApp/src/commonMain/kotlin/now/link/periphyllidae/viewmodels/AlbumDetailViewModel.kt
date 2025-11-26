@@ -12,6 +12,7 @@ import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.repository.SubsonicRepositoryManager
+import now.link.periphyllidae.utils.LogManager
 
 /**
  * ViewModel for Album Detail screen
@@ -66,6 +67,26 @@ class AlbumDetailViewModel(
     fun playSong(song: Song) {
         viewModelScope.launch {
             musicStore.handleIntent(MusicIntent.PlaySong(song))
+        }
+    }
+
+    fun playAlbumFromSong(song: Song) {
+        viewModelScope.launch {
+            val album = _state.value.album
+            if (album != null) {
+                val songIndex = album.songs.indexOfFirst { it.id == song.id }
+                if (songIndex >= 0) {
+                    musicStore.handleIntent(MusicIntent.PlayAlbumFromPosition(album, songIndex))
+                } else {
+                    LogManager.w("AlbumDetailViewModel", "Song ${song.id} not found in album ${album.id}")
+                    // Fallback to playing just the song
+                    musicStore.handleIntent(MusicIntent.PlaySong(song))
+                }
+            } else {
+                LogManager.w("AlbumDetailViewModel", "No album loaded, playing just the song")
+                // Fallback to playing just the song
+                musicStore.handleIntent(MusicIntent.PlaySong(song))
+            }
         }
     }
 }
