@@ -18,9 +18,10 @@ actual val platformModule = module {
         )
     }
 
-    // Override PlatformStorage for Android with proper context
+    // Initialize PlatformStorage for Android with proper context
     single<PlatformStorage> {
-        PlatformStorage.create(androidContext())
+        PlatformStorage.initialize(androidContext())
+        PlatformStorage()
     }
 
     // MediaMP player factory for Android

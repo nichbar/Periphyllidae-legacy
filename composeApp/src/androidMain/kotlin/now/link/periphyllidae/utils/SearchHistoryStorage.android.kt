@@ -2,39 +2,52 @@ package now.link.periphyllidae.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Android implementation of PlatformStorage using SharedPreferences
  */
 actual class PlatformStorage {
 
+    companion object {
+        @Volatile
+        private var appContext: Context? = null
+
+        fun initialize(context: Context) {
+            if (appContext == null) {
+                synchronized(this) {
+                    if (appContext == null) {
+                        appContext = context.applicationContext
+                    }
+                }
+            }
+        }
+    }
+
     private val context: Context by lazy {
-        // This will be set by the dependency injection system
-        throw IllegalStateException("PlatformStorage not properly initialized")
+        appContext ?: throw IllegalStateException("PlatformStorage must be initialized before use. Call PlatformStorage.initialize(context) first.")
     }
 
     private val sharedPreferences: SharedPreferences by lazy {
-        context.getSharedPreferences("search_history", Context.MODE_PRIVATE)
+        context.getSharedPreferences("periphyllidae_search_history", Context.MODE_PRIVATE)
     }
 
     actual suspend fun saveString(key: String, value: String) {
-        sharedPreferences.edit().putString(key, value).apply()
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit().putString(key, value).apply()
+        }
     }
 
     actual suspend fun getString(key: String): String? {
-        return sharedPreferences.getString(key, null)
+        return withContext(Dispatchers.IO) {
+            sharedPreferences.getString(key, null)
+        }
     }
 
     actual suspend fun remove(key: String) {
-        sharedPreferences.edit().remove(key).apply()
-    }
-
-    // Factory method for proper initialization
-    companion object {
-        fun create(context: Context): PlatformStorage {
-            return object : PlatformStorage() {
-                override val context: Context = context
-            }
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit().remove(key).apply()
         }
     }
 }
