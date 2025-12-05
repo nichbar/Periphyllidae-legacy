@@ -1,6 +1,7 @@
 package now.link.periphyllidae.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -128,7 +129,8 @@ fun ArtistDetailScreen(
                             items(currentArtist.albums) { album ->
                                 ArtistAlbumCard(
                                     album = album,
-                                    onPlay = { viewModel.playAlbum(album) }
+                                    onPlayClick = { viewModel.playAlbum(album) },
+                                    onNavigateTo = onNavigateTo
                                 )
                             }
                         }
@@ -283,12 +285,11 @@ private fun ArtistHeader(
 @Composable
 private fun ArtistAlbumCard(
     album: Album,
-    onPlay: () -> Unit
+    onPlayClick: () -> Unit,
+    onNavigateTo: (Nav) -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onPlay() }
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -296,70 +297,82 @@ private fun ArtistAlbumCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = album.coverArt,
-                contentDescription = "Album cover for ${album.name}",
+            // Album content area (clickable for navigation)
+            Row(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
+                    .weight(1f)
+                    .clickable(
+                        onClick = { onNavigateTo(Nav.AlbumDetail(album.id)) },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = album.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                AsyncImage(
+                    model = album.coverArt,
+                    contentDescription = "Album cover for ${album.name}",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Text(
-                    text = album.artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Column {
                     Text(
-                        text = album.year?.toString() ?: "Unknown year",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = album.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
 
-                    if (album.songCount > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = album.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "• ${album.songCount} songs",
+                            text = album.year?.toString() ?: "Unknown year",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
-                    }
-                }
 
-                album.duration?.let { duration ->
-                    Text(
-                        text = formatDuration(duration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                        if (album.songCount > 0) {
+                            Text(
+                                text = "• ${album.songCount} songs",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    album.duration?.let { duration ->
+                        Text(
+                            text = formatDuration(duration),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                 }
             }
 
-            IconButton(onClick = onPlay) {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(onClick = onPlayClick) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play album",
