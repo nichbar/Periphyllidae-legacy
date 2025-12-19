@@ -1,11 +1,10 @@
 package now.link.periphyllidae.cache
 
-import com.mayakapps.kache.FileKache
 import com.mayakapps.kache.JavaFileKache
 import com.mayakapps.kache.KacheStrategy
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -13,27 +12,26 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondBytesWriter
+import io.ktor.server.response.respondFile
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import now.link.periphyllidae.utils.LogManager
 import okio.Path
 import java.io.File
+import java.io.IOException
 import java.net.ServerSocket
 import java.security.MessageDigest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
+import io.ktor.utils.io.*
 
 /**
  * Metadata stored alongside cached content
@@ -45,13 +43,6 @@ data class CacheMetadata(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-/**
- * Data structure for content and metadata during streaming/caching
- */
-data class CachedContent(
-    val bytes: ByteArray,
-    val metadata: CacheMetadata
-)
 
 /**
  * Cache Manager that provides HTTP-based caching proxy functionality using Kache with dual cache architecture.
@@ -70,7 +61,53 @@ class CacheManager private constructor(
         private const val METADATA_CACHE_SIZE_RATIO = 0.05  // 5% for metadata
         private const val WARNING_THRESHOLD_PERCENTAGE = 0.90  // Warn at 90% capacity
         private const val CLEANUP_THRESHOLD_PERCENTAGE = 0.95   // Force cleanup at 95% capacity
-        
+        private const val CHUNK_SIZE = 256 * 1024 // 64KB chunks for streaming
+
+        /**
+         * Clean corrupted or invalid files from cache directories that could cause
+         * Kache to throw NullPointerException during initialization.
+         */
+        private fun cleanCorruptedCacheFiles(cacheDir: File) {
+            try {
+                val filesDir = File(cacheDir, "files")
+                if (!filesDir.exists()) return
+
+                val files = filesDir.listFiles()
+                if (files == null || files.isEmpty()) return
+
+                var removedCount = 0
+                for (file in files) {
+                    // Remove names ( files with unusualnull bytes, unusual chars, hidden files)
+                    // or files that are incomplete/corrupted
+                    val fileName = file.name
+                    if (fileName.isNullOrEmpty() ||
+                        fileName.startsWith(".") ||
+                        fileName.contains("\u0000") ||
+                        !file.canRead() ||
+                        (file.isFile && file.length() == 0L) ||
+                        (file.isDirectory && file.listFiles()?.isEmpty() == true)
+                    ) {
+                        try {
+                            if (file.isDirectory) {
+                                file.deleteRecursively()
+                            } else {
+                                file.delete()
+                            }
+                            removedCount++
+                        } catch (e: Exception) {
+                            LogManager.w(TAG, "Failed to remove corrupted file: ${file.absolutePath}", e)
+                        }
+                    }
+                }
+
+                if (removedCount > 0) {
+                    LogManager.w(TAG, "Cleaned $removedCount corrupted files from ${cacheDir.absolutePath}")
+                }
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Failed to clean cache directory: ${cacheDir.absolutePath}", e)
+            }
+        }
+
         suspend fun create(
             cacheDirectory: Path,
             maxCacheSize: Long = DEFAULT_MAX_CACHE_SIZE,
@@ -84,8 +121,18 @@ class CacheManager private constructor(
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val downloadMutex = Mutex()
-    private val activeDownloads = mutableMapOf<String, Channel<CachedContent>>()
+    private val activeDownloadStates = mutableMapOf<String, DownloadState>()
     private val activeDownloadJobs = mutableMapOf<String, Job>()
+
+    // Download state for progressive caching
+    private class DownloadState(
+        val metadata: MutableStateFlow<CacheMetadata?> = MutableStateFlow(null),
+        val downloadedBytes: MutableStateFlow<Long> = MutableStateFlow(0L),
+        val isComplete: MutableStateFlow<Boolean> = MutableStateFlow(false),
+        val error: MutableStateFlow<Throwable?> = MutableStateFlow(null),
+        val isFinalizing: MutableStateFlow<Boolean> = MutableStateFlow(false), // CRITICAL FIX #2: Track when finalization is in progress
+        var tempFile: File? = null
+    )
     private val json = Json { ignoreUnknownKeys = true }
 
     // Circuit breaker for cache operations
@@ -119,25 +166,78 @@ class CacheManager private constructor(
         contentCacheDir.mkdirs()
         metadataCacheDir.mkdirs()
 
-        // Calculate size distribution between caches
+        // Clean any corrupted files from cache directories to prevent Kache NPE
+        cleanCorruptedCacheFiles(contentCacheDir)
+        cleanCorruptedCacheFiles(metadataCacheDir)
+
+        // Calculate size distribution between caches (must be done before cache initialization)
         val contentMaxSize = (maxCacheSize * CONTENT_CACHE_SIZE_RATIO).toLong()
         val metadataMaxSize = (maxCacheSize * METADATA_CACHE_SIZE_RATIO).toLong()
 
         LogManager.d(TAG, "Content cache: ${contentMaxSize / (1024 * 1024)}MB, Metadata cache: ${metadataMaxSize / (1024 * 1024)}MB")
 
-        // Initialize dual caches with Kache
-        contentCache = JavaFileKache(
-            directory = contentCacheDir,
-            maxSize = contentMaxSize
-        ) {
-            strategy = KacheStrategy.LRU
-        }
+        // Try to initialize caches, fall back to clearing and retrying if corrupted
+        var cacheInitSuccess = false
+        var retryCount = 0
+        val maxRetries = 2
 
-        metadataCache = JavaFileKache(
-            directory = metadataCacheDir,
-            maxSize = metadataMaxSize
-        ) {
-            strategy = KacheStrategy.LRU
+        while (!cacheInitSuccess && retryCount < maxRetries) {
+            try {
+                // Initialize dual caches with Kache
+                contentCache = JavaFileKache(
+                    directory = contentCacheDir,
+                    maxSize = contentMaxSize
+                ) {
+                    strategy = KacheStrategy.LRU
+                }
+
+                metadataCache = JavaFileKache(
+                    directory = metadataCacheDir,
+                    maxSize = metadataMaxSize
+                ) {
+                    strategy = KacheStrategy.LRU
+                }
+                cacheInitSuccess = true
+            } catch (e: Exception) {
+                retryCount++
+                if (retryCount >= maxRetries) {
+                    // Last resort: clear entire cache directories
+                    LogManager.e(TAG, "Failed to initialize Kache caches after $retryCount attempts, clearing cache directories", e)
+                    try {
+                        contentCacheDir.deleteRecursively()
+                        metadataCacheDir.deleteRecursively()
+                        contentCacheDir.mkdirs()
+                        metadataCacheDir.mkdirs()
+                        LogManager.i(TAG, "Cache directories cleared, retrying initialization...")
+                    } catch (clearEx: Exception) {
+                        LogManager.e(TAG, "Failed to clear cache directories", clearEx)
+                    }
+
+                    // Try one more time after clearing
+                    try {
+                        contentCache = JavaFileKache(
+                            directory = contentCacheDir,
+                            maxSize = contentMaxSize
+                        ) {
+                            strategy = KacheStrategy.LRU
+                        }
+                        metadataCache = JavaFileKache(
+                            directory = metadataCacheDir,
+                            maxSize = metadataMaxSize
+                        ) {
+                            strategy = KacheStrategy.LRU
+                        }
+                        cacheInitSuccess = true
+                    } catch (finalEx: Exception) {
+                        LogManager.e(TAG, "Final cache initialization attempt failed", finalEx)
+                        throw finalEx
+                    }
+                } else {
+                    LogManager.w(TAG, "Cache initialization attempt $retryCount failed, cleaning and retrying", e)
+                    cleanCorruptedCacheFiles(contentCacheDir)
+                    cleanCorruptedCacheFiles(metadataCacheDir)
+                }
+            }
         }
 
         val initTime = System.currentTimeMillis() - startTime
@@ -147,6 +247,11 @@ class CacheManager private constructor(
 
         // REQ-NF-03: Start Ktor server on application launch
         startServer()
+
+        // CRITICAL FIX #1: Start periodic cleanup of stale urlMappings
+        // This prevents unbounded memory leak when Kache's LRU evicts entries
+        startPeriodicUrlMappingsCleanup()
+
         val totalInitTime = System.currentTimeMillis() - startTime
         LogManager.i(TAG, "CacheManager initialized successfully on port $serverPort in ${totalInitTime}ms")
     }
@@ -154,7 +259,53 @@ class CacheManager private constructor(
     // Helper methods for dual cache key management
     private fun String.toContentKey(): String = "${this}_content"
     private fun String.toMetadataKey(): String = "${this}_metadata"
-    
+
+    /**
+     * CRITICAL FIX #1: Periodic cleanup of stale urlMappings entries
+     * Runs every 5 minutes to remove entries whose cache has been evicted by Kache's LRU
+     */
+    private fun startPeriodicUrlMappingsCleanup() {
+        scope.launch {
+            while (isActive) {
+                try {
+                    delay(5 * 60 * 1000L) // 5 minutes
+                    cleanupStaleUrlMappings()
+                } catch (e: Exception) {
+                    LogManager.w(TAG, "Error in periodic urlMappings cleanup", e)
+                }
+            }
+        }
+    }
+
+    private suspend fun cleanupStaleUrlMappings() = withContext(Dispatchers.IO) {
+        val cleanupStartTime = System.currentTimeMillis()
+        val sizeBefore = urlMappings.size
+        var removedCount = 0
+
+        // Collect stale entries
+        val staleKeys = mutableSetOf<String>()
+        for ((key, _) in urlMappings) {
+            val contentFile = contentCache.get(key.toContentKey())
+            val metadataFile = contentCache.get(key.toMetadataKey())
+            if (contentFile == null || metadataFile == null) {
+                staleKeys.add(key)
+            }
+        }
+
+        // Remove stale entries
+        for (key in staleKeys) {
+            urlMappings.remove(key)
+            removedCount++
+        }
+
+        val cleanupTime = System.currentTimeMillis() - cleanupStartTime
+        if (removedCount > 0) {
+            LogManager.i(TAG, "Cleaned up $removedCount stale urlMappings entries (from $sizeBefore entries) in ${cleanupTime}ms")
+        } else {
+            LogManager.v(TAG, "urlMappings cleanup: no stale entries found (${urlMappings.size} entries)")
+        }
+    }
+
     private fun startServer() {
         val serverStartTime = System.currentTimeMillis()
         LogManager.d(TAG, "Starting cache server...")
@@ -175,7 +326,8 @@ class CacheManager private constructor(
                     }
                     
                     LogManager.v(TAG, "Handling cache request for key: $key")
-                    
+                    LogManager.v(TAG, "Request Headers: ${call.request.headers.entries().joinToString { "${it.key}=${it.value}" }}")
+
                     try {
                         handleCacheRequest(key, call)
                         val requestTime = System.currentTimeMillis() - requestStartTime
@@ -200,7 +352,7 @@ class CacheManager private constructor(
     
     private suspend fun handleCacheRequest(key: String, call: ApplicationCall) {
         val handleStartTime = System.currentTimeMillis()
-        LogManager.d(TAG, "Processing cache request for key: $key")
+        LogManager.i(TAG, "⏱️ REQUEST START - Processing cache request for key: $key at ${handleStartTime}ms")
 
         // REQ-FSV-03: Check if fully cached, serve from local file
         withContext(Dispatchers.IO) {
@@ -215,13 +367,7 @@ class CacheManager private constructor(
                 LogManager.d(TAG, "Cache HIT for key: $key (lookup took ${cacheCheckDuration}ms)")
 
                 try {
-                    // Read content file
-                    val contentReadTime = System.currentTimeMillis()
-                    val bytes = contentFile.readBytes()
-                    val contentReadDuration = System.currentTimeMillis() - contentReadTime
-                    LogManager.v(TAG, "Read ${bytes.size} bytes from cache in ${contentReadDuration}ms for key: $key")
-
-                    // Read metadata file
+                    // Read metadata
                     val metadata = try {
                         val metadataReadTime = System.currentTimeMillis()
                         val metadataJson = metadataFile.readText()
@@ -235,197 +381,357 @@ class CacheManager private constructor(
                         CacheMetadata(contentType = "audio/mpeg")
                     }
 
-                    val responseTime = System.currentTimeMillis()
-                    withContext(Dispatchers.Main) {
-                        call.response.headers.append("Content-Length", bytes.size.toString())
-                        call.response.headers.append("Cache-Control", "public, max-age=31536000")
+                    // Check for Range header
+                    val rangeHeader = call.request.headers["Range"]
 
-                        // Use the stored content type
-                        val contentType = try {
-                            ContentType.parse(metadata.contentType)
-                        } catch (e: Exception) {
-                            LogManager.w(TAG, "Invalid content type: ${metadata.contentType}, using audio/mpeg")
-                            ContentType.Audio.MPEG
+                    if (rangeHeader != null && metadata.contentLength != null) {
+                        // Serve partial content (HTTP 206)
+                        serveRangeRequest(call, contentFile, metadata, rangeHeader)
+                    } else {
+                        // Serve complete file
+                        val responseTime = System.currentTimeMillis()
+                        withContext(Dispatchers.IO) {
+                            call.response.headers.append("Accept-Ranges", "bytes")
+                            call.response.headers.append("Cache-Control", "public, max-age=31536000")
+
+                            LogManager.v(TAG, "Response (Cache HIT): 200 OK")
+                            LogManager.v(TAG, "Response Headers: ${call.response.headers.allValues().entries().joinToString { "${it.key}=${it.value}" }}")
+                            call.respondFile(contentFile)
                         }
+                        val responseSetupDuration = System.currentTimeMillis() - responseTime
+                        val totalCacheServeTime = System.currentTimeMillis() - handleStartTime
 
-                        call.respondBytes(bytes, contentType)
+                        LogManager.v(TAG, "Successfully served from cache for key: $key (total: ${totalCacheServeTime}ms, response setup: ${responseSetupDuration}ms)")
                     }
-                    val responseSetupDuration = System.currentTimeMillis() - responseTime
-                    val totalCacheServeTime = System.currentTimeMillis() - handleStartTime
-
-                    LogManager.v(TAG, "Successfully served ${bytes.size} bytes with content-type ${metadata.contentType} from cache for key: $key (total: ${totalCacheServeTime}ms, response setup: ${responseSetupDuration}ms)")
                     return@withContext
                 } catch (e: Exception) {
                     LogManager.e(TAG, "Error reading cached files for key: $key", e)
                     // Fall through to streaming
                 }
             } else {
-                LogManager.d(TAG, "Cache MISS for key: $key (lookup took ${cacheCheckDuration}ms) - content exists: ${contentFile != null}, metadata exists: ${metadataFile != null}")
+                // Check if a download is already in progress
+                if (activeDownloadStates.containsKey(key)) {
+                    LogManager.d(TAG, "Cache MISS but download in progress for key: $key (lookup took ${cacheCheckDuration}ms) - joining existing download")
+                } else {
+                    LogManager.d(TAG, "Cache MISS for key: $key (lookup took ${cacheCheckDuration}ms) - content exists: ${contentFile != null}, metadata exists: ${metadataFile != null}")
+                }
             }
 
             // REQ-FSV-04: Stream from remote while caching
             val originalUrl = getOriginalUrlForKey(key)
             if (originalUrl != null) {
                 LogManager.d(TAG, "Starting stream and cache for key: $key -> $originalUrl")
-                withContext(Dispatchers.Main) {
-                    streamAndCache(originalUrl, key, call)
-                }
+
+                // Parse range header if present
+                val rangeHeader = call.request.headers["Range"]
+                streamAndCache(originalUrl, key, call, rangeHeader)
             } else {
                 LogManager.w(TAG, "No original URL found for key: $key in URL mappings (${urlMappings.size} total mappings)")
-                withContext(Dispatchers.Main) {
-                    call.respond(HttpStatusCode.NotFound, "Content not found")
-                }
+                call.respond(HttpStatusCode.NotFound, "Content not found")
             }
         }
     }
     
-    private suspend fun streamAndCache(originalUrl: String, key: String, call: ApplicationCall) {
+    private suspend fun streamAndCache(originalUrl: String, key: String, call: ApplicationCall, rangeHeader: String? = null) {
         val streamStartTime = System.currentTimeMillis()
-        LogManager.d(TAG, "Starting streamAndCache for key: $key")
-        
-        downloadMutex.withLock {
+        LogManager.i(TAG, "=== streamAndCache ENTERED for key: $key, url: $originalUrl, range: $rangeHeader ===")
+
+        val downloadState = downloadMutex.withLock {
             // REQ-NF-02: Ensure only one download per URL
-            var downloadChannel = activeDownloads[key]
-            
-            if (downloadChannel == null) {
-                LogManager.d(TAG, "Starting new download for key: $key (active downloads: ${activeDownloads.size})")
+            var state = activeDownloadStates[key]
+
+            if (state == null) {
+                LogManager.i(TAG, "Starting NEW download for key: $key (active downloads: ${activeDownloadStates.size})")
                 // Start new download
-                downloadChannel = Channel(Channel.UNLIMITED)
-                activeDownloads[key] = downloadChannel
+                state = DownloadState()
+                activeDownloadStates[key] = state
+                LogManager.d(TAG, "Created new DownloadState for key: $key")
 
                 val downloadJob = scope.launch {
                     try {
-                        performDownloadAndCache(originalUrl, key, downloadChannel)
+                        LogManager.i(TAG, "Launching performDownloadAndCache in background coroutine for key: $key")
+                        performDownloadAndCache(originalUrl, key, state)
+                        LogManager.i(TAG, "performDownloadAndCache COMPLETED for key: $key")
                     } finally {
                         downloadMutex.withLock {
-                            activeDownloads.remove(key)
-                            activeDownloadJobs.remove(key)
-                            LogManager.v(TAG, "Removed download channel and job for key: $key (remaining: ${activeDownloads.size})")
+                            // Only remove if it's the same state we created
+                            if (activeDownloadStates[key] === state) {
+                                activeDownloadStates.remove(key)
+                                activeDownloadJobs.remove(key)
+                            }
                         }
-                        downloadChannel.close()
+                        LogManager.d(TAG, "Download job finished for key: $key")
                     }
                 }
                 activeDownloadJobs[key] = downloadJob
             } else {
                 LogManager.d(TAG, "Joining existing download for key: $key")
             }
-            
-            // Stream content to client
-            val streamSetupTime = System.currentTimeMillis() - streamStartTime
-            LogManager.v(TAG, "Stream setup completed in ${streamSetupTime}ms for key: $key")
-            streamFromDownload(downloadChannel, call, key)
+
+            state
         }
+
+        // Stream content to client
+        streamFromDownload(downloadState, call, key, rangeHeader)
+        LogManager.i(TAG, "=== streamAndCache EXITING for key: $key ===")
     }
-    
-    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadChannel: Channel<CachedContent>?) {
+
+    private suspend fun serveRangeRequest(
+        call: ApplicationCall,
+        contentFile: File,
+        metadata: CacheMetadata,
+        rangeHeader: String
+    ) = withContext(Dispatchers.IO) {
+        LogManager.d(TAG, "Serving range request: $rangeHeader")
+
+        // Parse range header: "bytes=start-end"
+        val rangeRegex = Regex("bytes=(\\d+)-(\\d*)")
+        val matchResult = rangeRegex.find(rangeHeader)
+
+        if (matchResult == null) {
+            LogManager.w(TAG, "Invalid range header: $rangeHeader")
+            val bytes = contentFile.readBytes()
+            withContext(Dispatchers.Main) {
+                call.respondBytes(bytes, ContentType.parse(metadata.contentType))
+            }
+            return@withContext
+        }
+
+        val start = matchResult.groupValues[1].toLongOrNull() ?: 0L
+        val totalLength = metadata.contentLength!!
+        val end = matchResult.groupValues[2].toLongOrNull() ?: (totalLength - 1)
+        val rangeLength = (end - start + 1).toInt()
+
+        LogManager.d(TAG, "Range: bytes $start-$end/$totalLength (${rangeLength} bytes)")
+
+        // Read the requested range
+        val rangeBytes = contentFile.inputStream().use { input ->
+            input.skip(start)
+            val buffer = ByteArray(rangeLength)
+            val bytesRead = input.read(buffer, 0, rangeLength)
+            buffer.copyOf(bytesRead)
+        }
+
+        // Set HTTP 206 Partial Content headers
+        withContext(Dispatchers.Main) {
+            call.response.status(HttpStatusCode.PartialContent)
+            call.response.headers.append("Content-Range", "bytes $start-$end/$totalLength")
+            call.response.headers.append("Content-Length", rangeBytes.size.toString())
+            call.response.headers.append("Accept-Ranges", "bytes")
+            call.response.headers.append("Cache-Control", "public, max-age=31536000")
+
+            LogManager.v(TAG, "Response (Range): 206 Partial Content")
+            LogManager.v(TAG, "Response Headers: ${call.response.headers.allValues().entries().joinToString { "${it.key}=${it.value}" }}")
+
+            val contentType = try {
+                ContentType.parse(metadata.contentType)
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Invalid content type: ${metadata.contentType}, using audio/mpeg")
+                ContentType.Audio.MPEG
+            }
+
+            call.respondBytes(rangeBytes, contentType)
+        }
+        LogManager.d(TAG, "Served ${rangeBytes.size} bytes for range request")
+    }
+
+    private suspend fun performDownloadAndCache(originalUrl: String, key: String, downloadState: DownloadState) {
         val downloadStartTime = System.currentTimeMillis()
-        LogManager.i(TAG, "Starting download and cache for: $originalUrl (key: $key)")
+        LogManager.i(TAG, "Starting streaming download for: $originalUrl (key: $key)")
 
         withContext(Dispatchers.IO) {
-            // Check circuit breaker state
+            // Check circuit breaker
             if (isCircuitBreakerOpen()) {
                 LogManager.w(TAG, "Cache circuit breaker is open - bypassing cache for key: $key")
-                streamDirectlyWithoutCaching(originalUrl, downloadChannel)
+                streamDirectlyWithoutCaching(originalUrl, downloadState)
                 return@withContext
             }
 
             // Check cache capacity before attempting to cache
             checkCacheCapacityAndCleanup()
 
+            var tempFile: File? = null
+
             try {
-                // REQ-FW-01: Use Ktor HTTP client to download
+                // OPTIMIZATION: Use prepareGet for true streaming (headers immediately available)
+                // This allows us to start serving content to the client as soon as headers arrive
+                // without waiting for the full body to download.
                 val httpStartTime = System.currentTimeMillis()
-                LogManager.d(TAG, "Starting HTTP request to: $originalUrl")
-                val response = httpClient.get(originalUrl)
-                val httpResponseTime = System.currentTimeMillis() - httpStartTime
+                LogManager.d(TAG, "Starting streaming request to: $originalUrl")
 
-                if (response.status != HttpStatusCode.OK) {
-                    LogManager.w(TAG, "HTTP error ${response.status} for URL: $originalUrl (after ${httpResponseTime}ms)")
-                    return@withContext
-                }
+                httpClient.prepareGet(originalUrl).execute { response ->
+                    val httpResponseTime = System.currentTimeMillis() - httpStartTime
 
-                LogManager.d(TAG, "HTTP response received in ${httpResponseTime}ms for: $originalUrl (status: ${response.status})")
-
-                // Get response as byte array - simple and reliable approach
-                val bodyStartTime = System.currentTimeMillis()
-                val responseBytes: ByteArray = response.body()
-                val bodyReadTime = System.currentTimeMillis() - bodyStartTime
-                LogManager.d(TAG, "Downloaded ${responseBytes.size} bytes in ${bodyReadTime}ms from: $originalUrl")
-
-                // Extract content type from response headers
-                val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
-                val contentLength = response.headers["Content-Length"]?.toLongOrNull()
-                LogManager.v(TAG, "Response headers - Content-Type: $contentTypeHeader, Content-Length: $contentLength")
-
-                val metadata = CacheMetadata(
-                    contentType = contentTypeHeader,
-                    contentLength = contentLength
-                )
-
-                // Store content in content cache
-                val contentWriteStartTime = System.currentTimeMillis()
-                val contentFile = contentCache.put(key.toContentKey()) { tempFile ->
-                    try {
-                        tempFile.writeBytes(responseBytes)
-                        true
-                    } catch (e: Exception) {
-                        LogManager.e(TAG, "Failed to write content to cache", e)
-                        false
+                    if (response.status != HttpStatusCode.OK) {
+                        LogManager.w(TAG, "HTTP error ${response.status} for URL: $originalUrl (after ${httpResponseTime}ms)")
+                        downloadState.error.value = Exception("HTTP ${response.status}")
+                        return@execute
                     }
-                }
 
-                if (contentFile == null) {
-                    recordCacheFailure()
-                    LogManager.w(TAG, "Failed to store content in cache for key: $key")
-                    streamDirectlyWithoutCaching(originalUrl, downloadChannel)
-                    return@withContext
-                }
+                    LogManager.d(TAG, "HTTP headers received in ${httpResponseTime}ms for: $originalUrl")
 
-                val contentWriteTime = System.currentTimeMillis() - contentWriteStartTime
-                LogManager.v(TAG, "Content written to cache in ${contentWriteTime}ms for key: $key")
+                    // Extract metadata immediately from headers
+                    val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
+                    val contentLength = response.headers["Content-Length"]?.toLongOrNull()
+                    LogManager.i(TAG, "📋 Received metadata from headers: Content-Type: $contentTypeHeader, Length: $contentLength")
 
-                // Store metadata in metadata cache
-                val metadataWriteStartTime = System.currentTimeMillis()
-                val metadataJson = json.encodeToString(metadata)
-                val metadataFile = metadataCache.put(key.toMetadataKey()) { tempFile ->
-                    try {
-                        tempFile.writeText(metadataJson)
-                        true
-                    } catch (e: Exception) {
-                        LogManager.e(TAG, "Failed to write metadata to cache", e)
-                        false
+                    val metadata = CacheMetadata(contentType = contentTypeHeader, contentLength = contentLength)
+
+                    // Store metadata IMMEDIATELY! This unblocks readers waiting on downloadState.metadata
+                    downloadState.metadata.value = metadata
+                    LogManager.i(TAG, "✅ Metadata stored from GET headers")
+
+                    // Create temp file for caching
+                    tempFile = File.createTempFile("cache_${key}_", ".tmp", contentCacheDir)
+                    downloadState.tempFile = tempFile
+                    LogManager.v(TAG, "Created temp file: ${tempFile!!.absolutePath}")
+
+                    // Get streaming channel directly from the response
+                    val channel: ByteReadChannel = response.body()
+
+                    var totalBytesRead = 0L
+                    val buffer = ByteArray(CHUNK_SIZE)
+                    var firstChunkTime = 0L
+                    var chunkCount = 0
+
+                    tempFile.outputStream().use { outputStream ->
+                        // Stream chunks: read from server, update state, write to cache
+                        while (!channel.isClosedForRead) {
+                            val chunkStartTime = System.currentTimeMillis()
+
+                            // Read chunk from server
+                            val bytesRead = channel.readAvailable(buffer, 0, CHUNK_SIZE)
+                            if (bytesRead == -1) break
+
+                            totalBytesRead += bytesRead
+                            chunkCount++
+
+                            // Write to cache file
+                            try {
+                                outputStream.write(buffer, 0, bytesRead)
+                                outputStream.flush() // Ensure data is visible to readers
+
+                                // Update downloaded bytes to notify readers
+                                downloadState.downloadedBytes.value = totalBytesRead
+
+                                if (firstChunkTime == 0L) {
+                                    firstChunkTime = System.currentTimeMillis()
+                                    val timeToFirstByte = firstChunkTime - httpStartTime
+                                    LogManager.i(TAG, "⚡ FIRST CHUNK received in ${timeToFirstByte}ms (${bytesRead} bytes)")
+                                }
+                            } catch (e: Exception) {
+                                LogManager.e(TAG, "Failed to write chunk to cache", e)
+                                recordCacheFailure()
+                                // We continue even if caching fails, though this might be problematic for readers
+                                // In a real Tailing File Reader, if writing fails, we might need to notify error
+                                downloadState.error.value = e
+                                break
+                            }
+
+                            val chunkReadTime = System.currentTimeMillis() - chunkStartTime
+                            if (chunkCount % 50 == 0) {  // Log less frequently
+                                LogManager.v(TAG, "Downloaded chunk #$chunkCount: $bytesRead bytes in ${chunkReadTime}ms (total: $totalBytesRead)")
+                            }
+                        }
                     }
+
+                    // Download complete
+                    downloadState.isComplete.value = true
+
+                    val totalDownloadTime = System.currentTimeMillis() - downloadStartTime
+                    val downloadSpeedMBps = if (totalDownloadTime > 0) {
+                        (totalBytesRead / 1024.0 / 1024.0) / (totalDownloadTime / 1000.0)
+                    } else 0.0
+
+                    LogManager.i(TAG, "📥 DOWNLOAD COMPLETE: $totalBytesRead bytes in ${totalDownloadTime}ms (${String.format("%.2f", downloadSpeedMBps)} MB/s, $chunkCount chunks)")
+
+                    // CRITICAL FIX #2: Signal that finalization is starting
+                    // This prevents streaming clients from trying to access the temp file while it's being moved
+                    downloadState.isFinalizing.value = true
+                    LogManager.v(TAG, "Starting cache finalization for key: $key")
+
+                    // Finalize cache
+                    finalizeCacheFiles(key, tempFile!!, metadata)
+                    recordCacheSuccess()
+                    LogManager.i(TAG, "Successfully cached $totalBytesRead bytes for key: $key")
+
+                    // CRITICAL FIX #2: Clear finalizing flag to allow clients to switch to cached file
+                    downloadState.isFinalizing.value = false
+                    LogManager.v(TAG, "Cache finalization complete for key: $key")
                 }
-
-                if (metadataFile == null) {
-                    recordCacheFailure()
-                    // Rollback content if metadata storage fails
-                    contentCache.remove(key.toContentKey())
-                    LogManager.w(TAG, "Failed to store metadata in cache for key: $key, rolled back content")
-                    streamDirectlyWithoutCaching(originalUrl, downloadChannel)
-                    return@withContext
-                }
-
-                val metadataWriteTime = System.currentTimeMillis() - metadataWriteStartTime
-                LogManager.v(TAG, "Metadata written to cache in ${metadataWriteTime}ms for key: $key")
-
-                // Send to all waiting clients
-                val cachedContent = CachedContent(responseBytes, metadata)
-                val channelResult = downloadChannel?.trySend(cachedContent)
-                LogManager.v(TAG, "Content sent to download channel: ${channelResult?.isSuccess ?: "no channel"}")
-
-                recordCacheSuccess() // Record successful cache operation
-                val totalDownloadTime = System.currentTimeMillis() - downloadStartTime
-                LogManager.i(TAG, "Successfully cached ${responseBytes.size} bytes with content-type $contentTypeHeader for key: $key (total: ${totalDownloadTime}ms)")
 
             } catch (e: Exception) {
                 val failureTime = System.currentTimeMillis() - downloadStartTime
                 LogManager.e(TAG, "Download failed for URL: $originalUrl after ${failureTime}ms", e)
                 recordCacheFailure()
-                // Cleanup any partially written cache entries
+                downloadState.error.value = e
+
+                // CRITICAL FIX #2: Clear finalizing flag on error
+                downloadState.isFinalizing.value = false
+
+                // Clean up
+                tempFile?.delete()
                 contentCache.remove(key.toContentKey())
                 metadataCache.remove(key.toMetadataKey())
             }
+        }
+    }
+
+    private suspend fun finalizeCacheFiles(
+        key: String,
+        tempFile: File,
+        metadata: CacheMetadata
+    ) = withContext(Dispatchers.IO) {
+        try {
+            // Move temp file to cache
+            val cacheWriteStartTime = System.currentTimeMillis()
+
+            val contentFile = contentCache.put(key.toContentKey()) { targetFile ->
+                try {
+                    tempFile.copyTo(targetFile, overwrite = true)
+                    tempFile.delete()
+                    true
+                } catch (e: Exception) {
+                    LogManager.e(TAG, "Failed to move temp file to cache", e)
+                    false
+                }
+            }
+
+            if (contentFile == null) {
+                recordCacheFailure()
+                LogManager.w(TAG, "Failed to store content in cache for key: $key")
+                tempFile.delete()
+                return@withContext
+            }
+
+            val cacheWriteTime = System.currentTimeMillis() - cacheWriteStartTime
+            LogManager.v(TAG, "Content finalized in cache in ${cacheWriteTime}ms for key: $key")
+
+            // Store metadata
+            val metadataJson = json.encodeToString(metadata)
+            val metadataFile = metadataCache.put(key.toMetadataKey()) { targetFile ->
+                try {
+                    targetFile.writeText(metadataJson)
+                    true
+                } catch (e: Exception) {
+                    LogManager.e(TAG, "Failed to write metadata to cache", e)
+                    false
+                }
+            }
+
+            if (metadataFile == null) {
+                recordCacheFailure()
+                contentCache.remove(key.toContentKey())
+                LogManager.w(TAG, "Failed to store metadata, rolled back content for key: $key")
+                return@withContext
+            }
+
+            LogManager.d(TAG, "Cache finalization complete for key: $key")
+
+        } catch (e: Exception) {
+            LogManager.e(TAG, "Error finalizing cache files", e)
+            tempFile.delete()
+            throw e
         }
     }
 
@@ -557,89 +863,276 @@ class CacheManager private constructor(
         }
     }
 
-    private suspend fun streamDirectlyWithoutCaching(originalUrl: String, downloadChannel: Channel<CachedContent>?) {
+    private suspend fun streamDirectlyWithoutCaching(originalUrl: String, downloadState: DownloadState) {
         val streamStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Starting direct streaming (no caching) for: $originalUrl")
 
         withContext(Dispatchers.IO) {
             try {
+                // OPTIMIZATION: Use prepareGet for true streaming (headers immediately available)
                 val httpStartTime = System.currentTimeMillis()
-                LogManager.d(TAG, "Starting direct HTTP request to: $originalUrl")
-                val response = httpClient.get(originalUrl)
-                val httpResponseTime = System.currentTimeMillis() - httpStartTime
+                LogManager.d(TAG, "Starting parallel HEAD and GET requests for direct streaming: $originalUrl")
 
-                if (response.status != HttpStatusCode.OK) {
-                    LogManager.w(TAG, "Direct HTTP error ${response.status} for URL: $originalUrl")
-                    downloadChannel?.close()
-                    return@withContext
+                httpClient.prepareGet(originalUrl).execute { response ->
+                    val httpResponseTime = System.currentTimeMillis() - httpStartTime
+
+                    if (response.status != HttpStatusCode.OK) {
+                        LogManager.w(TAG, "Direct HTTP error ${response.status} for URL: $originalUrl")
+                        downloadState.error.value = Exception("HTTP ${response.status}")
+                        return@execute
+                    }
+
+                    LogManager.d(TAG, "Direct HTTP headers received in ${httpResponseTime}ms for: $originalUrl")
+
+                    // Extract metadata immediately from headers
+                    val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
+                    val contentLength = response.headers["Content-Length"]?.toLongOrNull()
+                    val metadata = CacheMetadata(contentType = contentTypeHeader, contentLength = contentLength)
+
+                    // Store metadata immediately
+                    downloadState.metadata.value = metadata
+                    LogManager.i(TAG, "✅ Direct metadata stored from HEADers in ${httpResponseTime}ms")
+
+                    // Create temp file anyway for direct streaming to support multiple clients
+                    val tempFile = File.createTempFile("direct_${System.currentTimeMillis()}_", ".tmp", contentCacheDir)
+                    downloadState.tempFile = tempFile
+
+                    // Stream using ByteReadChannel
+                    val channel: ByteReadChannel = response.body()
+                    val buffer = ByteArray(CHUNK_SIZE)
+                    var totalBytesRead = 0L
+                    var chunkCount = 0
+
+                    tempFile.outputStream().use { outputStream ->
+                        while (!channel.isClosedForRead) {
+                            val bytesRead = channel.readAvailable(buffer, 0, CHUNK_SIZE)
+                            if (bytesRead == -1) break
+
+                            outputStream.write(buffer, 0, bytesRead)
+                            outputStream.flush()
+
+                            totalBytesRead += bytesRead
+                            chunkCount++
+
+                            downloadState.downloadedBytes.value = totalBytesRead
+                        }
+                    }
+
+                    // Send completion
+                    downloadState.isComplete.value = true
+
+                    val totalStreamTime = System.currentTimeMillis() - streamStartTime
+                    LogManager.i(TAG, "Direct streaming completed successfully for ${totalBytesRead} bytes in ${totalStreamTime}ms")
+
+                    // Schedule deletion of temp file
+                    scope.launch {
+                        delay(30000) // Keep for 30s for any trailing clients
+                        tempFile.delete()
+                    }
                 }
-
-                LogManager.d(TAG, "Direct HTTP response received in ${httpResponseTime}ms for: $originalUrl")
-
-                // Get response as byte array
-                val bodyStartTime = System.currentTimeMillis()
-                val responseBytes: ByteArray = response.body()
-                val bodyReadTime = System.currentTimeMillis() - bodyStartTime
-                LogManager.d(TAG, "Direct download ${responseBytes.size} bytes in ${bodyReadTime}ms from: $originalUrl")
-
-                // Extract content type from response headers
-                val contentTypeHeader = response.headers["Content-Type"] ?: "audio/mpeg"
-                val contentLength = response.headers["Content-Length"]?.toLongOrNull()
-
-                val metadata = CacheMetadata(
-                    contentType = contentTypeHeader,
-                    contentLength = contentLength
-                )
-
-                // Send to waiting clients
-                val cachedContent = CachedContent(responseBytes, metadata)
-                val channelResult = downloadChannel?.trySend(cachedContent)
-                LogManager.v(TAG, "Direct content sent to download channel: ${channelResult?.isSuccess ?: "no channel"}")
-
-                val totalStreamTime = System.currentTimeMillis() - streamStartTime
-                LogManager.i(TAG, "Direct streaming completed successfully for ${responseBytes.size} bytes in ${totalStreamTime}ms")
 
             } catch (e: Exception) {
                 val failureTime = System.currentTimeMillis() - streamStartTime
                 LogManager.e(TAG, "Direct streaming failed for URL: $originalUrl after ${failureTime}ms", e)
-                downloadChannel?.close()
+                downloadState.error.value = e
             }
         }
     }
 
-    private suspend fun streamFromDownload(downloadChannel: Channel<CachedContent>, call: ApplicationCall, key: String) {
+    private suspend fun streamFromDownload(downloadState: DownloadState, call: ApplicationCall, key: String, rangeHeader: String? = null) {
         val streamStartTime = System.currentTimeMillis()
-        LogManager.d(TAG, "Waiting for download content to stream for key: $key")
-        
+        LogManager.i(TAG, "🎵 STREAM START - Setting up streaming response for key: $key, range: $rangeHeader")
+
         try {
-            // Wait for and serve the complete download
-            val receiveStartTime = System.currentTimeMillis()
-            val cachedContent = downloadChannel.receive()
-            val receiveTime = System.currentTimeMillis() - receiveStartTime
-            LogManager.d(TAG, "Received ${cachedContent.bytes.size} bytes from download channel in ${receiveTime}ms for key: $key")
-            
-            val responseStartTime = System.currentTimeMillis()
-            call.response.headers.append("Content-Type", cachedContent.metadata.contentType)
-            call.response.headers.append("Cache-Control", "public, max-age=31536000")
-            call.response.headers.append("Content-Length", cachedContent.bytes.size.toString())
-            
-            // Use the actual content type from the download
+            // 1. Wait for metadata to be available
+            val metadata = withTimeoutOrNull(30000) {
+                downloadState.metadata.filterNotNull().first()
+            }
+
+            if (metadata == null) {
+                LogManager.e(TAG, "Timeout waiting for metadata for key: $key")
+                call.respond(HttpStatusCode.GatewayTimeout, "Timeout waiting for metadata")
+                return
+            }
+
+            LogManager.i(TAG, "📋 Received metadata: ${metadata.contentType}, length: ${metadata.contentLength}")
+
+            // 2. Parse Range header if present
+            var startOffset = 0L
+            var endOffset = (metadata.contentLength ?: 0L) - 1
+
+            if (rangeHeader != null) {
+                val rangeRegex = Regex("bytes=(\\d+)-(\\d*)")
+                val matchResult = rangeRegex.find(rangeHeader)
+                if (matchResult != null) {
+                    startOffset = matchResult.groupValues[1].toLong()
+                    val endStr = matchResult.groupValues[2]
+                    if (endStr.isNotEmpty()) {
+                        endOffset = endStr.toLong()
+                    }
+                    LogManager.i(TAG, "Parsed Range: $startOffset-$endOffset")
+                }
+            }
+
+            // 3. Set response headers
             val contentType = try {
-                ContentType.parse(cachedContent.metadata.contentType)
+                ContentType.parse(metadata.contentType)
             } catch (e: Exception) {
-                LogManager.w(TAG, "Invalid content type: ${cachedContent.metadata.contentType}, using audio/mpeg")
                 ContentType.Audio.MPEG
             }
-            
-            call.respondBytes(cachedContent.bytes, contentType)
-            
-            val responseTime = System.currentTimeMillis() - responseStartTime
+
+            val responseStatus = if (rangeHeader != null) HttpStatusCode.PartialContent else HttpStatusCode.OK
+            if (rangeHeader != null) {
+                val totalLength = metadata.contentLength ?: "*"
+                call.response.headers.append("Content-Range", "bytes $startOffset-$endOffset/$totalLength")
+            }
+
+            LogManager.v(TAG, "Response (Streaming): $responseStatus")
+            LogManager.v(TAG, "Response Headers: ${call.response.headers.allValues().entries().joinToString { "${it.key}=${it.value}" }}")
+
+            // 4. Start streaming with Tailing Reader
+            val responseLength = if (metadata.contentLength != null) endOffset - startOffset + 1 else null
+            call.respondBytesWriter(status = responseStatus, contentType = contentType, contentLength = responseLength) {
+                LogManager.i(TAG, "📡 ByteWriteChannel opened - tailing file for key: $key starting at $startOffset")
+
+                var currentOffset = startOffset
+                val buffer = ByteArray(CHUNK_SIZE)
+                var firstDataReceived = false
+                var chunkCount = 0
+                var fileNotFoundRetryCount = 0  // CRITICAL FIX #3: Infinite loop protection
+                val MAX_FILE_NOT_FOUND_RETRIES = 50  // 5 seconds max (50 * 100ms)
+
+                while (currentOffset <= endOffset) {
+                    // Check for errors
+                    val error = downloadState.error.value
+                    if (error != null) {
+                        LogManager.e(TAG, "Error in download stream for key: $key", error)
+                        break
+                    }
+
+                    val availableBytes = downloadState.downloadedBytes.value
+                    val isComplete = downloadState.isComplete.value
+                    val isFinalizing = downloadState.isFinalizing.value
+
+                    if (currentOffset < availableBytes) {
+                        // There is data to read
+                        var fileToRead = downloadState.tempFile
+
+                        // CRITICAL FIX #2: Handle finalization phase - wait for it to complete
+                        if ((fileToRead == null || !fileToRead.exists()) && isFinalizing) {
+                            LogManager.d(TAG, "Temp file is being finalized, waiting for completion for key: $key")
+                            delay(50)  // Short wait for finalization to complete
+                            continue
+                        }
+
+                        // Handle race condition: Temp file might be moved to cache if download completed
+                        if ((fileToRead == null || !fileToRead.exists()) && isComplete && !isFinalizing) {
+                            val cachedFile = contentCache.get(key.toContentKey())
+                            if (cachedFile != null && cachedFile.exists()) {
+                                LogManager.d(TAG, "Temp file gone but download complete - switching to cached file for key: $key")
+                                fileToRead = cachedFile
+                                fileNotFoundRetryCount = 0  // Reset retry count on successful switch
+                            }
+                        }
+
+                        if (fileToRead == null || !fileToRead.exists()) {
+                            if (isComplete) {
+                                LogManager.w(TAG, "Source file missing and download complete for key: $key - stream may be incomplete")
+                                break
+                            }
+                            // CRITICAL FIX #3: Infinite loop protection
+                            fileNotFoundRetryCount++
+                            if (fileNotFoundRetryCount >= MAX_FILE_NOT_FOUND_RETRIES) {
+                                LogManager.e(TAG, "File not found after $MAX_FILE_NOT_FOUND_RETRIES retries for key: $key - giving up")
+                                break
+                            }
+                            // Wait a bit for file to be created
+                            delay(100)
+                            continue
+                        }
+
+                        // Reset retry count on successful file access
+                        fileNotFoundRetryCount = 0
+
+                        try {
+                            fileToRead.inputStream().use { input ->
+                                input.skip(currentOffset)
+                                while (currentOffset < availableBytes && currentOffset <= endOffset) {
+                                    val remainingInResponse = endOffset - currentOffset + 1
+                                    val toRead = (availableBytes - currentOffset)
+                                        .coerceAtMost(CHUNK_SIZE.toLong())
+                                        .coerceAtMost(remainingInResponse)
+                                        .toInt()
+
+                                    if (toRead <= 0) break
+
+                                    val bytesRead = input.read(buffer, 0, toRead)
+                                    if (bytesRead == -1) break
+
+                                    try {
+                                        writeFully(buffer, 0, bytesRead)
+                                        flush()
+                                    } catch (e: IOException) {
+                                        if (e.message?.contains("Broken pipe") == true || e.message?.contains("Channel is closed") == true) {
+                                            LogManager.d(TAG, "Client disconnected (channel closed) for key: $key")
+                                            return@respondBytesWriter
+                                        }
+                                        throw e
+                                    }
+
+                                    currentOffset += bytesRead
+                                    chunkCount++
+
+                                    if (!firstDataReceived) {
+                                        val timeToFirstData = System.currentTimeMillis() - streamStartTime
+                                        LogManager.i(TAG, "⚡ FIRST DATA CHUNK - Streaming to client after ${timeToFirstData}ms! (at offset $startOffset)")
+                                        firstDataReceived = true
+                                    }
+
+                                    if (chunkCount % 100 == 0) {
+                                        LogManager.v(TAG, "Streamed $currentOffset bytes to client for key: $key")
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is IOException && (e.message?.contains("Broken pipe") == true || e.message?.contains("Channel is closed") == true)) {
+                                LogManager.d(TAG, "Client disconnected (channel closed) during read/open for key: $key")
+                                return@respondBytesWriter
+                            }
+                            // If the file disappeared while we were trying to open it, loop around and try to find the cached file
+                            LogManager.w(TAG, "Error reading from file for key: $key - retrying loop", e)
+                        }
+                    } else if (isComplete) {
+                        // Reached end of file and download is finished
+                        LogManager.i(TAG, "🎉 STREAMING COMPLETE - Sent up to $currentOffset bytes for key: $key")
+                        break
+                    } else {
+                        // Wait for more data
+                        try {
+                            withTimeout(5000) {
+                                downloadState.downloadedBytes.filter { it > currentOffset }.first()
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            // Check again, don't just hang forever if notifications failed
+                            // If download is complete, we can read from the cached file
+                            if (downloadState.isComplete.value) {
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+
             val totalStreamTime = System.currentTimeMillis() - streamStartTime
-            LogManager.d(TAG, "Finished streaming ${cachedContent.bytes.size} bytes with content-type ${cachedContent.metadata.contentType} for key: $key (total: ${totalStreamTime}ms, response: ${responseTime}ms)")
-            
+            LogManager.i(TAG, "📊 SUMMARY - Total stream duration: ${totalStreamTime}ms for key: $key")
+
         } catch (e: Exception) {
-            val errorTime = System.currentTimeMillis() - streamStartTime
-            LogManager.e(TAG, "Error streaming content for key: $key after ${errorTime}ms", e)
+            if (e is IOException && e.message?.contains("Broken pipe") == true) {
+                LogManager.d(TAG, "Stream disconnected (Broken pipe) for key: $key")
+            } else {
+                val errorTime = System.currentTimeMillis() - streamStartTime
+                LogManager.e(TAG, "Error streaming content for key: $key after ${errorTime}ms", e)
+            }
         }
     }
 
@@ -649,7 +1142,12 @@ class CacheManager private constructor(
         scope.launch {
             val preloadStartTime = System.currentTimeMillis()
             try {
-                performDownloadAndCache(url, key, null)
+                val state = downloadMutex.withLock {
+                    val s = DownloadState()
+                    activeDownloadStates[key] = s
+                    s
+                }
+                performDownloadAndCache(url, key, state)
                 val preloadTime = System.currentTimeMillis() - preloadStartTime
                 LogManager.i(TAG, "Preload completed for URL: $url in ${preloadTime}ms")
             } catch (e: Exception) {
@@ -657,7 +1155,7 @@ class CacheManager private constructor(
                 LogManager.e(TAG, "Preload failed for URL: $url after ${preloadTime}ms", e)
             } finally {
                 downloadMutex.withLock {
-                    activeDownloads.remove(key)
+                    activeDownloadStates.remove(key)
                 }
             }
         }
@@ -725,14 +1223,13 @@ class CacheManager private constructor(
                     activeDownloadJobs.remove(key)
                 }
 
-                // Close and remove the download channel
-                activeDownloads[key]?.let { channel ->
-                    LogManager.d(TAG, "Closing download channel for key: $key")
-                    channel.close()
-                    activeDownloads.remove(key)
+                // Remove the download state
+                activeDownloadStates[key]?.let { state ->
+                    LogManager.d(TAG, "Removing download state for key: $key")
+                    activeDownloadStates.remove(key)
                 }
 
-                LogManager.d(TAG, "Download cancelled successfully for key: $key (remaining downloads: ${activeDownloads.size})")
+                LogManager.d(TAG, "Download cancelled successfully for key: $key (remaining downloads: ${activeDownloadStates.size})")
             } catch (e: Exception) {
                 LogManager.w(TAG, "Error cancelling download for key: $key", e)
             }
@@ -743,7 +1240,7 @@ class CacheManager private constructor(
      * Cancel all active downloads
      */
     suspend fun cancelAllDownloads() {
-        LogManager.i(TAG, "Cancelling all active downloads (${activeDownloads.size} total)")
+        LogManager.i(TAG, "Cancelling all active downloads (${activeDownloadStates.size} total)")
 
         downloadMutex.withLock {
             try {
@@ -757,15 +1254,8 @@ class CacheManager private constructor(
                 }
                 activeDownloadJobs.clear()
 
-                // Close all download channels
-                activeDownloads.values.forEach { channel ->
-                    try {
-                        channel.close()
-                    } catch (e: Exception) {
-                        LogManager.w(TAG, "Error closing download channel", e)
-                    }
-                }
-                activeDownloads.clear()
+                // Clear all download states
+                activeDownloadStates.clear()
 
                 LogManager.i(TAG, "All downloads cancelled successfully")
             } catch (e: Exception) {
@@ -878,7 +1368,7 @@ class CacheManager private constructor(
     suspend fun shutdown() = withContext(Dispatchers.IO) {
         val shutdownStartTime = System.currentTimeMillis()
         LogManager.i(TAG, "Shutting down CacheManager")
-        LogManager.d(TAG, "Active downloads at shutdown: ${activeDownloads.size}")
+        LogManager.d(TAG, "Active download states at shutdown: ${activeDownloadStates.size}")
         LogManager.d(TAG, "Active download jobs at shutdown: ${activeDownloadJobs.size}")
         LogManager.d(TAG, "URL mappings at shutdown: ${urlMappings.size}")
 

@@ -192,102 +192,122 @@ object LogManager {
      */
     fun getLogCount(): Int = logEntries.size
 
+    private fun formatMessage(level: Log.LogLevel, tag: String, msg: String, throwable: Throwable? = null): String {
+        return "[${Log(level = level, tag = tag, message = msg, throwable = throwable).getFormattedTime()}] $msg"
+    }
+
     // Wrapper methods for Kermit Logger calls to capture in memory
 
     fun v(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.VERBOSE, tag, msg)
         if (shouldLogLevel(Log.LogLevel.VERBOSE)) {
-            Logger.withTag(tag).v(msg)
+            Logger.withTag(tag).v(formattedMsg)
         }
         addLogEntry(Log.LogLevel.VERBOSE, tag, msg)
     }
 
     fun v(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.VERBOSE, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.VERBOSE)) {
-            Logger.withTag(tag).v(tr) { msg }
+            Logger.withTag(tag).v(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.VERBOSE, tag, msg, tr)
     }
 
     fun d(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.DEBUG, tag, msg)
         if (shouldLogLevel(Log.LogLevel.DEBUG)) {
-            Logger.withTag(tag).d(msg)
+            Logger.withTag(tag).d(formattedMsg)
         }
         addLogEntry(Log.LogLevel.DEBUG, tag, msg)
     }
 
     fun d(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.DEBUG, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.DEBUG)) {
-            Logger.withTag(tag).d(tr) { msg }
+            Logger.withTag(tag).d(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.DEBUG, tag, msg, tr)
     }
 
     fun i(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.INFO, tag, msg)
         if (shouldLogLevel(Log.LogLevel.INFO)) {
-            Logger.withTag(tag).i(msg)
+            Logger.withTag(tag).i(formattedMsg)
         }
         addLogEntry(Log.LogLevel.INFO, tag, msg)
     }
 
     fun i(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.INFO, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.INFO)) {
-            Logger.withTag(tag).i(tr) { msg }
+            Logger.withTag(tag).i(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.INFO, tag, msg, tr)
     }
 
     fun w(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg)
         if (shouldLogLevel(Log.LogLevel.WARN)) {
-            Logger.withTag(tag).w(msg)
+            Logger.withTag(tag).w(formattedMsg)
         }
         addLogEntry(Log.LogLevel.WARN, tag, msg)
     }
 
     fun w(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.WARN)) {
-            Logger.withTag(tag).w(tr) { msg }
+            Logger.withTag(tag).w(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.WARN, tag, msg, tr)
     }
 
     fun w(tag: String, tr: Throwable) {
+        val msg = tr.message ?: "Exception"
+        val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.WARN)) {
-            Logger.withTag(tag).w(tr) { tr.message ?: "Exception" }
+            Logger.withTag(tag).w(tr) { formattedMsg }
         }
-        addLogEntry(Log.LogLevel.WARN, tag, tr.message ?: "Exception", tr)
+        addLogEntry(Log.LogLevel.WARN, tag, msg, tr)
     }
 
     fun e(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.ERROR, tag, msg)
         if (shouldLogLevel(Log.LogLevel.ERROR)) {
-            Logger.withTag(tag).e(msg)
+            Logger.withTag(tag).e(formattedMsg)
         }
         addLogEntry(Log.LogLevel.ERROR, tag, msg)
     }
 
     fun e(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.ERROR, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.ERROR)) {
-            Logger.withTag(tag).e(tr) { msg }
+            Logger.withTag(tag).e(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.ERROR, tag, msg, tr)
     }
 
     fun wtf(tag: String, msg: String) {
+        val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg)
         if (shouldLogLevel(Log.LogLevel.ASSERT)) {
-            Logger.withTag(tag).e(msg) // Kermit doesn't have wtf, use error
+            Logger.withTag(tag).e(formattedMsg) // Kermit doesn't have wtf, use error
         }
         addLogEntry(Log.LogLevel.ASSERT, tag, msg)
     }
 
     fun wtf(tag: String, tr: Throwable) {
+        val msg = tr.message ?: "WTF Exception"
+        val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.ASSERT)) {
-            Logger.withTag(tag).e(tr) { tr.message ?: "WTF Exception" }
+            Logger.withTag(tag).e(tr) { formattedMsg }
         }
-        addLogEntry(Log.LogLevel.ASSERT, tag, tr.message ?: "WTF Exception", tr)
+        addLogEntry(Log.LogLevel.ASSERT, tag, msg, tr)
     }
 
     fun wtf(tag: String, msg: String, tr: Throwable) {
+        val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg, tr)
         if (shouldLogLevel(Log.LogLevel.ASSERT)) {
-            Logger.withTag(tag).e(tr) { msg }
+            Logger.withTag(tag).e(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.ASSERT, tag, msg, tr)
     }
