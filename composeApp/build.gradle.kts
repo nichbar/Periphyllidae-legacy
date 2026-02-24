@@ -158,7 +158,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "now.link.periphyllidae"
+            packageName = "Periphyllidae"
             packageVersion = "1.0.0"
 
             // Configure appResources for VLC binaries

@@ -62,6 +62,8 @@ class CacheManager private constructor(
         private const val WARNING_THRESHOLD_PERCENTAGE = 0.90  // Warn at 90% capacity
         private const val CLEANUP_THRESHOLD_PERCENTAGE = 0.95   // Force cleanup at 95% capacity
         private const val CHUNK_SIZE = 256 * 1024 // 64KB chunks for streaming
+        private const val STREAM_NO_PROGRESS_TIMEOUT_MS = 15_000L
+        private const val STREAM_NO_PROGRESS_MAX_ITERATIONS = 180
 
         /**
          * Clean corrupted or invalid files from cache directories that could cause
@@ -1002,7 +1004,11 @@ class CacheManager private constructor(
                 var fileNotFoundRetryCount = 0  // CRITICAL FIX #3: Infinite loop protection
                 val MAX_FILE_NOT_FOUND_RETRIES = 50  // 5 seconds max (50 * 100ms)
 
-                while (currentOffset <= endOffset) {
+                var previousOffset = currentOffset
+                var lastProgressAt = System.currentTimeMillis()
+                var noProgressIterations = 0
+
+                while (currentOffset <= endOffset && currentCoroutineContext().isActive) {
                     // Check for errors
                     val error = downloadState.error.value
                     if (error != null) {
@@ -1013,6 +1019,26 @@ class CacheManager private constructor(
                     val availableBytes = downloadState.downloadedBytes.value
                     val isComplete = downloadState.isComplete.value
                     val isFinalizing = downloadState.isFinalizing.value
+
+                    if (currentOffset > previousOffset) {
+                        previousOffset = currentOffset
+                        lastProgressAt = System.currentTimeMillis()
+                        noProgressIterations = 0
+                    } else {
+                        noProgressIterations++
+                        val noProgressForMs = System.currentTimeMillis() - lastProgressAt
+                        if (
+                            !isComplete &&
+                            noProgressIterations >= STREAM_NO_PROGRESS_MAX_ITERATIONS &&
+                            noProgressForMs >= STREAM_NO_PROGRESS_TIMEOUT_MS
+                        ) {
+                            LogManager.w(
+                                TAG,
+                                "Stream no-progress watchdog triggered for key=$key: offset=$currentOffset, available=$availableBytes, noProgressMs=${noProgressForMs}, iterations=$noProgressIterations"
+                            )
+                            break
+                        }
+                    }
 
                     if (currentOffset < availableBytes) {
                         // There is data to read
@@ -1057,7 +1083,7 @@ class CacheManager private constructor(
                         try {
                             fileToRead.inputStream().use { input ->
                                 input.skip(currentOffset)
-                                while (currentOffset < availableBytes && currentOffset <= endOffset) {
+                                while (currentOffset < availableBytes && currentOffset <= endOffset && currentCoroutineContext().isActive) {
                                     val remainingInResponse = endOffset - currentOffset + 1
                                     val toRead = (availableBytes - currentOffset)
                                         .coerceAtMost(CHUNK_SIZE.toLong())

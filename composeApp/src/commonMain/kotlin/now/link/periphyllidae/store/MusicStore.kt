@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.mvi.MusicState
 import now.link.periphyllidae.repository.SubsonicRepositoryManager
@@ -26,6 +27,8 @@ class MusicStore(
 ) {
     companion object {
         private const val TAG = "MusicStore"
+        private const val POSITION_PERSIST_THROTTLE_MS = 10_000L
+        private const val PERSISTENCE_DIAGNOSTIC_WINDOW_MS = 60_000L
     }
 
     // Use shared application scope to prevent memory leaks
@@ -33,6 +36,11 @@ class MusicStore(
 
     // Track which song IDs have been scrobbled in this session
     private val scrobbledSongIds = mutableSetOf<String>()
+
+    private var lastPositionPersistAtMs = 0L
+    private var lastPersistedSongId: String? = null
+    private var persistenceWriteCountInWindow = 0
+    private var persistenceWindowStartMs = 0L
 
     private val _state = MutableStateFlow(MusicState())
     val state: StateFlow<MusicState> = _state.asStateFlow()
@@ -68,6 +76,7 @@ class MusicStore(
         when (intent) {
             is MusicIntent.Play -> play()
             is MusicIntent.Pause -> pause()
+            is MusicIntent.Stop -> stop()
             is MusicIntent.Next -> next()
             is MusicIntent.Previous -> previous()
             is MusicIntent.SeekTo -> seekTo(intent.position)
@@ -123,6 +132,14 @@ class MusicStore(
         musicPlayer.pause()
         // State will be updated automatically through observers
         LogManager.i(TAG, "Playback paused")
+    }
+
+    private fun stop() {
+        LogManager.d(TAG, "Stop requested")
+        // Keep queue/current song so playback can resume after notification stop.
+        musicPlayer.pause()
+        // State will be updated automatically through observers
+        LogManager.i(TAG, "Playback stopped (queue preserved)")
     }
 
     private fun next() {
@@ -565,6 +582,34 @@ class MusicStore(
         settingsRepository.saveCurrentSongPosition(currentState.currentPosition)
 //        LogManager.v(TAG, "Playback state persisted: index=${currentState.currentIndex}, position=${currentState.currentPosition}ms")
     }
+
+    private fun maybePersistPlaybackPosition(songId: String?) {
+        val nowMs = Clock.System.now().toEpochMilliseconds()
+
+        if (songId != null && songId != lastPersistedSongId) {
+            lastPersistedSongId = songId
+            lastPositionPersistAtMs = 0L
+        }
+
+        if (lastPositionPersistAtMs == 0L || nowMs - lastPositionPersistAtMs >= POSITION_PERSIST_THROTTLE_MS) {
+            persistPlaybackState()
+            lastPositionPersistAtMs = nowMs
+
+            if (persistenceWindowStartMs == 0L) {
+                persistenceWindowStartMs = nowMs
+            }
+            persistenceWriteCountInWindow++
+
+            if (nowMs - persistenceWindowStartMs >= PERSISTENCE_DIAGNOSTIC_WINDOW_MS) {
+                LogManager.d(
+                    TAG,
+                    "Playback position persistence cadence: writes=$persistenceWriteCountInWindow in ${PERSISTENCE_DIAGNOSTIC_WINDOW_MS / 1000}s"
+                )
+                persistenceWindowStartMs = nowMs
+                persistenceWriteCountInWindow = 0
+            }
+        }
+    }
     
     private fun loadPersistedVolume() {
         LogManager.d(TAG, "Loading persisted volume")
@@ -629,10 +674,8 @@ class MusicStore(
                 if (currentState.currentPosition != position) {
                     _state.value = currentState.copy(currentPosition = position)
                     
-                    // Persist position periodically (every 10 seconds to avoid too frequent writes)
-                    if (position % 10000 < 1000) { // roughly every 10 seconds
-                        persistPlaybackState()
-                    }
+                    // Persist position with monotonic time-based throttling
+                    maybePersistPlaybackPosition(currentState.currentSong?.id)
 
                     // Scrobble logic: report to Subsonic if >60% played and not yet reported
                     val song = currentState.currentSong

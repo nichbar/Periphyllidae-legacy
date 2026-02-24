@@ -92,6 +92,7 @@ sealed interface MusicIntent : Intent {
     // Playback controls
     object Play : MusicIntent
     object Pause : MusicIntent
+    object Stop : MusicIntent
     object Next : MusicIntent
     object Previous : MusicIntent
     data class SeekTo(val position: Long) : MusicIntent

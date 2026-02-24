@@ -14,7 +14,7 @@ object MusicIntentConverter {
             MusicService.ACTION_PAUSE -> MusicIntent.Pause
             MusicService.ACTION_NEXT -> MusicIntent.Next
             MusicService.ACTION_PREVIOUS -> MusicIntent.Previous
-            MusicService.ACTION_STOP -> MusicIntent.Pause // Convert stop to pause to keep the queue
+            MusicService.ACTION_STOP -> MusicIntent.Stop
             else -> null
         }
     }
