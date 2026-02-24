@@ -10,6 +10,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,23 +36,26 @@ import now.link.periphyllidae.mvi.MusicState
 
 // Enum for different screen layouts
 private enum class ScreenLayout {
-    PORTRAIT,
-    LANDSCAPE
+    COMPACT,    // ~1:1 aspect ratio (400x400)
+    PORTRAIT,   // Tall aspect ratio
+    LANDSCAPE   // Wide aspect ratio
 }
 
-// Helper function to determine screen layout based on aspect ratio
+private val OverlayTopBarHeight = 64.dp
+private val ContentTopPadding = OverlayTopBarHeight + 8.dp
+
+// Helper function to determine screen layout based on size and aspect ratio
 private fun getScreenLayout(maxWidth: Float, maxHeight: Float): ScreenLayout {
-    // Calculate the aspect ratio of the available space.
     val aspectRatio = maxWidth / maxHeight
 
-    // Use updated thresholds that better match modern devices:
-    // - < 0.65f: Portrait phones (including modern 18:9, 20:9 ratios)
-    // - ≥ 1.5f: Landscape tablets, desktop monitors, ultra-wide screens
-    // - 0.65f-1.5f: Medium aspect ratios use responsive portrait layout
     return when {
+        // Force compact controls when width/height is constrained.
+        maxWidth < 420f || maxHeight < 620f -> ScreenLayout.COMPACT
+        // Compact/square layout (~1:1 aspect ratio, e.g., 400x400)
+        aspectRatio in 0.9f..1.1f -> ScreenLayout.COMPACT
         // Ultra-wide screens (landscape tablets, desktop monitors)
         aspectRatio >= 1.5f -> ScreenLayout.LANDSCAPE
-        // Standard phones (including modern 18:9, 20:9 ratios) and medium aspect ratios
+        // Standard phones and medium aspect ratios
         else -> ScreenLayout.PORTRAIT
     }
 }
@@ -84,6 +89,12 @@ fun NowPlayingScreen(
                     label = "layout_transition"
                 ) { layout ->
                     when (layout) {
+                        ScreenLayout.COMPACT -> CompactLayoutContent(
+                            state = state,
+                            viewModel = viewModel,
+                            onNavigateToArtistDetail = onNavigateToArtistDetail
+                        )
+
                         ScreenLayout.LANDSCAPE -> WideLayoutContent(
                             state = state,
                             viewModel = viewModel,
@@ -113,7 +124,7 @@ private fun OverlayTopBar(onNavigateBack: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp), // Standard TopAppBar height
+            .height(OverlayTopBarHeight),
         shadowElevation = 4.dp
     ) {
         Row(
@@ -138,7 +149,7 @@ private fun EmptyStateContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 40.dp), // Account for floating toolbar with shadow
+            .padding(top = ContentTopPadding),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -171,14 +182,15 @@ private fun DefaultLayoutContent(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 40.dp) // Account for floating toolbar with shadow
+            .padding(top = ContentTopPadding)
     ) {
         val boxConstraintsScope = this
         val isCompactScreen = boxConstraintsScope.maxWidth < 600.dp
+        val isShortScreen = boxConstraintsScope.maxHeight < 760.dp
 
         // Responsive padding based on screen size
         val responsivePadding = if (isCompactScreen) 24.dp else 36.dp
-        val responsiveSpacing = if (isCompactScreen) 24.dp else 32.dp
+        val responsiveSpacing = if (isCompactScreen) 20.dp else 28.dp
 
         Column(
             modifier = Modifier
@@ -186,8 +198,10 @@ private fun DefaultLayoutContent(
                 .padding(
                     top = responsivePadding,
                     start = responsivePadding,
-                    end = responsivePadding
+                    end = responsivePadding,
+                    bottom = responsivePadding
                 )
+                .then(if (isShortScreen) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .animateContentSize(
                     animationSpec = tween(300)
                 ),
@@ -197,10 +211,10 @@ private fun DefaultLayoutContent(
             val albumArtSize = if (isCompactScreen) {
                 minOf(
                     boxConstraintsScope.maxWidth - responsivePadding * 2,
-                    boxConstraintsScope.maxHeight * 0.4f
+                    boxConstraintsScope.maxHeight * if (isShortScreen) 0.3f else 0.4f
                 )
             } else {
-                boxConstraintsScope.maxWidth * 0.7f
+                boxConstraintsScope.maxWidth * if (isShortScreen) 0.55f else 0.7f
             }
 
             AlbumArtSection(
@@ -222,13 +236,140 @@ private fun DefaultLayoutContent(
             Spacer(modifier = Modifier.height(responsiveSpacing))
             ProgressSection(state, viewModel)
             Spacer(modifier = Modifier.height(responsiveSpacing))
-            PlaybackControlsSection(state, viewModel, showAllControls = true)
-            Spacer(modifier = Modifier.weight(1f))
-            QueueInfoSection(state)
+            PlaybackControlsSection(state, viewModel, showAllControls = !isShortScreen)
+            if (isShortScreen) {
+                Spacer(modifier = Modifier.height(responsivePadding))
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
 
+
+@Composable
+private fun CompactLayoutContent(
+    state: MusicState,
+    viewModel: NowPlayingViewModel,
+    onNavigateToArtistDetail: (String) -> Unit,
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = ContentTopPadding)
+            .padding(horizontal = 16.dp)
+    ) {
+        val isShortScreen = maxHeight < 560.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (isShortScreen) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                .padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Compact album art (160dp x 160dp with 16dp corner radius)
+            val coverSize = if (isShortScreen) 128.dp else 160.dp
+            Card(
+                modifier = Modifier
+                    .size(coverSize),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                AsyncImage(
+                    model = state.currentSong?.coverArt,
+                    contentDescription = "Album cover for ${state.currentSong?.title ?: ""}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Song info - only title and artist (no album)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = state.currentSong?.title ?: "",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = state.currentSong?.artist ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        state.currentSong?.let { song ->
+                            viewModel.getArtistIdForCurrentSong { artistId ->
+                                artistId?.let { id ->
+                                    onNavigateToArtistDetail(id)
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Minimal playback controls - only prev/play/next (no shuffle/repeat, no progress bar)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Previous (smaller - 40dp)
+                IconButton(
+                    onClick = { viewModel.skipPrevious() },
+                    enabled = state.currentIndex > 0
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous song",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                // Play/Pause (smaller - 56dp)
+                FloatingActionButton(
+                    onClick = { viewModel.togglePlayPause() },
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Next (smaller - 40dp)
+                IconButton(
+                    onClick = { viewModel.skipNext() },
+                    enabled = state.currentIndex < state.queue.size - 1
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next song",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun WideLayoutContent(
@@ -240,7 +381,7 @@ private fun WideLayoutContent(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 40.dp) // Account for floating toolbar with shadow
+            .padding(top = ContentTopPadding)
     ) {
         val boxConstraintsScope = this
         val isUltraWide = boxConstraintsScope.maxWidth > 1200.dp
@@ -304,8 +445,6 @@ private fun WideLayoutContent(
                 ProgressSection(state, viewModel)
                 Spacer(modifier = Modifier.height(controlSpacing))
                 PlaybackControlsSection(state, viewModel, showAllControls = true)
-                Spacer(modifier = Modifier.height(24.dp))
-                QueueInfoSection(state)
             }
         }
     }
@@ -441,77 +580,93 @@ private fun PlaybackControlsSection(
     viewModel: NowPlayingViewModel,
     showAllControls: Boolean = true,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Shuffle (only in full layout)
-        if (showAllControls) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val isNarrow = maxWidth < 380.dp
+        val canShowSideControls = showAllControls && !isNarrow
+        val spacing = if (isNarrow) 8.dp else 16.dp
+        val sideIconSize = if (isNarrow) 28.dp else 32.dp
+        val fabSize = if (isNarrow) 56.dp else 64.dp
+        val fabIconSize = if (isNarrow) 28.dp else 32.dp
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Shuffle (only in full/wide layout)
+            if (canShowSideControls) {
+                IconButton(
+                    onClick = { viewModel.toggleShuffle() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = "Toggle shuffle",
+                        tint = if (state.isShuffle) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.width(spacing))
+            }
+
+            // Previous
             IconButton(
-                onClick = { viewModel.toggleShuffle() }
+                onClick = { viewModel.skipPrevious() },
+                enabled = state.currentIndex > 0
             ) {
                 Icon(
-                    imageVector = Icons.Default.Shuffle,
-                    contentDescription = "Toggle shuffle",
-                    tint = if (state.isShuffle) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    }
+                    imageVector = Icons.Default.SkipPrevious,
+                    contentDescription = "Previous song",
+                    modifier = Modifier.size(sideIconSize)
                 )
             }
-        }
 
-        // Previous
-        IconButton(
-            onClick = { viewModel.skipPrevious() },
-            enabled = state.currentIndex > 0
-        ) {
-            Icon(
-                imageVector = Icons.Default.SkipPrevious,
-                contentDescription = "Previous song",
-                modifier = Modifier.size(32.dp)
-            )
-        }
+            Spacer(modifier = Modifier.width(spacing))
 
-        // Play/Pause
-        FloatingActionButton(
-            onClick = { viewModel.togglePlayPause() },
-            modifier = Modifier.size(64.dp)
-        ) {
-            Icon(
-                imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (state.isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(32.dp)
-            )
-        }
-
-        // Next
-        IconButton(
-            onClick = { viewModel.skipNext() },
-            enabled = state.currentIndex < state.queue.size - 1
-        ) {
-            Icon(
-                imageVector = Icons.Default.SkipNext,
-                contentDescription = "Next song",
-                modifier = Modifier.size(32.dp)
-            )
-        }
-
-        // Repeat (only in full layout)
-        if (showAllControls) {
-            IconButton(
-                onClick = { viewModel.toggleRepeat() }
+            // Play/Pause
+            FloatingActionButton(
+                onClick = { viewModel.togglePlayPause() },
+                modifier = Modifier.size(fabSize)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Repeat,
-                    contentDescription = "Toggle repeat",
-                    tint = if (state.isRepeat) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    }
+                    imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (state.isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(fabIconSize)
                 )
+            }
+
+            Spacer(modifier = Modifier.width(spacing))
+
+            // Next
+            IconButton(
+                onClick = { viewModel.skipNext() },
+                enabled = state.currentIndex < state.queue.size - 1
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "Next song",
+                    modifier = Modifier.size(sideIconSize)
+                )
+            }
+
+            // Repeat (only in full/wide layout)
+            if (canShowSideControls) {
+                Spacer(modifier = Modifier.width(spacing))
+                IconButton(
+                    onClick = { viewModel.toggleRepeat() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = "Toggle repeat",
+                        tint = if (state.isRepeat) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        }
+                    )
+                }
             }
         }
     }

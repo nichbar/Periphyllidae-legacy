@@ -1,0 +1,982 @@
+{
+  "version": "2.7",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "enabled": false,
+      "clip": true,
+      "width": 402,
+      "height": 874,
+      "fill": "#FFFFFF",
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "uuAFr",
+      "x": 0,
+      "y": 0,
+      "name": "Now Playing - Material 3",
+      "clip": true,
+      "width": 402,
+      "height": 874,
+      "fill": "#0E0E0E",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "1ZhGP",
+          "x": 8,
+          "y": 8,
+          "name": "topBar",
+          "width": 48,
+          "height": 48,
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tFKKS",
+              "x": 16,
+              "y": 8,
+              "name": "backBtn",
+              "width": 48,
+              "height": 48,
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "Jta0V",
+                  "name": "backIcon",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "arrow_back",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Hg5Nb",
+          "x": 0,
+          "y": 72,
+          "name": "albumArtContainer",
+          "width": 402,
+          "layout": "vertical",
+          "padding": [
+            0,
+            32
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Tt9hj",
+              "name": "albumArt",
+              "width": 340,
+              "height": 340,
+              "fill": "#262626",
+              "cornerRadius": 28,
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "NbA9d",
+                  "name": "placeholderIcon",
+                  "width": 120,
+                  "height": 120,
+                  "iconFontName": "album",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 300,
+                  "fill": "#939393"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Krpty",
+          "x": 0,
+          "y": 452,
+          "name": "spacer2",
+          "width": 402,
+          "height": 48
+        },
+        {
+          "type": "frame",
+          "id": "pcDBV",
+          "x": 0,
+          "y": 500,
+          "name": "songInfo",
+          "width": 402,
+          "layout": "vertical",
+          "gap": 4,
+          "padding": [
+            0,
+            32
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "xj42H",
+              "name": "titleText",
+              "fill": "#E5E5E5",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Don't Stop Me Now",
+              "textAlign": "center",
+              "fontFamily": "Roboto",
+              "fontSize": 28,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "0ozP6",
+              "name": "artistText",
+              "fill": "#FF8F79",
+              "content": "Queen",
+              "textAlign": "center",
+              "fontFamily": "Roboto",
+              "fontSize": 18,
+              "fontWeight": "500"
+            },
+            {
+              "type": "text",
+              "id": "FB1oY",
+              "name": "albumText",
+              "fill": "#939393",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Jazz (Deluxe Remastered Version)",
+              "textAlign": "center",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "YPKL1",
+          "x": 0,
+          "y": 600,
+          "name": "progressSection",
+          "width": 402,
+          "layout": "vertical",
+          "gap": 8,
+          "padding": [
+            40,
+            32,
+            0,
+            32
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "Ot57y",
+              "name": "progressBarContainer",
+              "width": "fill_container",
+              "height": 4,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "kck8t",
+                  "x": 0,
+                  "y": 0,
+                  "name": "progressTrack",
+                  "width": 338,
+                  "height": 4,
+                  "fill": "#262626",
+                  "cornerRadius": 2
+                },
+                {
+                  "type": "frame",
+                  "id": "BpyDJ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "progressFill",
+                  "width": 236,
+                  "height": 4,
+                  "fill": "#FF8F79",
+                  "cornerRadius": 2
+                },
+                {
+                  "type": "ellipse",
+                  "id": "GuwVO",
+                  "x": 228,
+                  "y": -6,
+                  "name": "progressKnob",
+                  "fill": "#FF8F79",
+                  "width": 16,
+                  "height": 16
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "xr6KI",
+              "name": "timeLabels",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "dkwI7",
+                  "name": "currentTime",
+                  "fill": "#939393",
+                  "content": "2:26",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "xjn4n",
+                  "name": "totalTime",
+                  "fill": "#939393",
+                  "content": "3:29",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "6idVv",
+          "x": 0,
+          "y": 660,
+          "name": "spacer3",
+          "width": 402,
+          "height": 48
+        },
+        {
+          "type": "frame",
+          "id": "idU4Z",
+          "x": 0,
+          "y": 708,
+          "name": "controlsSection",
+          "width": 402,
+          "gap": 16,
+          "padding": [
+            0,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "rAweg",
+              "name": "shuffleBtn",
+              "width": 48,
+              "height": 48,
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "sP1j1",
+                  "name": "shuffleIcon",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "shuffle",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#939393"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "iBQHg",
+              "name": "prevBtn",
+              "width": 48,
+              "height": 48,
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "yeC8U",
+                  "name": "prevIcon",
+                  "width": 32,
+                  "height": 32,
+                  "iconFontName": "skip_previous",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Aj3kJ",
+              "name": "playBtn",
+              "width": 64,
+              "height": 64,
+              "fill": "#FF8F79",
+              "cornerRadius": 32,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "dqDVI",
+                  "name": "playIcon",
+                  "width": 32,
+                  "height": 32,
+                  "iconFontName": "pause",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#620900"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "cLrUa",
+              "name": "nextBtn",
+              "width": 48,
+              "height": 48,
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "GOfoq",
+                  "name": "nextIcon",
+                  "width": 32,
+                  "height": 32,
+                  "iconFontName": "skip_next",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "naczs",
+              "name": "repeatBtn",
+              "width": 48,
+              "height": 48,
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "SpSIq",
+                  "name": "repeatIcon",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "repeat",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#939393"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "eNr1g",
+      "x": 452,
+      "y": 0,
+      "name": "Now Playing Compact (1:1)",
+      "clip": true,
+      "width": 400,
+      "height": 400,
+      "fill": "#0E0E0E",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "e9JV7",
+          "x": 4,
+          "y": 4,
+          "name": "topRow",
+          "width": 40,
+          "height": 40,
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "HOgXO",
+              "x": 12,
+              "y": 4,
+              "name": "backBtnSmall",
+              "width": 40,
+              "height": 40,
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "Pd2VZ",
+                  "name": "backIconSmall",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "arrow_back",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "pVp8Z",
+          "x": 0,
+          "y": 56,
+          "name": "albumArtCompact",
+          "width": 400,
+          "layout": "vertical",
+          "padding": [
+            4,
+            0
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "lHoJE",
+              "name": "albumArtSquare",
+              "width": 160,
+              "height": 160,
+              "fill": "#262626",
+              "cornerRadius": 16,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "Pm0TP",
+                  "name": "placeholderIconSmall",
+                  "width": 64,
+                  "height": 64,
+                  "iconFontName": "album",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 300,
+                  "fill": "#939393"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "WrDHf",
+          "x": 0,
+          "y": 228,
+          "name": "songInfoCompact",
+          "width": 400,
+          "layout": "vertical",
+          "gap": 2,
+          "padding": [
+            12,
+            16,
+            8,
+            16
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "bkJSH",
+              "name": "titleCompact",
+              "fill": "#E5E5E5",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Don't Stop Me Now",
+              "textAlign": "center",
+              "fontFamily": "Roboto",
+              "fontSize": 18,
+              "fontWeight": "500"
+            },
+            {
+              "type": "text",
+              "id": "2QmqE",
+              "name": "artistCompact",
+              "fill": "#FF8F79",
+              "content": "Queen",
+              "textAlign": "center",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "5Q7wn",
+          "x": 0,
+          "y": 300,
+          "name": "controlsCompact",
+          "width": 400,
+          "gap": 12,
+          "padding": [
+            8,
+            16
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "5Zcxn",
+              "name": "prevCompact",
+              "width": 40,
+              "height": 40,
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "cYCyB",
+                  "name": "prevIconCompact",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "skip_previous",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "38vxG",
+              "name": "playCompact",
+              "width": 56,
+              "height": 56,
+              "fill": "#FF8F79",
+              "cornerRadius": 28,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "msDfX",
+                  "name": "playIconCompact",
+                  "width": 28,
+                  "height": 28,
+                  "iconFontName": "pause",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#620900"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "gnELR",
+              "name": "nextCompact",
+              "width": 40,
+              "height": 40,
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "9PCfK",
+                  "name": "nextIconCompact",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "skip_next",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "BXskE",
+          "x": 0,
+          "y": 364,
+          "name": "newSpacer",
+          "width": 400,
+          "height": 8
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "LkAzK",
+      "x": 0,
+      "y": 924,
+      "name": "Now Playing Horizontal (2:1)",
+      "clip": true,
+      "width": 800,
+      "height": 400,
+      "fill": "#0E0E0E",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "ruFQy",
+          "x": 16,
+          "y": 16,
+          "name": "backBtnHoriz",
+          "width": 40,
+          "height": 40,
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ggegk",
+              "x": 0,
+              "y": 0,
+              "name": "backBtnFrame",
+              "width": 40,
+              "height": 40,
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "CuSkm",
+                  "name": "backIconHoriz",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "arrow_back",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 400,
+                  "fill": "#E5E5E5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "6LZzl",
+          "x": 0,
+          "y": 16,
+          "name": "leftSection",
+          "width": 360,
+          "height": 400,
+          "layout": "vertical",
+          "padding": [
+            16,
+            24,
+            24,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "LOpQA",
+              "name": "albumArtHoriz",
+              "width": 280,
+              "height": 280,
+              "fill": "#262626",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "klpc2",
+                  "name": "placeholderIconHoriz",
+                  "width": 100,
+                  "height": 100,
+                  "iconFontName": "album",
+                  "iconFontFamily": "Material Symbols Rounded",
+                  "weight": 300,
+                  "fill": "#939393"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "0AC30",
+          "x": 360,
+          "y": 16,
+          "name": "rightSection",
+          "width": 440,
+          "height": 400,
+          "layout": "vertical",
+          "gap": 32,
+          "padding": 40,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "aYemn",
+              "name": "songInfoHoriz",
+              "width": 360,
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "5JIRm",
+                  "name": "titleHoriz",
+                  "fill": "#E5E5E5",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Don't Stop Me Now",
+                  "fontFamily": "Roboto",
+                  "fontSize": 28,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "rPkFY",
+                  "name": "artistHoriz",
+                  "fill": "#FF8F79",
+                  "content": "Queen",
+                  "fontFamily": "Roboto",
+                  "fontSize": 18,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "oPeNd",
+                  "name": "albumHoriz",
+                  "fill": "#939393",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Jazz (Deluxe Remastered Version)",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "0vqDB",
+              "name": "progressHoriz",
+              "width": 360,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "oQTPg",
+                  "name": "progressBarHoriz",
+                  "width": "fill_container",
+                  "height": 4,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Eyvtq",
+                      "x": 0,
+                      "y": 0,
+                      "name": "progressTrackHoriz",
+                      "width": 400,
+                      "height": 4,
+                      "fill": "#262626",
+                      "cornerRadius": 2
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GqTLw",
+                      "x": 0,
+                      "y": 0,
+                      "name": "progressFillHoriz",
+                      "width": 280,
+                      "height": 4,
+                      "fill": "#FF8F79",
+                      "cornerRadius": 2
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "j7sqC",
+                  "name": "timeHoriz",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ru3HN",
+                      "name": "currentTimeHoriz",
+                      "fill": "#939393",
+                      "content": "2:26",
+                      "fontFamily": "Roboto",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "VnoJB",
+                      "name": "totalTimeHoriz",
+                      "fill": "#939393",
+                      "content": "3:29",
+                      "fontFamily": "Roboto",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GPzVa",
+              "name": "controlsHoriz",
+              "width": 360,
+              "gap": 20,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Vi2bY",
+                  "name": "shuffleHoriz",
+                  "width": 44,
+                  "height": 44,
+                  "cornerRadius": 22,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "2M5pK",
+                      "name": "shuffleIconHoriz",
+                      "width": 22,
+                      "height": 22,
+                      "iconFontName": "shuffle",
+                      "iconFontFamily": "Material Symbols Rounded",
+                      "weight": 400,
+                      "fill": "#939393"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sEJQC",
+                  "name": "prevHoriz",
+                  "width": 52,
+                  "height": 52,
+                  "cornerRadius": 26,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "r6JhU",
+                      "name": "prevIconHoriz",
+                      "width": 28,
+                      "height": 28,
+                      "iconFontName": "skip_previous",
+                      "iconFontFamily": "Material Symbols Rounded",
+                      "weight": 400,
+                      "fill": "#E5E5E5"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dDNnn",
+                  "name": "playHoriz",
+                  "width": 64,
+                  "height": 64,
+                  "fill": "#FF8F79",
+                  "cornerRadius": 32,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "FMy6O",
+                      "name": "playIconHoriz",
+                      "width": 32,
+                      "height": 32,
+                      "iconFontName": "pause",
+                      "iconFontFamily": "Material Symbols Rounded",
+                      "weight": 400,
+                      "fill": "#620900"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "W8KbQ",
+                  "name": "nextHoriz",
+                  "width": 52,
+                  "height": 52,
+                  "cornerRadius": 26,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "9wh9y",
+                      "name": "nextIconHoriz",
+                      "width": 28,
+                      "height": 28,
+                      "iconFontName": "skip_next",
+                      "iconFontFamily": "Material Symbols Rounded",
+                      "weight": 400,
+                      "fill": "#E5E5E5"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "k2T6b",
+                  "name": "repeatHoriz",
+                  "width": 44,
+                  "height": 44,
+                  "cornerRadius": 22,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "cRIzI",
+                      "name": "repeatIconHoriz",
+                      "width": 22,
+                      "height": 22,
+                      "iconFontName": "repeat",
+                      "iconFontFamily": "Material Symbols Rounded",
+                      "weight": 400,
+                      "fill": "#939393"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
