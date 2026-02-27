@@ -4,8 +4,8 @@ import org.koin.dsl.module
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.SharedPreferencesSettings
 import org.koin.android.ext.koin.androidContext
-import now.link.periphyllidae.platform.MediampPlayerFactory
-import now.link.periphyllidae.platform.AndroidMediampPlayerFactory
+import now.link.periphyllidae.platform.PlaybackEngineFactory
+import now.link.periphyllidae.platform.AndroidPlaybackEngineFactory
 import now.link.periphyllidae.platform.SystemTray
 import now.link.periphyllidae.platform.SystemTrayManager
 import now.link.periphyllidae.service.MusicServiceManager
@@ -24,8 +24,8 @@ actual val platformModule = module {
         PlatformStorage()
     }
 
-    // MediaMP player factory for Android
-    single<MediampPlayerFactory> { AndroidMediampPlayerFactory(androidContext()) }
+    // Playback engine factory for Android
+    single<PlaybackEngineFactory> { AndroidPlaybackEngineFactory(androidContext()) }
 
     // System tray (not supported on Android)
     single<SystemTray> { SystemTrayManager() }

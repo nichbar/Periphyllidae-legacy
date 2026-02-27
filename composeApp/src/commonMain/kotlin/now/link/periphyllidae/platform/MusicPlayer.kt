@@ -16,20 +16,17 @@ import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.openani.mediamp.MediampPlayer
-import org.openani.mediamp.features.AudioLevelController
-import org.openani.mediamp.playUri
 
 enum class PlaybackState {
     IDLE, PLAYING, PAUSED, BUFFERING, ERROR
 }
 
 class MusicPlayer(
-    private val playerFactory: MediampPlayerFactory
+    private val playbackEngineFactory: PlaybackEngineFactory
 ) : KoinComponent {
-    private val mediaPlayer: MediampPlayer by lazy {
-        LogManager.d(TAG, "Creating MediaMP player instance")
-        playerFactory.createPlayer()
+    private val playbackEngine: PlaybackEngine by lazy {
+        LogManager.d(TAG, "Creating playback engine instance")
+        playbackEngineFactory.createEngine()
     }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
@@ -80,36 +77,30 @@ class MusicPlayer(
     private fun observePlayerState() {
         LogManager.d(TAG, "Starting player state observation")
         scope.launch {
-            // Observe MediaMP's playbackState and map to our internal state
-            mediaPlayer.playbackState.collect { mediaState ->
-                LogManager.v(TAG, "MediaMP state changed: $mediaState")
-                
-                // Map MediaMP state to our PlaybackState enum
-                val newState = when (mediaState) {
-                    org.openani.mediamp.PlaybackState.PAUSED -> PlaybackState.PAUSED
-                    org.openani.mediamp.PlaybackState.PAUSED_BUFFERING -> PlaybackState.BUFFERING
-                    org.openani.mediamp.PlaybackState.READY -> {
+            playbackEngine.playbackState.collect { engineState ->
+                LogManager.v(TAG, "Engine state changed: $engineState")
+
+                val newState = when (engineState) {
+                    EnginePlaybackState.PAUSED -> PlaybackState.PAUSED
+                    EnginePlaybackState.BUFFERING -> PlaybackState.BUFFERING
+                    EnginePlaybackState.READY -> {
                         // When ready, check if we should be playing or paused
                         if (_isPlaying.value) PlaybackState.PLAYING else PlaybackState.PAUSED
                     }
-                    org.openani.mediamp.PlaybackState.FINISHED -> {
-                        LogManager.d(TAG, "MediaMP playback ended")
-                        // Handle end of playback
+                    EnginePlaybackState.FINISHED -> {
+                        LogManager.d(TAG, "Playback ended")
                         scope.launch {
                             handlePlaybackEnded()
                         }
                         PlaybackState.IDLE
                     }
-                    org.openani.mediamp.PlaybackState.PLAYING -> {
-                        LogManager.d(TAG, "MediaMP is playing")
+                    EnginePlaybackState.PLAYING -> {
+                        LogManager.d(TAG, "Engine is playing")
                         PlaybackState.PLAYING
                     }
-                    else -> {
-                        LogManager.w(TAG, "Unknown MediaMP state: $mediaState")
-                        PlaybackState.IDLE
-                    }
+                    EnginePlaybackState.IDLE -> PlaybackState.IDLE
                 }
-                
+
                 _playbackState.value = newState
                 LogManager.v(TAG, "Internal state updated to: $newState")
             }
@@ -123,7 +114,7 @@ class MusicPlayer(
             while (isActive) {
                 if (_isPlaying.value && _currentSong.value != null) {
                     try {
-                        val currentPos = mediaPlayer.getCurrentPositionMillis()
+                        val currentPos = playbackEngine.getCurrentPositionMillis()
                         _currentPosition.value = currentPos
 
                         val duration = _duration.value
@@ -212,7 +203,7 @@ class MusicPlayer(
 
             for (attempt in 0..maxRetries) {
                 try {
-                    LogManager.d(TAG, "Starting MediaMP playback (attempt ${attempt + 1}/${maxRetries + 1})")
+                    LogManager.d(TAG, "Starting playback (attempt ${attempt + 1}/${maxRetries + 1})")
 
                     // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
                     val playbackUrl = if (getPlatform().isAndroid) {
@@ -223,7 +214,7 @@ class MusicPlayer(
 
                     LogManager.d(TAG, "Playback URL (attempt ${attempt + 1}): $playbackUrl")
 
-                    mediaPlayer.playUri(playbackUrl)
+                    playbackEngine.playUri(playbackUrl)
 
                     // Update the duration from the song metadata
                     val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
@@ -286,7 +277,7 @@ class MusicPlayer(
     fun pause() {
         LogManager.d(TAG, "Pausing playback")
         try {
-            mediaPlayer.pause()
+            playbackEngine.pause()
             _isPlaying.value = false
             // State will be updated automatically via MediaMP state observation
             LogManager.i(TAG, "Playback pause initiated")
@@ -300,7 +291,7 @@ class MusicPlayer(
         LogManager.d(TAG, "Resuming playback")
         try {
             if (_playbackState.value == PlaybackState.PAUSED) {
-                mediaPlayer.resume()
+                playbackEngine.resume()
                 _isPlaying.value = true
                 // State will be updated automatically via MediaMP state observation
                 LogManager.i(TAG, "Playback resume initiated")
@@ -316,7 +307,7 @@ class MusicPlayer(
     fun stop() {
         LogManager.d(TAG, "Stopping playback")
         try {
-            mediaPlayer.stopPlayback()
+            playbackEngine.stop()
 
             // Cancel any ongoing cache operations for the current song
             val currentSong = _currentSong.value
@@ -347,7 +338,7 @@ class MusicPlayer(
     fun seekTo(position: Long) {
         LogManager.d(TAG, "Seeking to position: ${position}ms")
         try {
-             mediaPlayer.seekTo(position)
+            playbackEngine.seekTo(position)
             _currentPosition.value = position
             LogManager.i(TAG, "Seeked to position: ${position}ms")
         } catch (e: Exception) {
@@ -360,7 +351,7 @@ class MusicPlayer(
         val clampedVolume = volume.coerceIn(0f, 1f)
         LogManager.d(TAG, "Setting volume to: $clampedVolume")
         try {
-            mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
+            playbackEngine.setVolume(clampedVolume)
             LogManager.i(TAG, "Volume set to: $clampedVolume")
         } catch (e: Exception) {
             LogManager.e(TAG, "Failed to set volume to: $clampedVolume", e)
@@ -371,7 +362,7 @@ class MusicPlayer(
         val clampedVolume = volume.coerceIn(0f, 1f)
         LogManager.d(TAG, "Setting volume to: $clampedVolume (without persistence)")
         try {
-            mediaPlayer.features[AudioLevelController]?.setVolume(clampedVolume)
+            playbackEngine.setVolume(clampedVolume)
             LogManager.i(TAG, "Volume set to: $clampedVolume")
         } catch (e: Exception) {
             LogManager.e(TAG, "Failed to set volume to: $clampedVolume", e)
@@ -546,7 +537,7 @@ class MusicPlayer(
     fun release() {
         LogManager.i(TAG, "Releasing MusicPlayer resources")
         try {
-            mediaPlayer.close()
+            playbackEngine.close()
             LogManager.d(TAG, "MediaPlayer resources released successfully")
         } catch (e: Exception) {
             LogManager.e(TAG, "Error releasing MediaPlayer resources", e)

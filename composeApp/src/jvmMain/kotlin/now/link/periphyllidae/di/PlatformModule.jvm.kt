@@ -2,8 +2,8 @@ package now.link.periphyllidae.di
 
 import org.koin.dsl.module
 import com.russhwolf.settings.Settings
-import now.link.periphyllidae.platform.MediampPlayerFactory
-import now.link.periphyllidae.platform.JvmMediampPlayerFactory
+import now.link.periphyllidae.platform.PlaybackEngineFactory
+import now.link.periphyllidae.platform.JvmPlaybackEngineFactory
 import now.link.periphyllidae.utils.PlatformStorage
 import java.util.Properties
 import java.io.File
@@ -19,7 +19,7 @@ actual val platformModule = module {
                     FileInputStream(settingsFile).use { load(it) }
                 }
             }
-            
+
             private fun save() {
                 settingsFile.parentFile?.mkdirs()
                 FileOutputStream(settingsFile).use { properties.store(it, "Periphyllidae Settings") }
@@ -27,59 +27,59 @@ actual val platformModule = module {
 
             override fun getBoolean(key: String, defaultValue: Boolean): Boolean =
                 properties.getProperty(key)?.toBoolean() ?: defaultValue
-            override fun getBooleanOrNull(key: String): Boolean? = 
+            override fun getBooleanOrNull(key: String): Boolean? =
                 properties.getProperty(key)?.toBoolean()
             override fun getDouble(key: String, defaultValue: Double): Double =
                 properties.getProperty(key)?.toDouble() ?: defaultValue
-            override fun getDoubleOrNull(key: String): Double? = 
+            override fun getDoubleOrNull(key: String): Double? =
                 properties.getProperty(key)?.toDoubleOrNull()
             override fun getFloat(key: String, defaultValue: Float): Float =
                 properties.getProperty(key)?.toFloat() ?: defaultValue
-            override fun getFloatOrNull(key: String): Float? = 
+            override fun getFloatOrNull(key: String): Float? =
                 properties.getProperty(key)?.toFloatOrNull()
             override fun getInt(key: String, defaultValue: Int): Int =
                 properties.getProperty(key)?.toInt() ?: defaultValue
-            override fun getIntOrNull(key: String): Int? = 
+            override fun getIntOrNull(key: String): Int? =
                 properties.getProperty(key)?.toIntOrNull()
             override fun getLong(key: String, defaultValue: Long): Long =
                 properties.getProperty(key)?.toLong() ?: defaultValue
-            override fun getLongOrNull(key: String): Long? = 
+            override fun getLongOrNull(key: String): Long? =
                 properties.getProperty(key)?.toLongOrNull()
             override fun getString(key: String, defaultValue: String): String =
                 properties.getProperty(key) ?: defaultValue
-            override fun getStringOrNull(key: String): String? = 
+            override fun getStringOrNull(key: String): String? =
                 properties.getProperty(key)
 
-            override fun putBoolean(key: String, value: Boolean) { 
+            override fun putBoolean(key: String, value: Boolean) {
                 properties.setProperty(key, value.toString())
                 save()
             }
-            override fun putDouble(key: String, value: Double) { 
+            override fun putDouble(key: String, value: Double) {
                 properties.setProperty(key, value.toString())
                 save()
             }
-            override fun putFloat(key: String, value: Float) { 
+            override fun putFloat(key: String, value: Float) {
                 properties.setProperty(key, value.toString())
                 save()
             }
-            override fun putInt(key: String, value: Int) { 
+            override fun putInt(key: String, value: Int) {
                 properties.setProperty(key, value.toString())
                 save()
             }
-            override fun putLong(key: String, value: Long) { 
+            override fun putLong(key: String, value: Long) {
                 properties.setProperty(key, value.toString())
                 save()
             }
-            override fun putString(key: String, value: String) { 
+            override fun putString(key: String, value: String) {
                 properties.setProperty(key, value)
                 save()
             }
 
-            override fun remove(key: String) { 
+            override fun remove(key: String) {
                 properties.remove(key)
                 save()
             }
-            override fun clear() { 
+            override fun clear() {
                 properties.clear()
                 save()
             }
@@ -88,10 +88,10 @@ actual val platformModule = module {
             override val size: Int get() = properties.size
         }
     }
-    
+
     // PlatformStorage implementation for JVM
     single<PlatformStorage> { PlatformStorage() }
 
-    // MediaMP player factory for JVM
-    single<MediampPlayerFactory> { JvmMediampPlayerFactory() }
+    // Playback engine factory for JVM
+    single<PlaybackEngineFactory> { JvmPlaybackEngineFactory() }
 }
