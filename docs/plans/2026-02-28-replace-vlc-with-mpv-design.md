@@ -140,7 +140,7 @@ Adopt **Approach A**: direct MPV binding in `jvmMain` with thin bridging and eve
 - **Event mapping mismatches with existing queue/state assumptions**
   - Mitigation: keep queue logic unchanged; adapt in player boundary only
 
-## Rollout Plan
-- Replace desktop VLC backend with MPV backend behind existing `MusicPlayer` contract
-- Validate core parity and perf metrics
-- Iterate tuning after baseline migration lands
+## Performance Validation Snapshot
+- Benchmark notes: `docs/plans/2026-02-28-replace-vlc-with-mpv-benchmark-notes.md`
+- Current measurements are mixed across short and long runs; core parity is confirmed, but CPU/RSS acceptance requires one more controlled benchmark pass using identical playback scenario and duration for VLC vs MPV.
+

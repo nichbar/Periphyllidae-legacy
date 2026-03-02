@@ -101,9 +101,6 @@ multiplatform-settings-jvm = { module = "com.russhwolf:multiplatform-settings-jv
 mediamp-api = { module = "org.openani.mediamp:mediamp-api", version.ref = "mediamp" }
 mediamp-compose = { module = "org.openani.mediamp:mediamp-compose", version.ref = "mediamp-vlc" }
 mediamp-exoplayer = { module = "org.openani.mediamp:mediamp-exoplayer", version.ref = "mediamp" }
-mediamp-vlc = { module = "org.openani.mediamp:mediamp-vlc", version.ref = "mediamp-vlc" }
-mediamp-vlc-compose = { module = "org.openani.mediamp:mediamp-vlc-compose", version.ref = "mediamp-vlc" }
-mediamp-vlc-loader = { module = "org.openani.mediamp:mediamp-vlc-loader", version.ref = "mediamp-vlc" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
