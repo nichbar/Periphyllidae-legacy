@@ -6,6 +6,8 @@ object MpvNativeLoader {
     @Volatile
     private var loaded: Boolean = false
 
+    internal const val MPV_LIBRARY_PATH_PROPERTY = "periphyllidae.mpv.library.path"
+
     fun resolveResourceSubdir(osName: String, arch: String): String {
         val normalizedOs = osName.lowercase()
         val normalizedArch = arch.lowercase()
@@ -26,10 +28,19 @@ object MpvNativeLoader {
         return "$osToken-$archToken"
     }
 
-    internal fun searchRootPaths(baseDir: String): List<String> = listOf(
-        "$baseDir/composeApp/appResources/mpv",
-        "$baseDir/appResources/mpv",
-    )
+    internal fun searchRootPaths(baseDir: String, resourcesDir: String? = null): List<String> {
+        val roots = mutableListOf(
+            "$baseDir/composeApp/appResources/mpv",
+            "$baseDir/appResources/mpv",
+        )
+
+        if (!resourcesDir.isNullOrBlank()) {
+            roots += "$resourcesDir/mpv"
+            roots += resourcesDir
+        }
+
+        return roots.distinct()
+    }
 
     internal fun appendJnaLibraryPath(path: String, existing: String): String = when {
         existing.isBlank() -> path
@@ -41,19 +52,25 @@ object MpvNativeLoader {
         if (loaded) return
 
         val subdir = resolveResourceSubdir(System.getProperty("os.name"), System.getProperty("os.arch"))
-        val candidateNames = listOf("libmpv.dylib", "libmpv.so", "mpv-2.dll", "libmpv.dll")
+        val candidateNames = listOf("libmpv.dylib", "libmpv.2.dylib", "libmpv.so", "libmpv.so.2", "mpv-2.dll", "libmpv.dll")
 
         val baseDir = System.getProperty("user.dir")
-        val searchRoots = searchRootPaths(baseDir)
+        val resourcesDir = System.getProperty("compose.application.resources.dir")
+        val searchRoots = searchRootPaths(baseDir, resourcesDir)
         val externalCandidate = searchRoots
             .asSequence()
-            .flatMap { root -> candidateNames.asSequence().map { name -> File(root, "$subdir/$name") } }
+            .flatMap { root ->
+                candidateNames.asSequence().flatMap { name ->
+                    sequenceOf(File(root, "$subdir/$name"), File(root, name))
+                }
+            }
             .firstOrNull { it.exists() }
 
         if (externalCandidate != null) {
             val parentDir = externalCandidate.parentFile.absolutePath
             val currentPath = System.getProperty("jna.library.path", "")
             System.setProperty("jna.library.path", appendJnaLibraryPath(parentDir, currentPath))
+            System.setProperty(MPV_LIBRARY_PATH_PROPERTY, externalCandidate.absolutePath)
             System.load(externalCandidate.absolutePath)
             loaded = true
             return
@@ -75,6 +92,7 @@ object MpvNativeLoader {
             val parentDir = resourceCandidate.parentFile.absolutePath
             val currentPath = System.getProperty("jna.library.path", "")
             System.setProperty("jna.library.path", appendJnaLibraryPath(parentDir, currentPath))
+            System.setProperty(MPV_LIBRARY_PATH_PROPERTY, resourceCandidate.absolutePath)
             System.load(resourceCandidate.absolutePath)
             loaded = true
             return
@@ -83,3 +101,4 @@ object MpvNativeLoader {
         throw IllegalStateException("Unable to locate libmpv for $subdir")
     }
 }
+

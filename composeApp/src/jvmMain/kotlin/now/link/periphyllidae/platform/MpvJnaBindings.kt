@@ -16,7 +16,14 @@ interface MpvJnaBindings : Library {
     fun mpv_terminate_destroy(handle: Pointer)
 
     companion object {
-        fun load(): MpvJnaBindings = Native.load("mpv", MpvJnaBindings::class.java)
+        fun load(): MpvJnaBindings {
+            val explicitPath = System.getProperty(MpvNativeLoader.MPV_LIBRARY_PATH_PROPERTY)
+            return if (!explicitPath.isNullOrBlank()) {
+                Native.load(explicitPath, MpvJnaBindings::class.java)
+            } else {
+                Native.load("mpv", MpvJnaBindings::class.java)
+            }
+        }
     }
 }
 
