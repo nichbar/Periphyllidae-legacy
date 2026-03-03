@@ -1,6 +1,7 @@
 package now.link.periphyllidae
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -148,6 +149,10 @@ fun main() {
                 undecorated = true,
                 transparent = true
             ) {
+                window.minimumSize = with(LocalDensity.current) {
+                    java.awt.Dimension(100.dp.roundToPx(), 100.dp.roundToPx())
+                }
+
                 // Pass the window state and close request to App()
                 App(
                     windowScope = this,
