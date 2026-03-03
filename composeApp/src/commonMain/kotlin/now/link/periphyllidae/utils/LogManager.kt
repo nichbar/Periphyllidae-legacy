@@ -32,6 +32,7 @@ object LogManager {
     val logEntriesFlow: StateFlow<List<Log>> = _logEntriesFlow.asStateFlow()
 
     private var isLogEnabled = false
+    private var isConsoleLoggingEnabled = true
     private var minLogLevel = Log.LogLevel.VERBOSE // Default to show all logs
     private var settingsRepository: now.link.periphyllidae.repository.SettingsRepository? = null
 
@@ -84,6 +85,10 @@ object LogManager {
         return level.priority >= minLogLevel.priority
     }
 
+    private fun shouldEmitToConsole(level: Log.LogLevel): Boolean {
+        return isConsoleLoggingEnabled && shouldLogLevel(level)
+    }
+
     // Convenient preset methods for common log level filtering scenarios
 
     /**
@@ -132,6 +137,10 @@ object LogManager {
      * Check if logging is enabled
      */
     fun isLogEnabled(): Boolean = isLogEnabled
+
+    fun setConsoleLoggingEnabled(enabled: Boolean) {
+        isConsoleLoggingEnabled = enabled
+    }
 
     /**
      * Add a log entry to the in-memory store
@@ -200,7 +209,7 @@ object LogManager {
 
     fun v(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.VERBOSE, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.VERBOSE)) {
+        if (shouldEmitToConsole(Log.LogLevel.VERBOSE)) {
             Logger.withTag(tag).v(formattedMsg)
         }
         addLogEntry(Log.LogLevel.VERBOSE, tag, msg)
@@ -208,7 +217,7 @@ object LogManager {
 
     fun v(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.VERBOSE, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.VERBOSE)) {
+        if (shouldEmitToConsole(Log.LogLevel.VERBOSE)) {
             Logger.withTag(tag).v(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.VERBOSE, tag, msg, tr)
@@ -216,7 +225,7 @@ object LogManager {
 
     fun d(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.DEBUG, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.DEBUG)) {
+        if (shouldEmitToConsole(Log.LogLevel.DEBUG)) {
             Logger.withTag(tag).d(formattedMsg)
         }
         addLogEntry(Log.LogLevel.DEBUG, tag, msg)
@@ -224,7 +233,7 @@ object LogManager {
 
     fun d(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.DEBUG, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.DEBUG)) {
+        if (shouldEmitToConsole(Log.LogLevel.DEBUG)) {
             Logger.withTag(tag).d(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.DEBUG, tag, msg, tr)
@@ -232,7 +241,7 @@ object LogManager {
 
     fun i(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.INFO, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.INFO)) {
+        if (shouldEmitToConsole(Log.LogLevel.INFO)) {
             Logger.withTag(tag).i(formattedMsg)
         }
         addLogEntry(Log.LogLevel.INFO, tag, msg)
@@ -240,7 +249,7 @@ object LogManager {
 
     fun i(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.INFO, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.INFO)) {
+        if (shouldEmitToConsole(Log.LogLevel.INFO)) {
             Logger.withTag(tag).i(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.INFO, tag, msg, tr)
@@ -248,7 +257,7 @@ object LogManager {
 
     fun w(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.WARN)) {
+        if (shouldEmitToConsole(Log.LogLevel.WARN)) {
             Logger.withTag(tag).w(formattedMsg)
         }
         addLogEntry(Log.LogLevel.WARN, tag, msg)
@@ -256,7 +265,7 @@ object LogManager {
 
     fun w(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.WARN)) {
+        if (shouldEmitToConsole(Log.LogLevel.WARN)) {
             Logger.withTag(tag).w(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.WARN, tag, msg, tr)
@@ -265,7 +274,7 @@ object LogManager {
     fun w(tag: String, tr: Throwable) {
         val msg = tr.message ?: "Exception"
         val formattedMsg = formatMessage(Log.LogLevel.WARN, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.WARN)) {
+        if (shouldEmitToConsole(Log.LogLevel.WARN)) {
             Logger.withTag(tag).w(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.WARN, tag, msg, tr)
@@ -273,7 +282,7 @@ object LogManager {
 
     fun e(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.ERROR, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.ERROR)) {
+        if (shouldEmitToConsole(Log.LogLevel.ERROR)) {
             Logger.withTag(tag).e(formattedMsg)
         }
         addLogEntry(Log.LogLevel.ERROR, tag, msg)
@@ -281,7 +290,7 @@ object LogManager {
 
     fun e(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.ERROR, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.ERROR)) {
+        if (shouldEmitToConsole(Log.LogLevel.ERROR)) {
             Logger.withTag(tag).e(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.ERROR, tag, msg, tr)
@@ -289,7 +298,7 @@ object LogManager {
 
     fun wtf(tag: String, msg: String) {
         val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg)
-        if (shouldLogLevel(Log.LogLevel.ASSERT)) {
+        if (shouldEmitToConsole(Log.LogLevel.ASSERT)) {
             Logger.withTag(tag).e(formattedMsg) // Kermit doesn't have wtf, use error
         }
         addLogEntry(Log.LogLevel.ASSERT, tag, msg)
@@ -298,7 +307,7 @@ object LogManager {
     fun wtf(tag: String, tr: Throwable) {
         val msg = tr.message ?: "WTF Exception"
         val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.ASSERT)) {
+        if (shouldEmitToConsole(Log.LogLevel.ASSERT)) {
             Logger.withTag(tag).e(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.ASSERT, tag, msg, tr)
@@ -306,7 +315,7 @@ object LogManager {
 
     fun wtf(tag: String, msg: String, tr: Throwable) {
         val formattedMsg = formatMessage(Log.LogLevel.ASSERT, tag, msg, tr)
-        if (shouldLogLevel(Log.LogLevel.ASSERT)) {
+        if (shouldEmitToConsole(Log.LogLevel.ASSERT)) {
             Logger.withTag(tag).e(tr) { formattedMsg }
         }
         addLogEntry(Log.LogLevel.ASSERT, tag, msg, tr)

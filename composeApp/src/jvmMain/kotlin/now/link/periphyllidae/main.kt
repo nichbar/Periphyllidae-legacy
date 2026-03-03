@@ -29,6 +29,11 @@ import now.link.periphyllidae.utils.ApplicationScopeManager
 
 @OptIn(DelicateCoroutinesApi::class)
 fun main() {
+    val isReleaseBuild = System.getProperty("compose.application.resources.dir") != null
+    if (isReleaseBuild) {
+        LogManager.setConsoleLoggingEnabled(false)
+    }
+
     // Initialize Koin with modular dependency injection
     val koinApplication = startKoin {
         modules(
@@ -53,7 +58,7 @@ fun main() {
         koinApplication.close()
         LogManager.i("Main", "Application cleanup completed")
     })
-    
+
     application {
         // Load saved window dimensions and position
         val savedWidth = settingsRepository.getWindowWidth()
@@ -63,7 +68,7 @@ fun main() {
 
         // Window visibility state
         var windowVisible by remember { mutableStateOf(true) }
-        
+
         // Create window state with saved values
         val windowState = remember {
             WindowState(
@@ -75,7 +80,7 @@ fun main() {
                 }
             )
         }
-        
+
         // System tray controller
         val systemTrayController = remember {
             SystemTrayController(
@@ -89,7 +94,7 @@ fun main() {
                 }
             )
         }
-        
+
         // Initialize system tray
         LaunchedEffect(Unit) {
             val success = systemTrayController.initialize()
@@ -99,7 +104,7 @@ fun main() {
                 LogManager.w("Main", "Failed to initialize system tray")
             }
         }
-        
+
         // Save window state whenever it changes (with a small delay to avoid excessive saves)
         LaunchedEffect(windowState.size, windowState.position) {
             GlobalScope.launch {
