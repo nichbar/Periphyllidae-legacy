@@ -69,5 +69,9 @@ private class FakeBindings(
 
     override fun mpv_wait_event(handle: Pointer, timeout: Double): Pointer? = null
 
+    override fun mpv_get_property_string(handle: Pointer, name: String): Pointer? = null
+
+    override fun mpv_free(data: Pointer) = Unit
+
     override fun mpv_terminate_destroy(handle: Pointer) = Unit
 }

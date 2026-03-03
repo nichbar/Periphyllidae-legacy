@@ -40,5 +40,7 @@ private class LocaleOrderBindings(
     override fun mpv_observe_property(handle: Pointer, userdata: Long, name: String, format: Int): Int = 0
     override fun mpv_set_wakeup_callback(handle: Pointer, callback: MpvWakeupCallback?, data: Pointer?) = Unit
     override fun mpv_wait_event(handle: Pointer, timeout: Double): Pointer? = null
+    override fun mpv_get_property_string(handle: Pointer, name: String): Pointer? = null
+    override fun mpv_free(data: Pointer) = Unit
     override fun mpv_terminate_destroy(handle: Pointer) = Unit
 }

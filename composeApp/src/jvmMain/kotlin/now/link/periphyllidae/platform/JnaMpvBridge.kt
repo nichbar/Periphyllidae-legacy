@@ -3,6 +3,8 @@ package now.link.periphyllidae.platform
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 
 class JnaMpvBridge(
     private val loader: MpvNativeLoader = MpvNativeLoader,
@@ -13,6 +15,9 @@ class JnaMpvBridge(
     private var initialized = false
     private var bindings: MpvJnaBindings? = null
     private var handle: Pointer? = null
+    private var eventLoopThread: Thread? = null
+    private val eventLoopRunning = AtomicBoolean(false)
+    private val manualStopRequested = AtomicBoolean(false)
 
     override fun initialize() {
         if (initialized) return
@@ -31,10 +36,12 @@ class JnaMpvBridge(
         bindings = mpv
         handle = createdHandle
         initialized = true
+        startEventLoop(mpv, createdHandle)
         statusListener?.invoke(MpvPlaybackStatus.IDLE)
     }
 
     override fun loadUrl(url: String) {
+        manualStopRequested.set(false)
         val escapedUrl = url.replace("\\", "\\\\").replace("\"", "\\\"")
         command("loadfile \"$escapedUrl\" replace")
         statusListener?.invoke(MpvPlaybackStatus.BUFFERING)
@@ -47,6 +54,7 @@ class JnaMpvBridge(
     }
 
     override fun stop() {
+        manualStopRequested.set(true)
         command("stop")
         statusListener?.invoke(MpvPlaybackStatus.IDLE)
     }
@@ -56,7 +64,18 @@ class JnaMpvBridge(
         command("seek $seconds absolute")
     }
 
-    override fun currentPositionMillis(): Long = 0L
+    override fun currentPositionMillis(): Long {
+        initialize()
+        val mpv = bindings ?: return 0L
+        val currentHandle = handle ?: return 0L
+
+        val pointer = mpv.mpv_get_property_string(currentHandle, "time-pos") ?: return 0L
+        return try {
+            pointer.getString(0).toDoubleOrNull()?.times(1000.0)?.toLong() ?: 0L
+        } finally {
+            mpv.mpv_free(pointer)
+        }
+    }
 
     override fun setVolume(volume: Float) {
         val percent = (volume.coerceIn(0f, 1f) * 100f)
@@ -64,6 +83,10 @@ class JnaMpvBridge(
     }
 
     override fun close() {
+        eventLoopRunning.set(false)
+        eventLoopThread?.join(300)
+        eventLoopThread = null
+
         val mpv = bindings
         val currentHandle = handle
         if (initialized && mpv != null && currentHandle != null) {
@@ -72,6 +95,7 @@ class JnaMpvBridge(
         bindings = null
         handle = null
         initialized = false
+        manualStopRequested.set(false)
         statusListener?.invoke(MpvPlaybackStatus.FINISHED)
     }
 
@@ -91,10 +115,27 @@ class JnaMpvBridge(
         check(result == 0) { "mpv command failed ($result): $command" }
     }
 
-    private fun configureNumericLocaleC() {
-        val libcName = if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) "msvcrt" else "c"
-        val libc = Native.load(libcName, LibC::class.java)
-        libc.setlocale(LC_NUMERIC, "C")
+    private fun startEventLoop(mpv: MpvJnaBindings, currentHandle: Pointer) {
+        if (eventLoopRunning.get()) return
+
+        eventLoopRunning.set(true)
+        eventLoopThread = thread(start = true, isDaemon = true, name = "mpv-event-loop") {
+            while (eventLoopRunning.get()) {
+                val eventPointer = mpv.mpv_wait_event(currentHandle, 0.1) ?: continue
+                val event = MpvEvent.fromPointer(eventPointer)
+                when (event.event_id) {
+                    MpvEventId.END_FILE -> {
+                        if (!manualStopRequested.getAndSet(false)) {
+                            statusListener?.invoke(MpvPlaybackStatus.FINISHED)
+                        }
+                    }
+
+                    MpvEventId.SHUTDOWN -> break
+                    MpvEventId.NONE -> Unit
+                }
+            }
+            eventLoopRunning.set(false)
+        }
     }
 
     private interface LibC : Library {
