@@ -54,8 +54,45 @@ class MpvEvent(pointer: Pointer) : Structure(pointer) {
     }
 }
 
+class MpvEventEndFile(pointer: Pointer) : Structure(pointer) {
+    @JvmField
+    var reason: Int = 0
+
+    @JvmField
+    var error: Int = 0
+
+    @JvmField
+    var playlist_entry_id: Long = 0L
+
+    @JvmField
+    var playlist_insert_id: Long = 0L
+
+    @JvmField
+    var playlist_insert_num_entries: Int = 0
+
+    override fun getFieldOrder(): List<String> = listOf(
+        "reason",
+        "error",
+        "playlist_entry_id",
+        "playlist_insert_id",
+        "playlist_insert_num_entries"
+    )
+
+    companion object {
+        fun fromPointer(pointer: Pointer): MpvEventEndFile = MpvEventEndFile(pointer).apply { read() }
+    }
+}
+
 object MpvEventId {
     const val NONE = 0
     const val SHUTDOWN = 1
     const val END_FILE = 7
+}
+
+object MpvEndFileReason {
+    const val EOF = 0
+    const val STOP = 2
+    const val QUIT = 3
+    const val ERROR = 4
+    const val REDIRECT = 5
 }

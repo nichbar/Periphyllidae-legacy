@@ -125,8 +125,21 @@ class JnaMpvBridge(
                 val event = MpvEvent.fromPointer(eventPointer)
                 when (event.event_id) {
                     MpvEventId.END_FILE -> {
-                        if (!manualStopRequested.getAndSet(false)) {
-                            statusListener?.invoke(MpvPlaybackStatus.FINISHED)
+                        val endFileEvent = event.data?.let { MpvEventEndFile.fromPointer(it) }
+                        val endReason = endFileEvent?.reason
+
+                        // Manual stop can still race with END_FILE events; consume its marker if present.
+                        val wasManualStop = manualStopRequested.getAndSet(false)
+
+                        when {
+                            endReason == MpvEndFileReason.EOF && !wasManualStop -> {
+                                // Natural track completion only
+                                statusListener?.invoke(MpvPlaybackStatus.FINISHED)
+                            }
+                            else -> {
+                                // Ignore STOP/REDIRECT/QUIT/ERROR END_FILE events to avoid accidental double-skip
+                                // during manual track switches or replacement.
+                            }
                         }
                     }
 

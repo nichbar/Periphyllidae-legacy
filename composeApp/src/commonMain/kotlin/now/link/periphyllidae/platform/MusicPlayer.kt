@@ -65,6 +65,9 @@ class MusicPlayer(
     private var shuffleEnabled: Boolean = false
     private var repeatEnabled: Boolean = false
 
+    // Guard against synthetic FINISHED events emitted during manual track replacement
+    private var suppressFinishedEventOnce: Boolean = false
+
     private var preloadedSongIds: MutableSet<String> = hashSetOf()
     
     init {
@@ -88,13 +91,21 @@ class MusicPlayer(
                         if (_isPlaying.value) PlaybackState.PLAYING else PlaybackState.PAUSED
                     }
                     EnginePlaybackState.FINISHED -> {
-                        LogManager.d(TAG, "Playback ended")
-                        scope.launch {
-                            handlePlaybackEnded()
+                        if (suppressFinishedEventOnce) {
+                            LogManager.d(TAG, "Ignoring FINISHED event during manual track change")
+                            suppressFinishedEventOnce = false
+                            PlaybackState.IDLE
+                        } else {
+                            LogManager.d(TAG, "Playback ended")
+                            scope.launch {
+                                handlePlaybackEnded()
+                            }
+                            PlaybackState.IDLE
                         }
-                        PlaybackState.IDLE
                     }
                     EnginePlaybackState.PLAYING -> {
+                        // Clear stale suppression marker once the newly selected track is actually playing
+                        suppressFinishedEventOnce = false
                         LogManager.d(TAG, "Engine is playing")
                         PlaybackState.PLAYING
                     }
@@ -371,6 +382,7 @@ class MusicPlayer(
     
     fun next() {
         LogManager.d(TAG, "Moving to next song")
+        suppressFinishedEventOnce = true
         if (currentQueue.isEmpty()) {
             LogManager.w(TAG, "Next requested but queue is empty")
             return
@@ -410,6 +422,7 @@ class MusicPlayer(
     
     fun previous() {
         LogManager.d(TAG, "Moving to previous song")
+        suppressFinishedEventOnce = true
         if (currentQueue.isEmpty()) {
             LogManager.w(TAG, "Previous requested but queue is empty")
             return
@@ -515,6 +528,7 @@ class MusicPlayer(
         if (index >= 0 && index < currentQueue.size) {
             val song = currentQueue[index]
             LogManager.i(TAG, "Playing song at index $index: ${song.title}")
+            suppressFinishedEventOnce = true
             _currentIndex.value = index
             play(song)
         } else {
