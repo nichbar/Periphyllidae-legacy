@@ -87,6 +87,7 @@ class SearchHistoryManager(
             name = song.title,
             subtitle = song.artist,
             imageUrl = song.coverArt,
+            imageId = song.coverArtId,
             timestamp = System.currentTimeMillis(),
             data = song
         )
@@ -102,6 +103,7 @@ class SearchHistoryManager(
             name = album.name,
             subtitle = album.artist,
             imageUrl = album.coverArt,
+            imageId = album.coverArtId,
             timestamp = System.currentTimeMillis(),
             data = album
         )
@@ -117,6 +119,7 @@ class SearchHistoryManager(
             name = artist.name,
             subtitle = "${artist.albumCount} albums",
             imageUrl = artist.coverArt,
+            imageId = artist.coverArtId,
             timestamp = System.currentTimeMillis(),
             data = artist
         )

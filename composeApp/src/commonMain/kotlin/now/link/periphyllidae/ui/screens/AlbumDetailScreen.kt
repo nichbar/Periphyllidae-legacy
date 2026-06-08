@@ -22,10 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.AlbumDetailViewModel
@@ -228,8 +228,9 @@ private fun AlbumHeader(
                 verticalAlignment = Alignment.Top
             ) {
                 // Album Cover
-                AsyncImage(
-                    model = album.coverArt,
+                CoverArtImage(
+                    coverArtUrl = album.coverArt,
+                    coverArtId = album.coverArtId,
                     contentDescription = "Album cover for ${album.name}",
                     modifier = Modifier
                         .size(120.dp)

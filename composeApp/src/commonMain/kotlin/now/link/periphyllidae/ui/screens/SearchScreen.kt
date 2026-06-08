@@ -27,11 +27,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.SearchViewModel
@@ -282,8 +282,9 @@ private fun ArtistListItem(artist: Artist) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = artist.coverArt,
+            CoverArtImage(
+                coverArtUrl = artist.coverArt,
+                coverArtId = artist.coverArtId,
                 contentDescription = "Artist image for ${artist.name}",
                 modifier = Modifier.size(56.dp),
                 contentScale = ContentScale.Crop
@@ -326,8 +327,9 @@ private fun ArtistIconItem(
             modifier = Modifier.size(64.dp),
             shape = CircleShape
         ) {
-            AsyncImage(
-                model = artist.coverArt,
+            CoverArtImage(
+                coverArtUrl = artist.coverArt,
+                coverArtId = artist.coverArtId,
                 contentDescription = "Artist ${artist.name}",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -363,8 +365,9 @@ private fun AlbumListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = album.coverArt,
+            CoverArtImage(
+                coverArtUrl = album.coverArt,
+                coverArtId = album.coverArtId,
                 contentDescription = "Album cover for ${album.name}",
                 modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
@@ -424,8 +427,9 @@ private fun SongSearchItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = song.coverArt,
+            CoverArtImage(
+                coverArtUrl = song.coverArt,
+                coverArtId = song.coverArtId,
                 contentDescription = "Cover art for ${song.title}",
                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,

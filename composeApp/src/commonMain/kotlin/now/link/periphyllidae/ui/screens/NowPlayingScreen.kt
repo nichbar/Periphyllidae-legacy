@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.viewmodels.NowPlayingViewModel
 import now.link.periphyllidae.mvi.MusicState
@@ -322,8 +322,9 @@ private fun AlbumArtSection(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        AsyncImage(
-            model = state.currentSong?.coverArt,
+        CoverArtImage(
+            coverArtUrl = state.currentSong?.coverArt,
+            coverArtId = state.currentSong?.coverArtId,
             contentDescription = "Album cover for ${state.currentSong?.title ?: ""}",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop

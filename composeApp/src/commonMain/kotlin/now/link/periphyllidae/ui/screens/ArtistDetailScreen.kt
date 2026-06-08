@@ -22,11 +22,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.ArtistDetailViewModel
@@ -223,8 +223,9 @@ private fun ArtistHeader(
                 verticalAlignment = Alignment.Top
             ) {
                 // Artist Image
-                AsyncImage(
-                    model = artist.coverArt,
+                CoverArtImage(
+                    coverArtUrl = artist.coverArt,
+                    coverArtId = artist.coverArtId,
                     contentDescription = "Artist image for ${artist.name}",
                     modifier = Modifier
                         .size(120.dp)
@@ -308,8 +309,9 @@ private fun ArtistAlbumCard(
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = album.coverArt,
+                CoverArtImage(
+                    coverArtUrl = album.coverArt,
+                    coverArtId = album.coverArtId,
                     contentDescription = "Album cover for ${album.name}",
                     modifier = Modifier
                         .size(80.dp)

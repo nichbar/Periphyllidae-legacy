@@ -16,7 +16,7 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import coil3.ImageLoader
-import coil3.request.ImageRequest
+import coil3.SingletonImageLoader
 import coil3.request.SuccessResult
 import coil3.toBitmap
 import kotlinx.coroutines.CancellationException
@@ -33,6 +33,7 @@ import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.mvi.MusicIntent
 import now.link.periphyllidae.platform.PlaybackState
 import now.link.periphyllidae.store.MusicStore
+import now.link.periphyllidae.utils.buildCoverArtImageRequest
 import now.link.periphyllidae.utils.LogManager
 import org.koin.android.ext.android.inject
 import java.util.concurrent.atomic.AtomicInteger
@@ -70,7 +71,7 @@ class MusicService : Service() {
         LogManager.i(TAG, "MusicService created")
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        imageLoader = ImageLoader(this)
+        imageLoader = SingletonImageLoader.get(this)
         createNotificationChannel()
         setupMediaSession()
         observePlaybackState()
@@ -254,7 +255,7 @@ class MusicService : Service() {
 
                 serviceScope.launch {
                     try {
-                        val bitmap = loadAlbumArt(coverUrl)
+                        val bitmap = loadAlbumArt(coverUrl, song.coverArtId)
                         if (
                             bitmap != null &&
                                 currentPlaybackKey == expectedPlaybackKey &&
@@ -336,7 +337,7 @@ class MusicService : Service() {
 
                 serviceScope.launch {
                     try {
-                        val bitmap = loadAlbumArt(coverUrl)
+                        val bitmap = loadAlbumArt(coverUrl, song.coverArtId)
                         val latestState = musicStore.state.value
                         if (
                             bitmap != null &&
@@ -460,14 +461,21 @@ class MusicService : Service() {
 
     fun getMediaSession(): MediaSessionCompat = mediaSession
 
-    private suspend fun loadAlbumArt(url: String): Bitmap? = withContext(Dispatchers.IO) {
+    private suspend fun loadAlbumArt(url: String, coverArtId: String?): Bitmap? = withContext(Dispatchers.IO) {
         try {
-            val request = ImageRequest.Builder(this@MusicService)
-                .data(url)
+            val request = buildCoverArtImageRequest(
+                context = this@MusicService,
+                coverArtUrl = url,
+                coverArtId = coverArtId
+            )
+                ?.newBuilder()
+                ?: return@withContext null
+
+            val sizedRequest = request
                 .size(256, 256)
                 .build()
 
-            val result = imageLoader.execute(request)
+            val result = imageLoader.execute(sizedRequest)
             when (result) {
                 is SuccessResult -> result.image.toBitmap()
                 else -> {

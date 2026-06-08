@@ -21,8 +21,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.components.Nav
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import org.koin.compose.koinInject
 import now.link.periphyllidae.viewmodels.HomeViewModel
@@ -281,6 +281,7 @@ private fun AlbumSectionContent(
                     title = album.name,
                     subtitle = album.artist,
                     imageUrl = album.coverArt,
+                    imageId = album.coverArtId,
                     onClick = { onAlbumClick(album) },
                     onPlay = { onAlbumPlay(album) }
                 )
@@ -365,6 +366,7 @@ private fun MediaCard(
     title: String,
     subtitle: String,
     imageUrl: String?,
+    imageId: String?,
     onClick: () -> Unit,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier
@@ -374,8 +376,9 @@ private fun MediaCard(
             .width(HomeScreenDefaults.cardWidth)
     ) {
         Column {
-            AsyncImage(
-                model = imageUrl,
+            CoverArtImage(
+                coverArtUrl = imageUrl,
+                coverArtId = imageId,
                 contentDescription = title,
                 modifier = Modifier
                     .fillMaxWidth()

@@ -15,9 +15,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.mvi.MusicState
+import now.link.periphyllidae.ui.components.CoverArtImage
 
 @Composable
 fun MusicBarOverlay(
@@ -44,8 +44,9 @@ fun MusicBarOverlay(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Album Art
-            AsyncImage(
-                model = currentSong.coverArt,
+            CoverArtImage(
+                coverArtUrl = currentSong.coverArt,
+                coverArtId = currentSong.coverArtId,
                 contentDescription = "Album Art",
                 modifier = Modifier
                     .size(56.dp)
@@ -142,8 +143,9 @@ fun LandscapeMusicBarOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Album Art
-                AsyncImage(
-                    model = currentSong.coverArt,
+                CoverArtImage(
+                    coverArtUrl = currentSong.coverArt,
+                    coverArtId = currentSong.coverArtId,
                     contentDescription = currentSong.title,
                     modifier = Modifier
                         .size(56.dp)

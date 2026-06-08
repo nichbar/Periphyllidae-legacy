@@ -13,5 +13,6 @@ data class Playlist(
     val created: String,
     val changed: String,
     val coverArt: String? = null,
+    val coverArtId: String? = null,
     val songs: List<Song> = emptyList()
 )

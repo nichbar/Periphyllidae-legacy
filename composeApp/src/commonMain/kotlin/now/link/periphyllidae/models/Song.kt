@@ -15,5 +15,6 @@ data class Song(
     val year: Int? = null,
     val genre: String? = null,
     val coverArt: String? = null,
+    val coverArtId: String? = null,
     val streamUrl: String
 )

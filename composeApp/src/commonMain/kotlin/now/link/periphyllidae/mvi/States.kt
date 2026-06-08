@@ -137,6 +137,7 @@ data class HistoryItem(
     val name: String,
     val subtitle: String? = null,
     val imageUrl: String? = null,
+    val imageId: String? = null,
     val timestamp: Long,
     @Serializable(with = HistoryItemDataSerializer::class)
     val data: Any // Song, Album, or Artist

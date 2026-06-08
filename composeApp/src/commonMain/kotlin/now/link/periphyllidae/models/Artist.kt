@@ -9,5 +9,6 @@ data class Artist(
     val albumCount: Int,
     val starred: String? = null,
     val coverArt: String? = null,
+    val coverArtId: String? = null,
     val albums: List<Album> = emptyList()
 )

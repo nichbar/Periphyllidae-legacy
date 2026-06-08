@@ -9,7 +9,8 @@ fun SubsonicArtist.toDomainModel(repository: SubsonicRepository): Artist {
         name = this.name,
         albumCount = this.albumCount ?: this.album.size,
         starred = this.starred,
-        coverArt = this.coverArt ?.let { repository.getCoverArtUrl(it) },
+        coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        coverArtId = this.coverArt,
         albums = this.album.map { it.toDomainModel(repository) }
     )
 }
@@ -24,6 +25,7 @@ fun SubsonicAlbum.toDomainModel(repository: SubsonicRepository): Album {
         year = this.year,
         genre = this.genre,
         coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        coverArtId = this.coverArt,
         copyright = this.copyright,
         songs = this.song.map { it.toDomainModel(repository) }
     )
@@ -42,6 +44,7 @@ fun SubsonicSong.toDomainModel(repository: SubsonicRepository): Song {
         year = this.year,
         genre = this.genre,
         coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        coverArtId = this.coverArt,
         streamUrl = repository.getStreamUrl(this.id)
     )
 }
@@ -71,6 +74,7 @@ fun SubsonicPlaylist.toDomainModel(repository: SubsonicRepository): Playlist {
         created = this.created ?: "",
         changed = this.changed ?: "",
         coverArt = this.coverArt?.let { repository.getCoverArtUrl(it) },
+        coverArtId = this.coverArt,
         songs = songs
     )
 }

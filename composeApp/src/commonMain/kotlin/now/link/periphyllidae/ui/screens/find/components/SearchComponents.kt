@@ -20,8 +20,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.mvi.HistoryItemType
+import now.link.periphyllidae.ui.components.CoverArtImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,8 +133,9 @@ fun HistoryItemRow(
             modifier = Modifier.size(48.dp),
             shape = RoundedCornerShape(8.dp)
         ) {
-            AsyncImage(
-                model = item.imageUrl,
+            CoverArtImage(
+                coverArtUrl = item.imageUrl,
+                coverArtId = item.imageId,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop

@@ -16,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.models.Song
 
 @Composable
@@ -44,8 +43,9 @@ fun FloatingMusicBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Album Art
-            AsyncImage(
-                model = currentSong.coverArt,
+            CoverArtImage(
+                coverArtUrl = currentSong.coverArt,
+                coverArtId = currentSong.coverArtId,
                 contentDescription = "Album Art",
                 modifier = Modifier
                     .size(56.dp)

@@ -18,10 +18,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.CoverArtImage
 
 @Composable
 fun SearchResults(
@@ -133,8 +133,9 @@ fun ArtistIconItem(
             modifier = Modifier.size(64.dp),
             shape = CircleShape
         ) {
-            AsyncImage(
-                model = artist.coverArt,
+            CoverArtImage(
+                coverArtUrl = artist.coverArt,
+                coverArtId = artist.coverArtId,
                 contentDescription = "Artist ${artist.name}",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -171,8 +172,9 @@ fun AlbumListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = album.coverArt,
+            CoverArtImage(
+                coverArtUrl = album.coverArt,
+                coverArtId = album.coverArtId,
                 contentDescription = "Album cover for ${album.name}",
                 modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
@@ -232,8 +234,9 @@ fun SongSearchItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = song.coverArt,
+            CoverArtImage(
+                coverArtUrl = song.coverArt,
+                coverArtId = song.coverArtId,
                 contentDescription = "Cover art for ${song.title}",
                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,

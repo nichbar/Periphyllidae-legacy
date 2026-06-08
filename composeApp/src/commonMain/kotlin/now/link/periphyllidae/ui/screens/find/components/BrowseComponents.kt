@@ -21,11 +21,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.CoverArtImage
 import now.link.periphyllidae.ui.screens.find.navigation.AlphabetSidebar
 import now.link.periphyllidae.ui.screens.find.utils.createCharIndexMap
 import now.link.periphyllidae.ui.screens.find.utils.getAvailableChars
@@ -412,8 +412,9 @@ fun ArtistGridItem(
             modifier = Modifier.size(80.dp),
             shape = CircleShape
         ) {
-            AsyncImage(
-                model = artist.coverArt,
+            CoverArtImage(
+                coverArtUrl = artist.coverArt,
+                coverArtId = artist.coverArtId,
                 contentDescription = "Artist ${artist.name}",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
