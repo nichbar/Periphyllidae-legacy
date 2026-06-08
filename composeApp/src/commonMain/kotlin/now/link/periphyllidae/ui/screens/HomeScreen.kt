@@ -119,18 +119,24 @@ private fun ShuffleFloatingActionButton(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FloatingActionButton(
-        modifier = modifier.combinedClickable(
-            onClick = onClick,
-            onLongClick = onLongClick
-        ),
-        containerColor = MaterialTheme.colorScheme.primary,
-        onClick = {}
+    Surface(
+        modifier = modifier
+            .size(56.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        shape = FloatingActionButtonDefaults.shape,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shadowElevation = 6.dp
     ) {
-        Icon(
-            imageVector = Icons.Default.Shuffle,
-            contentDescription = "Play Random Song"
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Shuffle,
+                contentDescription = "Play Random Song"
+            )
+        }
     }
 }
 

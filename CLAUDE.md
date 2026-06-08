@@ -11,6 +11,15 @@ Periphyllidae is a Kotlin Multiplatform music client for Subsonic-compatible ser
 ### Building and Running
 
 ```bash
+# JVM compile check
+./gradlew :composeApp:compileKotlinJvm
+
+# Android compile check
+./gradlew :composeApp:compileDebugKotlinAndroid
+
+# JVM unit tests
+./gradlew :composeApp:jvmTest
+
 # Android Debug APK
 ./gradlew :composeApp:assembleDebug
 
@@ -36,7 +45,7 @@ Periphyllidae is a Kotlin Multiplatform music client for Subsonic-compatible ser
 - **Kotlin Multiplatform** - Shared business logic across Android and JVM targets
 - **Compose Multiplatform** - Unified UI framework with native performance
 - **Decompose** - Navigation and component lifecycle management
-- **MediaMP** - Cross-platform audio playback (ExoPlayer on Android, VLC on Desktop)
+- **MediaMP + MPV** - ExoPlayer-backed playback on Android; direct MPV playback engine on desktop
 - **Ktor** - HTTP client and embedded server for caching
 - **Koin** - Dependency injection
 - **Kermit + LogManager** - Enhanced logging with in-memory buffering
@@ -51,6 +60,10 @@ Periphyllidae is a Kotlin Multiplatform music client for Subsonic-compatible ser
 Docs files are located in the `docs/` directory.
 
 `CODE_QUALITY_ANALYSIS_REPORT.md` - Code quality report with identified issues and possible improvements.
+
+`docs/plans/2026-02-28-replace-vlc-with-mpv-design.md` - Desktop MPV replacement design notes.
+
+`docs/plans/2026-02-28-replace-vlc-with-mpv-benchmark-notes.md` - MPV/VLC benchmark notes and validation status.
 
 ### Key Components
 
@@ -71,8 +84,9 @@ Docs files are located in the `docs/` directory.
 - **CacheInitializer** - Async cache system initialization
 
 #### Media Playback
-- **MusicPlayer** - Unified interface abstracting MediaMP implementations
-- **MediampPlayerFactory** - Platform-specific factory for ExoPlayer/VLC
+- **MusicPlayer** - Unified interface abstracting platform playback engines
+- **PlaybackEngineFactory** - Platform-specific factory for ExoPlayer on Android and MPV on desktop
+- **MpvPlaybackEngine / JnaMpvBridge** - Desktop MPV integration through JNA and packaged native libraries
 - **SystemTrayManager** - Desktop media controls and tray integration
 
 #### Logging System
@@ -91,16 +105,22 @@ Docs files are located in the `docs/` directory.
 composeApp/src/
 ├── commonMain/kotlin/now/link/periphyllidae/
 │   ├── components/           # Decompose navigation components
+│   ├── mvi/                  # State and intent definitions
 │   ├── models/              # Data models and cache structures
 │   ├── repository/          # Data access layer
 │   ├── store/               # State management (MVI)
 │   ├── ui/
-│   │   ├── screens/         # 8 main UI screens
+│   │   ├── screens/         # Main UI screens
 │   │   ├── components/      # Reusable UI components
+│   │   ├── content/         # Root/main content routing
+│   │   ├── layout/          # Shared app layout and overlays
+│   │   ├── animation/       # Shared animation utilities
+│   │   ├── utils/           # UI-specific utilities
 │   │   └── theme/           # Material Design 3 theming
 │   ├── viewmodels/          # Screen-specific ViewModels
 │   ├── platform/            # Platform abstractions
 │   ├── cache/               # Caching system
+│   ├── services/            # Shared service helpers
 │   ├── utils/               # LogManager and utilities
 │   └── di/                  # Dependency injection
 ├── androidMain/kotlin/      # Android-specific code
@@ -118,30 +138,29 @@ composeApp/src/
 ### Desktop
 - **main.kt** - JVM entry point with window management
 - **System tray integration** - Minimize to tray, media controls
-- **VLC backend** - Comprehensive codec support
+- **MPV backend** - Desktop playback through `MpvPlaybackEngine`, `JnaMpvBridge`, and `MpvNativeLoader`
 - **Custom window styling** - Undecorated, transparent with rounded corners
 
 ## Development Guidelines
 
 ### Adding New Screens
-1. Create Component interface in `components/`
-2. Implement in `components/Default*Component.kt`
-3. Add to `RootComponent` navigation stack
-4. Create ViewModel in `viewmodels/`
-5. Implement Screen in `ui/screens/`
-6. Add navigation configuration in `RootComponent.kt`
+1. Create or update the relevant Component interface in `components/`
+2. Add navigation events/configuration in `RootComponent` or `MainComponent`, depending on whether the screen is root-level or tab-level
+3. Create or update the ViewModel in `viewmodels/`
+4. Implement the Screen in `ui/screens/`
+5. Wire content routing in `ui/content/` and layout behavior in `ui/layout/` when needed
 
 ### Working with State
 - Use `StateFlow` for reactive state management with `collectAsStateWithLifecycle`
-- Follow MVI pattern: Intent → Reducer → State
+- Follow the existing MVI style: Intent → Store/ViewModel handler → StateFlow state update
 - Keep ViewModels focused on screen-specific logic
 - Use Stores for cross-component state sharing (AuthStore, MusicStore, AppStore)
-- **Note**: SearchStore was merged into SearchViewModel to eliminate architectural redundancy
+- **Note**: Search/Find behavior is screen-scoped in ViewModels rather than a global SearchStore
 - **Memory Management**: Use `ApplicationScopeManager.scope` for long-running coroutines
 
 ### Platform Abstractions
 - Use `expect/actual` for platform-specific implementations
-- Prefer factory pattern for MediaMP to avoid direct expect/actual
+- Prefer `PlaybackEngineFactory` for platform playback differences
 - Implement platform-specific DI modules (`platformModule`)
 
 ### Logging
@@ -161,14 +180,30 @@ The project uses version catalogs (`libs.versions.toml`) for dependency manageme
 
 ## Testing
 
-Check if the project is compilable by running `./gradlew :composeApp:run` after every major changes.
+Use targeted verification after changes:
+
+```bash
+# Fast desktop/common compile check
+./gradlew :composeApp:compileKotlinJvm
+
+# Android compile check
+./gradlew :composeApp:compileDebugKotlinAndroid
+
+# JVM playback/native-loader test suite
+./gradlew :composeApp:jvmTest
+
+# Full project checks when broader changes justify it
+./gradlew :composeApp:check
+```
+
+Run `./gradlew :composeApp:run` when you need to manually inspect the desktop app behavior, not as the default compile check.
 
 ## Current Code Quality Status
 
 **Overall Grade: A- (Excellent with Minor Improvements)**
 
 ### ⚠️ Remaining Areas for Improvement
-- Missing comprehensive testing infrastructure
+- Broader test coverage is still needed outside the current common and JVM playback/native-loader tests
 - UI performance optimization opportunities
 - Error handling standardization
 - AlbumDetailViewModel direct repository access (architectural inconsistency)
