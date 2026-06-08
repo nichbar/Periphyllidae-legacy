@@ -2,6 +2,7 @@ package now.link.periphyllidae.platform
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.pow
 import now.link.periphyllidae.cache.CacheManager
 import now.link.periphyllidae.getPlatform
@@ -67,6 +70,9 @@ class MusicPlayer(
 
     // Guard against synthetic FINISHED events emitted during manual track replacement
     private var suppressFinishedEventOnce: Boolean = false
+    private var playbackJob: Job? = null
+    private var playbackRequestId: Long = 0L
+    private val playbackMutex = Mutex()
 
     private var preloadedSongIds: MutableSet<String> = hashSetOf()
     
@@ -188,6 +194,9 @@ class MusicPlayer(
     
     fun play(song: Song) {
         LogManager.i(TAG, "Playing song: ${song.title} by ${song.artist} (ID: ${song.id})")
+        playbackRequestId += 1
+        val requestId = playbackRequestId
+        playbackJob?.cancel()
 
         // Cancel cache operations for the previous song if it's different
         val previousSong = _currentSong.value
@@ -202,9 +211,19 @@ class MusicPlayer(
             }
         }
 
-        _currentSong.value = song
+        try {
+            suppressFinishedEventOnce = true
+            playbackEngine.stop()
+        } catch (e: Exception) {
+            LogManager.w(TAG, "Failed to stop previous playback before starting ${song.title}", e)
+        }
 
-        scope.launch {
+        _currentSong.value = song
+        _currentPosition.value = 0L
+        _duration.value = 0L
+        _isPlaying.value = false
+
+        playbackJob = scope.launch {
             var playbackSuccessful = false
             var lastException: Exception? = null
 
@@ -212,51 +231,69 @@ class MusicPlayer(
             val maxRetries = 3
             val baseDelayMs = 1000L
 
-            for (attempt in 0..maxRetries) {
-                try {
-                    LogManager.d(TAG, "Starting playback (attempt ${attempt + 1}/${maxRetries + 1})")
-
-                    // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
-                    val playbackUrl = if (getPlatform().isAndroid) {
-                        song.streamUrl
-                    } else {
-                        getPlaybackUrlWithFallback(song.streamUrl, attempt)
+            playbackMutex.withLock {
+                for (attempt in 0..maxRetries) {
+                    if (requestId != playbackRequestId || !isActive) {
+                        LogManager.d(TAG, "Skipping stale playback request for ${song.title}")
+                        return@launch
                     }
 
-                    LogManager.d(TAG, "Playback URL (attempt ${attempt + 1}): $playbackUrl")
+                    try {
+                        LogManager.d(TAG, "Starting playback (attempt ${attempt + 1}/${maxRetries + 1})")
 
-                    playbackEngine.playUri(playbackUrl)
+                        // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
+                        val playbackUrl = if (getPlatform().isAndroid) {
+                            song.streamUrl
+                        } else {
+                            getPlaybackUrlWithFallback(song.streamUrl, attempt)
+                        }
 
-                    // Update the duration from the song metadata
-                    val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
-                    _duration.value = songDuration
-                    LogManager.d(TAG, "Song duration set to: ${songDuration}ms")
+                        LogManager.d(TAG, "Playback URL (attempt ${attempt + 1}): $playbackUrl")
 
-                    // Reset position to start
-                    _currentPosition.value = 0L
+                        playbackEngine.playUri(playbackUrl)
 
-                    // Update current index and playing state
-                    updateCurrentIndex(song)
-                    _isPlaying.value = true
+                        if (requestId != playbackRequestId || !isActive) {
+                            LogManager.d(TAG, "Ignoring stale playback result for ${song.title}")
+                            return@launch
+                        }
 
-                    // State will be automatically updated via MediaMP state observation
-                    LogManager.i(TAG, "Song playback initiated: ${song.title} (attempt ${attempt + 1})")
-                    playbackSuccessful = true
-                    break // Success, exit retry loop
+                        // Update the duration from the song metadata
+                        val songDuration = song.duration?.times(1000L) ?: 0L // Convert to milliseconds
+                        _duration.value = songDuration
+                        LogManager.d(TAG, "Song duration set to: ${songDuration}ms")
 
-                } catch (e: Exception) {
-                    lastException = e
-                    LogManager.w(TAG, "Playback failed for song: ${song.title} (attempt ${attempt + 1})", e)
+                        // Reset position to start
+                        _currentPosition.value = 0L
 
-                    if (attempt < maxRetries) {
-                        val delayMs = baseDelayMs * (2.0.pow(attempt)).toLong()
-                        LogManager.d(TAG, "Retrying playback in ${delayMs}ms...")
-                        kotlinx.coroutines.delay(delayMs)
+                        // Update current index and playing state
+                        updateCurrentIndex(song)
+                        _isPlaying.value = true
+
+                        // State will be automatically updated via MediaMP state observation
+                        LogManager.i(TAG, "Song playback initiated: ${song.title} (attempt ${attempt + 1})")
+                        playbackSuccessful = true
+                        break // Success, exit retry loop
+
+                    } catch (e: Exception) {
+                        lastException = e
+
+                        if (!isActive || requestId != playbackRequestId) {
+                            LogManager.d(TAG, "Playback request for ${song.title} was superseded")
+                            return@launch
+                        }
+
+                        LogManager.w(TAG, "Playback failed for song: ${song.title} (attempt ${attempt + 1})", e)
+
+                        if (attempt < maxRetries) {
+                            val delayMs = baseDelayMs * (2.0.pow(attempt)).toLong()
+                            LogManager.d(TAG, "Retrying playback in ${delayMs}ms...")
+                            kotlinx.coroutines.delay(delayMs)
+                        }
                     }
                 }
             }
 
-            if (!playbackSuccessful) {
+            if (!playbackSuccessful && requestId == playbackRequestId && isActive) {
                 LogManager.e(TAG, "All playback attempts failed for song: ${song.title}", lastException ?: Exception("Unknown playback error"))
                 _playbackState.value = PlaybackState.ERROR
                 _isPlaying.value = false
@@ -318,6 +355,9 @@ class MusicPlayer(
     fun stop() {
         LogManager.d(TAG, "Stopping playback")
         try {
+            playbackRequestId += 1
+            playbackJob?.cancel()
+            playbackJob = null
             playbackEngine.stop()
 
             // Cancel any ongoing cache operations for the current song

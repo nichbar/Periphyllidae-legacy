@@ -509,15 +509,23 @@ class MusicStore(
 
     private fun setQueue(songs: List<Song>, startIndex: Int) {
         LogManager.i(TAG, "Setting queue with ${songs.size} songs, starting at index $startIndex")
-        musicPlayer.setQueue(songs, startIndex)
+        val validStartIndex = startIndex.coerceIn(0, maxOf(0, songs.size - 1))
+        musicPlayer.setQueue(songs, validStartIndex)
+        _state.value = _state.value.copy(
+            queue = songs,
+            currentIndex = validStartIndex,
+            currentSong = songs.getOrNull(validStartIndex),
+            currentPosition = 0L,
+            duration = 0L
+        )
         // Persist the queue with the actual values we just set
-        persistQueue(songs, startIndex)
+        persistQueue(songs, validStartIndex)
         LogManager.d(TAG, "Queue set in music player and persisted")
     }
 
     private fun playSpecificSong(song: Song, index: Int) {
         LogManager.i(TAG, "Playing specific song: ${song.title} at index $index")
-        musicPlayer.playAtIndex(index)
+        musicPlayer.play(song)
         // State will be updated automatically through observers
         LogManager.d(TAG, "Song playback started at index $index")
         // Persist current state
