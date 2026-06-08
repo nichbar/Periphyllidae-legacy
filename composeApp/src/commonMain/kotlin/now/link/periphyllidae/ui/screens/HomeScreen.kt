@@ -1,6 +1,8 @@
 package now.link.periphyllidae.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,12 +72,10 @@ fun HomeScreen(
     val musicState by viewModel.musicState.collectAsState()
     val authState by viewModel.authState.collectAsState()
 
-    val currentServer = remember { authState.currentServer }
-    var lastServerIdentifier = remember { currentServer?.let { "${it.url}:${it.username}" } }
+    val currentServer = authState.currentServer
+    var lastServerIdentifier by remember { mutableStateOf(currentServer?.let { "${it.url}:${it.username}" }) }
 
     LaunchedEffect(currentServer) {
-        // Only refresh content if this is the first initialization
-        // or if the server has actually changed (different server URL/username)
         val currentServerIdentifier = currentServer?.let { "${it.url}:${it.username}" }
         if (lastServerIdentifier != currentServerIdentifier) {
             viewModel.refreshContent()
@@ -91,7 +91,8 @@ fun HomeScreen(
             modifier = modifier,
             floatingActionButton = {
                 ShuffleFloatingActionButton(
-                    onClick = { viewModel.playRandomSong() }
+                    onClick = { viewModel.playRandomSong() },
+                    onLongClick = { viewModel.refreshContent() }
                 )
             }
         ) { paddingValues ->
@@ -111,15 +112,20 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ShuffleFloatingActionButton(
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     FloatingActionButton(
-        modifier = modifier,
+        modifier = modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        ),
         containerColor = MaterialTheme.colorScheme.primary,
-        onClick = onClick
+        onClick = {}
     ) {
         Icon(
             imageVector = Icons.Default.Shuffle,
