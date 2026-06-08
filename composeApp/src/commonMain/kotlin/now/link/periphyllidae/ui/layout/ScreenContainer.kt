@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import kotlinx.datetime.Clock
 
 data class TopBarConfig(
     val title: String? = null,
@@ -17,6 +18,20 @@ data class TopBarConfig(
     val onNavigationClick: (() -> Unit)? = null,
     val actions: @Composable RowScope.() -> Unit = {}
 )
+
+private const val NavigationClickDebounceMillis = 450L
+
+private object TopBarNavigationClickGate {
+    private var lastClickAtMillis = 0L
+
+    fun runIfAllowed(action: () -> Unit) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        if (now - lastClickAtMillis < NavigationClickDebounceMillis) return
+
+        lastClickAtMillis = now
+        action()
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +53,13 @@ fun ScreenContainer(
                     },
                     navigationIcon = {
                         topBarConfig.navigationIcon?.let { icon ->
-                            IconButton(onClick = { topBarConfig.onNavigationClick?.invoke() }) {
+                            IconButton(
+                                onClick = {
+                                    topBarConfig.onNavigationClick?.let { onNavigationClick ->
+                                        TopBarNavigationClickGate.runIfAllowed(onNavigationClick)
+                                    }
+                                }
+                            ) {
                                 Icon(icon, contentDescription = "Back")
                             }
                         }

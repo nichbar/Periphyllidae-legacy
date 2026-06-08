@@ -144,6 +144,8 @@ fun BrowseSongsContent(
 @Composable
 fun BrowseAlbumsContent(
     albums: List<Album>,
+    currentSong: Song?,
+    isPlaying: Boolean,
     isLoading: Boolean,
     isLoadingMore: Boolean,
     error: String?,
@@ -208,8 +210,14 @@ fun BrowseAlbumsContent(
             }
 
             items(albums, key = { it.id }) { album ->
+                val currentSongId = currentSong?.id
+                val isCurrentAlbumPlaying = isPlaying &&
+                    (currentSong?.albumId == album.id ||
+                        currentSongId != null && album.songs.any { it.id == currentSongId })
+
                 AlbumListItem(
                     album = album,
+                    isPlaying = isCurrentAlbumPlaying,
                     onPlay = { onPlayAlbum(album) },
                     onClick = { onAlbumClick(album) }
                 )

@@ -158,6 +158,7 @@ fun ArtistIconItem(
 @Composable
 fun AlbumListItem(
     album: Album,
+    isPlaying: Boolean = false,
     onPlay: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -210,8 +211,8 @@ fun AlbumListItem(
 
             IconButton(onClick = onPlay) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play album"
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause album" else "Play album"
                 )
             }
         }

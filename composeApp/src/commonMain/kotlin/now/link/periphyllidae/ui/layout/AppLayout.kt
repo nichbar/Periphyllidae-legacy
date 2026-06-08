@@ -2,8 +2,6 @@ package now.link.periphyllidae.ui.layout
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -37,7 +35,6 @@ fun AppLayout(
     val tabs = listOf(
         TabItem("Home", Icons.Filled.Home, Icons.Outlined.Home),
         TabItem("Find", Icons.Filled.Search, Icons.Outlined.Search),
-        TabItem("Playlists", Icons.AutoMirrored.Filled.List, Icons.AutoMirrored.Outlined.List),
         TabItem("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
 
@@ -45,8 +42,8 @@ fun AppLayout(
     val selectedTabIndex = when (stack.active.instance) {
         is MainComponent.TabChild.HomeChild -> 0
         is MainComponent.TabChild.FindChild -> 1
-        is MainComponent.TabChild.PlaylistsChild -> 2
-        is MainComponent.TabChild.SettingsChild -> 3
+        is MainComponent.TabChild.PlaylistsChild -> 0
+        is MainComponent.TabChild.SettingsChild -> 2
     }
 
     BoxWithConstraints(modifier = modifier) {

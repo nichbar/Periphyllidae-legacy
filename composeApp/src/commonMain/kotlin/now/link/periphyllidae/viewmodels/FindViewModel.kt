@@ -10,6 +10,7 @@ import now.link.periphyllidae.mvi.FindIntent
 import now.link.periphyllidae.mvi.FindState
 import now.link.periphyllidae.mvi.FindView
 import now.link.periphyllidae.mvi.MusicIntent
+import now.link.periphyllidae.mvi.MusicState
 import now.link.periphyllidae.mvi.HistoryItemType
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.repository.SubsonicRepositoryManager
@@ -39,6 +40,7 @@ class FindViewModel(
     // Find state
     private val _findState = MutableStateFlow(FindState())
     val findState: StateFlow<FindState> = _findState.asStateFlow()
+    val musicState: StateFlow<MusicState> = musicStore.state
 
     // Local UI state
     private val _isSearchBarFocused = MutableStateFlow(false)
@@ -406,6 +408,28 @@ class FindViewModel(
     fun playAlbum(album: Album) {
         viewModelScope.launch {
             musicStore.handleIntent(MusicIntent.PlayAlbum(album))
+        }
+    }
+
+    fun handleAlbumPlaybackClick(album: Album) {
+        viewModelScope.launch {
+            val currentMusicState = musicStore.state.value
+            val currentSong = currentMusicState.currentSong
+            val currentSongId = currentSong?.id
+            val isCurrentAlbumSong = currentSong?.albumId == album.id ||
+                currentSongId != null && album.songs.any { it.id == currentSongId }
+
+            when {
+                isCurrentAlbumSong && currentMusicState.isPlaying -> {
+                    musicStore.handleIntent(MusicIntent.Pause)
+                }
+                isCurrentAlbumSong -> {
+                    musicStore.handleIntent(MusicIntent.Play)
+                }
+                else -> {
+                    musicStore.handleIntent(MusicIntent.PlayAlbum(album))
+                }
+            }
         }
     }
 

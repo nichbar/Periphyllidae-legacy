@@ -21,14 +21,14 @@ import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.ui.screens.find.components.*
 import now.link.periphyllidae.viewmodels.FindViewModel
-import org.koin.compose.koinInject
 
 @Composable
 fun FindScreen(
+    viewModel: FindViewModel,
     onNavigateTo: (Nav) -> Unit,
 ) {
-    val viewModel: FindViewModel = koinInject()
     val state by viewModel.findState.collectAsStateWithLifecycle()
+    val musicState by viewModel.musicState.collectAsStateWithLifecycle()
     val isSearchBarFocused by viewModel.isSearchBarFocused.collectAsStateWithLifecycle()
 
     val topBarConfig = TopBarConfig(
@@ -77,10 +77,12 @@ fun FindScreen(
 
                 FindView.AllAlbums -> BrowseAlbumsContent(
                     albums = state.browseAlbums,
+                    currentSong = musicState.currentSong,
+                    isPlaying = musicState.isPlaying,
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
-                    onPlayAlbum = viewModel::playAlbum,
+                    onPlayAlbum = viewModel::handleAlbumPlaybackClick,
                     onAlbumClick = { album -> onNavigateTo.invoke(Nav.AlbumDetail(album.id)) },
                     onLoadMore = {
                         viewModel.handleIntent(

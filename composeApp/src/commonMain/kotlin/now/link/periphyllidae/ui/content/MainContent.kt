@@ -55,6 +55,7 @@ private fun TabContent(
 
                 is MainComponent.TabChild.FindChild -> {
                     FindScreen(
+                        viewModel = child.component.viewModel,
                         onNavigateTo = { nav ->
                             child.component.onNavigateTo(nav)
                         }
@@ -81,4 +82,3 @@ private fun TabContent(
         }
     }
 }
-

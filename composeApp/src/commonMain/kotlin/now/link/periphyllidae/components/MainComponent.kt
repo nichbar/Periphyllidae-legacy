@@ -7,6 +7,9 @@ import com.arkivanov.decompose.router.stack.bringToFront
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.value.Value
 import kotlinx.serialization.Serializable
+import now.link.periphyllidae.viewmodels.FindViewModel
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 interface MainComponent: NavigationComponent {
     val tabStack: Value<ChildStack<*, TabChild>>
@@ -67,8 +70,7 @@ class DefaultMainComponent(
         val config = when (index) {
             0 -> TabConfig.Home
             1 -> TabConfig.Find
-            2 -> TabConfig.Playlists
-            3 -> TabConfig.Settings
+            2 -> TabConfig.Settings
             else -> TabConfig.Home
         }
 
@@ -112,12 +114,16 @@ class DefaultHomeTabComponent(
     }
 }
 
-interface FindTabComponent: NavigationComponent
+interface FindTabComponent: NavigationComponent {
+    val viewModel: FindViewModel
+}
 
 class DefaultFindTabComponent(
     componentContext: ComponentContext,
     private val nav: (Nav) -> Unit
-) : FindTabComponent, ComponentContext by componentContext {
+) : FindTabComponent, ComponentContext by componentContext, KoinComponent {
+
+    override val viewModel: FindViewModel by inject()
 
     override fun onNavigateTo(nav: Nav) {
         this.nav(nav)
