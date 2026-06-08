@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +38,7 @@ fun AlbumDetailScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val musicState by viewModel.musicState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     LaunchedEffect(albumId) {
@@ -101,6 +103,11 @@ fun AlbumDetailScreen(
 
             state.album != null -> {
                 val currentAlbum = state.album!!
+                val currentSong = musicState.currentSong
+                val currentSongId = currentSong?.id
+                val isCurrentAlbumPlaying = musicState.isPlaying &&
+                    (currentSong?.albumId == currentAlbum.id ||
+                        currentSongId != null && currentAlbum.songs.any { it.id == currentSongId })
 
                 Box(
                     modifier = Modifier
@@ -182,15 +189,15 @@ fun AlbumDetailScreen(
 
                     // FAB
                     FloatingActionButton(
-                        onClick = { viewModel.playAllSongsOfAlbum() },
+                        onClick = { viewModel.handleAlbumPlaybackFabClick() },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(16.dp),
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Play album",
+                            imageVector = if (isCurrentAlbumPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isCurrentAlbumPlaying) "Pause album" else "Play album",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }

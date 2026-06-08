@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import now.link.periphyllidae.mvi.AlbumDetailState
 import now.link.periphyllidae.mvi.MusicIntent
+import now.link.periphyllidae.mvi.MusicState
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
@@ -25,6 +26,7 @@ class AlbumDetailViewModel(
     
     private val _state = MutableStateFlow(AlbumDetailState())
     val state: StateFlow<AlbumDetailState> = _state.asStateFlow()
+    val musicState: StateFlow<MusicState> = musicStore.state
 
     fun loadAlbumDetail(albumId: String) {
         viewModelScope.launch {
@@ -60,6 +62,29 @@ class AlbumDetailViewModel(
             val album = _state.value.album
             if (album != null) {
                 musicStore.handleIntent(MusicIntent.PlayAlbum(album))
+            }
+        }
+    }
+
+    fun handleAlbumPlaybackFabClick() {
+        viewModelScope.launch {
+            val album = _state.value.album ?: return@launch
+            val currentMusicState = musicStore.state.value
+            val currentSong = currentMusicState.currentSong
+            val currentSongId = currentSong?.id
+            val isCurrentAlbumSong = currentSong?.albumId == album.id ||
+                currentSongId != null && album.songs.any { it.id == currentSongId }
+
+            when {
+                isCurrentAlbumSong && currentMusicState.isPlaying -> {
+                    musicStore.handleIntent(MusicIntent.Pause)
+                }
+                isCurrentAlbumSong -> {
+                    musicStore.handleIntent(MusicIntent.Play)
+                }
+                else -> {
+                    musicStore.handleIntent(MusicIntent.PlayAlbum(album))
+                }
             }
         }
     }
