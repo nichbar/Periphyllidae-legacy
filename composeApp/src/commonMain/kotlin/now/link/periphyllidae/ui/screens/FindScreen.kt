@@ -17,6 +17,7 @@ import now.link.periphyllidae.mvi.HistoryItemType
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
+import now.link.periphyllidae.ui.components.RetryErrorCard
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.ui.screens.find.components.*
@@ -65,7 +66,9 @@ fun FindScreen(
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
+                    loadMoreError = state.loadMoreError,
                     onPlaySong = viewModel::playSong,
+                    onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllSongs) },
                     onLoadMore = {
                         viewModel.handleIntent(
                             now.link.periphyllidae.mvi.FindIntent.LoadMoreSongs(
@@ -82,8 +85,10 @@ fun FindScreen(
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
+                    loadMoreError = state.loadMoreError,
                     onPlayAlbum = viewModel::handleAlbumPlaybackClick,
                     onAlbumClick = { album -> onNavigateTo.invoke(Nav.AlbumDetail(album.id)) },
+                    onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllAlbums) },
                     onLoadMore = {
                         viewModel.handleIntent(
                             now.link.periphyllidae.mvi.FindIntent.LoadMoreAlbums(
@@ -98,7 +103,9 @@ fun FindScreen(
                     isLoading = state.isLoading,
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
+                    loadMoreError = state.loadMoreError,
                     onArtistClick = { artist -> onNavigateTo.invoke(Nav.ArtistDetail(artist.id)) },
+                    onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllArtists) },
                     onLoadMore = {
                         viewModel.handleIntent(
                             now.link.periphyllidae.mvi.FindIntent.LoadMoreArtists(
@@ -197,19 +204,10 @@ private fun SearchViewContent(
         // Error Message
         if (state.error != null) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = state.error ?: "",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                RetryErrorCard(
+                    message = state.error,
+                    onRetry = { viewModel.performSearch(state.searchQuery) }
+                )
             }
         }
 

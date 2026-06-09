@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import now.link.periphyllidae.components.Nav
 import now.link.periphyllidae.ui.components.CoverArtImage
+import now.link.periphyllidae.ui.components.RetryErrorCard
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import org.koin.compose.koinInject
 import now.link.periphyllidae.viewmodels.HomeViewModel
@@ -104,6 +105,7 @@ fun HomeScreen(
                     onNavigateTo(Nav.AlbumDetail(it.id))
                 },
                 onPlaylistClick = { /* TODO: Navigate to playlist detail */ },
+                onRetryLoad = { viewModel.refreshContent() },
                 modifier = modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -147,25 +149,16 @@ private fun HomeContent(
     onAlbumPlay: (Album) -> Unit,
     onAlbumClick: (Album) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
+    onRetryLoad: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Create sections based on state
-    val sections by remember {
-        derivedStateOf {
-            buildList {
-                // Album sections
-                add(HomeSection.AlbumsSection(AlbumSectionData("Recently Added", state.newestAlbums)))
-                add(HomeSection.AlbumsSection(AlbumSectionData("Most Played", state.mostPlayedAlbums, maxItems = 10)))
-                add(HomeSection.AlbumsSection(AlbumSectionData("Recently Played", state.recentlyPlayedAlbums, maxItems = 10)))
-
-                // Playlists section
-                add(HomeSection.PlaylistsSection(state.playlists))
-
-                // State sections
-                add(HomeSection.LoadingSection(state.isLoadingHome))
-                add(HomeSection.ErrorSection(state.homeError))
-            }
-        }
+    val sections = buildList {
+        add(HomeSection.AlbumsSection(AlbumSectionData("Recently Added", state.newestAlbums)))
+        add(HomeSection.AlbumsSection(AlbumSectionData("Most Played", state.mostPlayedAlbums, maxItems = 10)))
+        add(HomeSection.AlbumsSection(AlbumSectionData("Recently Played", state.recentlyPlayedAlbums, maxItems = 10)))
+        add(HomeSection.PlaylistsSection(state.playlists))
+        add(HomeSection.LoadingSection(state.isLoadingHome))
+        add(HomeSection.ErrorSection(state.homeError))
     }
 
     LazyColumn(
@@ -179,7 +172,8 @@ private fun HomeContent(
                 isLandscape = isLandscape,
                 onAlbumPlay = onAlbumPlay,
                 onAlbumClick = onAlbumClick,
-                onPlaylistClick = onPlaylistClick
+                onPlaylistClick = onPlaylistClick,
+                onRetryLoad = onRetryLoad
             )
         }
     }
@@ -190,7 +184,8 @@ private fun LazyListScope.renderSection(
     isLandscape: Boolean,
     onAlbumPlay: (Album) -> Unit,
     onAlbumClick: (Album) -> Unit,
-    onPlaylistClick: (Playlist) -> Unit
+    onPlaylistClick: (Playlist) -> Unit,
+    onRetryLoad: () -> Unit
 ) {
     when (section) {
         is HomeSection.AlbumsSection -> {
@@ -211,7 +206,10 @@ private fun LazyListScope.renderSection(
             loadingSection(isLoading = section.isLoading)
         }
         is HomeSection.ErrorSection -> {
-            errorSection(errorMessage = section.errorMessage)
+            errorSection(
+                errorMessage = section.errorMessage,
+                onRetry = onRetryLoad
+            )
         }
     }
 }
@@ -258,10 +256,16 @@ private fun LazyListScope.loadingSection(isLoading: Boolean) {
     }
 }
 
-private fun LazyListScope.errorSection(errorMessage: String?) {
+private fun LazyListScope.errorSection(
+    errorMessage: String?,
+    onRetry: () -> Unit
+) {
     if (errorMessage != null) {
         item {
-            ErrorStateContent(errorMessage = errorMessage)
+            ErrorStateContent(
+                errorMessage = errorMessage,
+                onRetry = onRetry
+            )
         }
     }
 }
@@ -332,22 +336,17 @@ private fun LoadingStateContent() {
 }
 
 @Composable
-private fun ErrorStateContent(errorMessage: String) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        ),
+private fun ErrorStateContent(
+    errorMessage: String,
+    onRetry: () -> Unit
+) {
+    RetryErrorCard(
+        message = errorMessage,
+        onRetry = onRetry,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = HomeScreenDefaults.horizontalPadding)
-    ) {
-        Text(
-            text = errorMessage,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(HomeScreenDefaults.errorCardPadding)
-        )
-    }
+    )
 }
 
 // Reusable UI components

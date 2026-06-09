@@ -27,6 +27,7 @@ import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.ui.components.CoverArtImage
+import now.link.periphyllidae.ui.components.RetryErrorCard
 import now.link.periphyllidae.ui.layout.ScreenContainer
 import now.link.periphyllidae.ui.layout.TopBarConfig
 import now.link.periphyllidae.viewmodels.ArtistDetailViewModel
@@ -76,21 +77,14 @@ fun ArtistDetailScreen(
             }
             
             state.error != null -> {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
+                RetryErrorCard(
+                    message = state.error ?: "",
+                    onRetry = { viewModel.loadArtistDetail(artistId) },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(paddingValues)
                         .padding(16.dp)
-                ) {
-                    Text(
-                        text = state.error ?: "",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                )
             }
             
             state.artist != null -> {

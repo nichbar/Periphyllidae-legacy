@@ -26,6 +26,7 @@ import now.link.periphyllidae.models.Album
 import now.link.periphyllidae.models.Artist
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.ui.components.CoverArtImage
+import now.link.periphyllidae.ui.components.RetryErrorCard
 import now.link.periphyllidae.ui.screens.find.navigation.AlphabetSidebar
 import now.link.periphyllidae.ui.screens.find.utils.createCharIndexMap
 import now.link.periphyllidae.ui.screens.find.utils.getAvailableChars
@@ -36,7 +37,9 @@ fun BrowseSongsContent(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     error: String?,
+    loadMoreError: String?,
     onPlaySong: (Song) -> Unit,
+    onRetry: () -> Unit,
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -79,19 +82,10 @@ fun BrowseSongsContent(
 
             if (error != null) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
+                    RetryErrorCard(
+                        message = error,
+                        onRetry = onRetry
+                    )
                 }
             }
 
@@ -117,7 +111,16 @@ fun BrowseSongsContent(
                 }
             }
 
-            if (!isLoading && !isLoadingMore && songs.isNotEmpty()) {
+            if (loadMoreError != null) {
+                item {
+                    RetryErrorCard(
+                        message = loadMoreError,
+                        onRetry = onLoadMore
+                    )
+                }
+            }
+
+            if (!isLoading && !isLoadingMore && loadMoreError == null && songs.isNotEmpty()) {
                 item {
                     TextButton(
                         onClick = onLoadMore,
@@ -149,8 +152,10 @@ fun BrowseAlbumsContent(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     error: String?,
+    loadMoreError: String?,
     onPlayAlbum: (Album) -> Unit,
     onAlbumClick: (Album) -> Unit,
+    onRetry: () -> Unit,
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -193,19 +198,10 @@ fun BrowseAlbumsContent(
 
             if (error != null) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
+                    RetryErrorCard(
+                        message = error,
+                        onRetry = onRetry
+                    )
                 }
             }
 
@@ -238,7 +234,16 @@ fun BrowseAlbumsContent(
                 }
             }
 
-            if (!isLoading && !isLoadingMore && albums.isNotEmpty()) {
+            if (loadMoreError != null) {
+                item {
+                    RetryErrorCard(
+                        message = loadMoreError,
+                        onRetry = onLoadMore
+                    )
+                }
+            }
+
+            if (!isLoading && !isLoadingMore && loadMoreError == null && albums.isNotEmpty()) {
                 item {
                     TextButton(
                         onClick = onLoadMore,
@@ -268,7 +273,9 @@ fun BrowseArtistsContent(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     error: String?,
+    loadMoreError: String?,
     onArtistClick: (Artist) -> Unit,
+    onRetry: () -> Unit,
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -298,21 +305,13 @@ fun BrowseArtistsContent(
             }
 
             error != null -> {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
+                RetryErrorCard(
+                    message = error,
+                    onRetry = onRetry,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                ) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                )
             }
 
             else -> {
@@ -376,6 +375,15 @@ fun BrowseArtistsContent(
                                     }
                                 }
                             }
+
+                            if (loadMoreError != null) {
+                                item {
+                                    RetryErrorCard(
+                                        message = loadMoreError,
+                                        onRetry = onLoadMore
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -392,7 +400,7 @@ fun BrowseArtistsContent(
             }
         }
 
-        if (!isLoading && !isLoadingMore && artists.isNotEmpty()) {
+        if (!isLoading && !isLoadingMore && loadMoreError == null && artists.isNotEmpty()) {
             TextButton(
                 onClick = onLoadMore,
                 modifier = Modifier

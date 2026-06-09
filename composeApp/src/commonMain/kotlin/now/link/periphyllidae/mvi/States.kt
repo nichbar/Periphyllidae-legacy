@@ -174,7 +174,8 @@ data class FindState(
     val browseArtists: List<Artist> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val loadMoreError: String? = null
 ) : State
 
 sealed interface FindIntent : Intent {

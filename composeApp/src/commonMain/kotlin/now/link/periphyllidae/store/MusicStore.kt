@@ -268,14 +268,17 @@ class MusicStore(
                 val mostPlayedResult = mostPlayedDeferred.await()
                 val newestAlbumsResult = newestAlbumsDeferred.await()
                 val randomSongsResult = randomSongsDeferred.await()
-                
+                val currentState = _state.value
+                val failedSections = mutableListOf<String>()
+
                 val playlists = if (playlistsResult.isSuccess) {
                     val result = playlistsResult.getOrNull() ?: emptyList()
                     LogManager.d(TAG, "Loaded ${result.size} playlists")
                     result
                 } else {
                     LogManager.w(TAG, "Failed to load playlists: ${playlistsResult.exceptionOrNull()?.message}")
-                    emptyList()
+                    failedSections.add("playlists")
+                    currentState.playlists
                 }
                 
                 val mostPlayedSongs = if (mostPlayedResult.isSuccess) {
@@ -284,7 +287,8 @@ class MusicStore(
                     result
                 } else {
                     LogManager.w(TAG, "Failed to load most played albums: ${mostPlayedResult.exceptionOrNull()?.message}")
-                    emptyList()
+                    failedSections.add("most played")
+                    currentState.mostPlayedAlbums
                 }
                 
                 val recentlyPlayedSongs = if (recentlyPlayedResult.isSuccess) {
@@ -293,7 +297,8 @@ class MusicStore(
                     result
                 } else {
                     LogManager.w(TAG, "Failed to load recently played albums: ${recentlyPlayedResult.exceptionOrNull()?.message}")
-                    emptyList()
+                    failedSections.add("recently played")
+                    currentState.recentlyPlayedAlbums
                 }
                 
                 val newestAlbums = if (newestAlbumsResult.isSuccess) {
@@ -302,7 +307,8 @@ class MusicStore(
                     result
                 } else {
                     LogManager.w(TAG, "Failed to load newest albums: ${newestAlbumsResult.exceptionOrNull()?.message}")
-                    emptyList()
+                    failedSections.add("recently added")
+                    currentState.newestAlbums
                 }
                 
                 val randomSongs = if (randomSongsResult.isSuccess) {
@@ -311,7 +317,14 @@ class MusicStore(
                     result
                 } else {
                     LogManager.w(TAG, "Failed to load random songs: ${randomSongsResult.exceptionOrNull()?.message}")
-                    emptyList()
+                    failedSections.add("random songs")
+                    currentState.randomSongs
+                }
+
+                val homeError = when {
+                    failedSections.isEmpty() -> null
+                    failedSections.size == 5 -> "Failed to load home content. Please try again."
+                    else -> "Some home sections failed to load: ${failedSections.joinToString()}."
                 }
                 
                 // Update state with fresh content
@@ -322,21 +335,23 @@ class MusicStore(
                     mostPlayedAlbums = mostPlayedSongs,
                     recentlyPlayedAlbums = recentlyPlayedSongs,
                     newestAlbums = newestAlbums,
-                    homeError = null
+                    homeError = homeError
                 )
                 
-                // Cache the fresh content
-                val newCache = HomeContentCache(
-                    randomSongs = randomSongs,
-                    playlists = playlists,
-                    mostPlayedAlbums = mostPlayedSongs,
-                    recentlyPlayedAlbums = recentlyPlayedSongs,
-                    newestAlbums = newestAlbums,
-                    timestamp = System.currentTimeMillis()
-                )
-                settingsRepository.saveHomeContentCache(newCache)
-                
-                LogManager.i(TAG, "Home content loaded and cached successfully")
+                if (failedSections.isEmpty()) {
+                    val newCache = HomeContentCache(
+                        randomSongs = randomSongs,
+                        playlists = playlists,
+                        mostPlayedAlbums = mostPlayedSongs,
+                        recentlyPlayedAlbums = recentlyPlayedSongs,
+                        newestAlbums = newestAlbums,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    settingsRepository.saveHomeContentCache(newCache)
+                    LogManager.i(TAG, "Home content loaded and cached successfully")
+                } else {
+                    LogManager.w(TAG, "Home content loaded with failed sections: ${failedSections.joinToString()}")
+                }
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to load home content", e)
                 _state.value = _state.value.copy(
@@ -369,6 +384,9 @@ class MusicStore(
                     val repository = getCurrentRepository()
                     if (repository == null) {
                         LogManager.w(TAG, "No repository available for random songs")
+                        _state.value = _state.value.copy(
+                            homeError = "No server configured. Please login to a Subsonic server."
+                        )
                         return@launch
                     }
                     
@@ -384,9 +402,15 @@ class MusicStore(
                             playSpecificSong(firstSong, 0)
                         } else {
                             LogManager.w(TAG, "No random songs available from server")
+                            _state.value = _state.value.copy(
+                                homeError = "No random songs are available from this server."
+                            )
                         }
                     } else {
                         LogManager.e(TAG, "Failed to fetch random songs: ${result.exceptionOrNull()?.message}")
+                        _state.value = _state.value.copy(
+                            homeError = "Failed to load random songs. Please try again."
+                        )
                     }
                 } catch (e: Exception) {
                     LogManager.e(TAG, "Failed to load random songs", e)
@@ -423,6 +447,9 @@ class MusicStore(
                     val repository = getCurrentRepository()
                     if (repository == null) {
                         LogManager.w(TAG, "No repository available for album details")
+                        _state.value = _state.value.copy(
+                            homeError = "No server configured. Please login to a Subsonic server."
+                        )
                         return@launch
                     }
 
@@ -434,6 +461,9 @@ class MusicStore(
                         songs
                     } else {
                         LogManager.e(TAG, "Failed to load album: ${albumResult.exceptionOrNull()?.message}")
+                        _state.value = _state.value.copy(
+                            homeError = "Failed to load album songs. Please try again."
+                        )
                         emptyList()
                     }
                 }
@@ -445,6 +475,9 @@ class MusicStore(
                     playSpecificSong(songs[validStartIndex], validStartIndex)
                 } else {
                     LogManager.w(TAG, "Album ${album.name} contains no playable songs")
+                    _state.value = _state.value.copy(
+                        homeError = "No playable songs found for ${album.name}."
+                    )
                 }
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to load album songs for ${album.name}", e)
@@ -462,6 +495,9 @@ class MusicStore(
                 val repository = getCurrentRepository()
                 if (repository == null) {
                     LogManager.w(TAG, "No repository available for artist songs")
+                    _state.value = _state.value.copy(
+                        homeError = "No server configured. Please login to a Subsonic server."
+                    )
                     return@launch
                 }
 
@@ -504,9 +540,15 @@ class MusicStore(
                     playSpecificSong(allSongs[0], 0)
                 } else {
                     LogManager.w(TAG, "Artist ${artist.name} contains no playable songs")
+                    _state.value = _state.value.copy(
+                        homeError = "No playable songs found for ${artist.name}."
+                    )
                 }
             } catch (e: Exception) {
                 LogManager.e(TAG, "Failed to load songs for artist ${artist.name}", e)
+                _state.value = _state.value.copy(
+                    homeError = "Failed to load artist songs: ${e.message}"
+                )
             }
         }
     }
