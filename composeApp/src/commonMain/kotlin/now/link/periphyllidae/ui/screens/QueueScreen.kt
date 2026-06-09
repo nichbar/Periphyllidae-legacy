@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,7 +14,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -99,6 +105,33 @@ private fun QueueList(
     viewModel: QueueViewModel,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberLazyListState()
+    var hasCenteredInitialCurrentItem by remember { mutableStateOf(false) }
+    val nowPlayingIndex = state.currentIndex
+    val nowPlayingSongId = state.currentSong?.id
+
+    LaunchedEffect(state.queue.size, nowPlayingIndex, nowPlayingSongId) {
+        if (
+            hasCenteredInitialCurrentItem ||
+            nowPlayingIndex !in state.queue.indices ||
+            state.queue[nowPlayingIndex].id != nowPlayingSongId
+        ) {
+            return@LaunchedEffect
+        }
+
+        listState.scrollToItem(nowPlayingIndex)
+        withFrameNanos { }
+
+        val currentItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == nowPlayingIndex }
+        val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+        val centeredOffset = currentItem?.let {
+            -((viewportHeight - it.size) / 2).coerceAtLeast(0)
+        } ?: 0
+
+        listState.scrollToItem(nowPlayingIndex, centeredOffset)
+        hasCenteredInitialCurrentItem = true
+    }
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
@@ -106,6 +139,7 @@ private fun QueueList(
         color = MaterialTheme.colorScheme.surface
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
