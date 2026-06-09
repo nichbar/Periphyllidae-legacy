@@ -91,6 +91,10 @@ class MusicStore(
             is MusicIntent.PlayAlbumFromPosition -> playAlbumFromPosition(intent.album, intent.startIndex)
             is MusicIntent.PlayAllSongsOfArtist -> playAllSongsOfArtist(intent.artist)
             is MusicIntent.SetQueue -> setQueue(intent.songs, intent.startIndex)
+            is MusicIntent.PlayQueueItem -> playQueueItem(intent.index)
+            is MusicIntent.MoveQueueItem -> moveQueueItem(intent.fromIndex, intent.toIndex)
+            is MusicIntent.RemoveQueueItem -> removeQueueItem(intent.index)
+            is MusicIntent.ClearQueue -> clearQueue()
             is MusicIntent.GetSongDetails -> getSongDetails(intent.songId)
             is MusicIntent.InvalidatePlayerState -> invalidatePlayerState()
         }
@@ -521,6 +525,142 @@ class MusicStore(
         // Persist the queue with the actual values we just set
         persistQueue(songs, validStartIndex)
         LogManager.d(TAG, "Queue set in music player and persisted")
+    }
+
+    private fun playQueueItem(index: Int) {
+        val currentState = _state.value
+        val song = currentState.queue.getOrNull(index)
+        if (song == null) {
+            LogManager.w(TAG, "Queue item play requested for invalid index $index")
+            return
+        }
+
+        val isCurrentSong = currentState.currentIndex == index && currentState.currentSong?.id == song.id
+        if (isCurrentSong) {
+            LogManager.d(TAG, "Current queue item selected: ${song.title}")
+            if (currentState.isPlaying) {
+                pause()
+            } else {
+                play()
+            }
+            return
+        }
+
+        LogManager.i(TAG, "Playing queue item $index: ${song.title}")
+        musicPlayer.playAtIndex(index)
+        _state.value = currentState.copy(
+            currentIndex = index,
+            currentSong = song,
+            currentPosition = 0L,
+            duration = 0L
+        )
+        persistQueue(currentState.queue, index)
+        persistPlaybackState()
+    }
+
+    private fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val currentState = _state.value
+        val queue = currentState.queue
+        if (fromIndex !in queue.indices || toIndex !in queue.indices || fromIndex == toIndex) {
+            LogManager.w(TAG, "Queue move ignored: from=$fromIndex, to=$toIndex, size=${queue.size}")
+            return
+        }
+
+        val updatedQueue = queue.toMutableList()
+        val movedSong = updatedQueue.removeAt(fromIndex)
+        updatedQueue.add(toIndex, movedSong)
+
+        val currentSongId = currentState.currentSong?.id
+        val updatedCurrentIndex = currentSongId
+            ?.let { id -> updatedQueue.indexOfFirst { it.id == id } }
+            ?.takeIf { it >= 0 }
+            ?: currentState.currentIndex.coerceIn(0, updatedQueue.lastIndex)
+        val updatedCurrentSong = updatedQueue.getOrNull(updatedCurrentIndex)
+
+        LogManager.i(TAG, "Moved queue item from $fromIndex to $toIndex")
+        musicPlayer.setQueue(updatedQueue, updatedCurrentIndex)
+        _state.value = currentState.copy(
+            queue = updatedQueue,
+            currentIndex = updatedCurrentIndex,
+            currentSong = updatedCurrentSong
+        )
+        persistQueue(updatedQueue, updatedCurrentIndex)
+    }
+
+    private fun removeQueueItem(index: Int) {
+        val currentState = _state.value
+        val queue = currentState.queue
+        val removedSong = queue.getOrNull(index)
+        if (removedSong == null) {
+            LogManager.w(TAG, "Queue item remove requested for invalid index $index")
+            return
+        }
+
+        val updatedQueue = queue.toMutableList().also { it.removeAt(index) }
+        val removingCurrentSong = currentState.currentIndex == index || currentState.currentSong?.id == removedSong.id
+        LogManager.i(TAG, "Removing queue item $index: ${removedSong.title}")
+
+        if (updatedQueue.isEmpty()) {
+            musicPlayer.clearQueue()
+            _state.value = currentState.copy(
+                queue = emptyList(),
+                currentIndex = 0,
+                currentSong = null,
+                currentPosition = 0L,
+                duration = 0L,
+                isPlaying = false,
+                playbackState = PlaybackState.IDLE
+            )
+            settingsRepository.savePlaybackQueue(emptyList())
+            settingsRepository.saveCurrentSongIndex(0)
+            settingsRepository.saveCurrentSongPosition(0L)
+            return
+        }
+
+        val updatedCurrentIndex = when {
+            removingCurrentSong -> index.coerceAtMost(updatedQueue.lastIndex)
+            index < currentState.currentIndex -> currentState.currentIndex - 1
+            else -> currentState.currentIndex.coerceIn(0, updatedQueue.lastIndex)
+        }
+        val updatedCurrentSong = updatedQueue[updatedCurrentIndex]
+
+        if (removingCurrentSong) {
+            musicPlayer.stop()
+        }
+        musicPlayer.setQueue(updatedQueue, updatedCurrentIndex)
+        _state.value = currentState.copy(
+            queue = updatedQueue,
+            currentIndex = updatedCurrentIndex,
+            currentSong = updatedCurrentSong,
+            isPlaying = if (removingCurrentSong) false else currentState.isPlaying,
+            playbackState = if (removingCurrentSong) PlaybackState.IDLE else currentState.playbackState,
+            currentPosition = if (removingCurrentSong) 0L else currentState.currentPosition,
+            duration = if (removingCurrentSong) 0L else currentState.duration
+        )
+        persistQueue(updatedQueue, updatedCurrentIndex)
+
+        if (removingCurrentSong && currentState.isPlaying) {
+            playSpecificSong(updatedCurrentSong, updatedCurrentIndex)
+        } else if (removingCurrentSong) {
+            settingsRepository.saveCurrentSongPosition(0L)
+        }
+    }
+
+    private fun clearQueue() {
+        LogManager.i(TAG, "Clearing playback queue")
+        musicPlayer.clearQueue()
+        _state.value = _state.value.copy(
+            queue = emptyList(),
+            currentIndex = 0,
+            currentSong = null,
+            currentPosition = 0L,
+            duration = 0L,
+            isPlaying = false,
+            playbackState = PlaybackState.IDLE
+        )
+        settingsRepository.savePlaybackQueue(emptyList())
+        settingsRepository.saveCurrentSongIndex(0)
+        settingsRepository.saveCurrentSongPosition(0L)
     }
 
     private fun playSpecificSong(song: Song, index: Int) {

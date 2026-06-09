@@ -17,6 +17,7 @@ import now.link.periphyllidae.repository.SettingsRepository
 sealed class Nav {
     data object Main : Nav()
     data object NowPlaying : Nav()
+    data object Queue : Nav()
     data object Logs : Nav()
     data object ServerManagement : Nav()
     data object AddServer : Nav()
@@ -36,6 +37,7 @@ interface RootComponent {
         class LoginChild(val component: LoginComponent) : Child()
         class MainChild(val component: MainComponent) : Child()
         class NowPlayingChild(val component: NowPlayingComponent) : Child()
+        class QueueChild(val component: QueueComponent) : Child()
         class LogsChild(val component: LogsComponent) : Child()
         class ServerManagementChild(val component: ServerManagementComponent) : Child()
         class AddServerChild(val component: AddServerComponent) : Child()
@@ -60,6 +62,7 @@ class DefaultRootComponent(
         when (event) {
             is Nav.Main -> navigation.push(Config.Main)
             is Nav.NowPlaying -> navigation.push(Config.NowPlaying)
+            is Nav.Queue -> navigation.push(Config.Queue)
             is Nav.ArtistDetail -> navigation.push(Config.ArtistDetail(artistId = event.artistId))
             is Nav.AlbumDetail -> navigation.push(Config.AlbumDetail(albumId = event.albumId))
             is Nav.Logs -> navigation.push(Config.Logs)
@@ -85,6 +88,7 @@ class DefaultRootComponent(
             is Config.Login -> RootComponent.Child.LoginChild(loginComponent(componentContext))
             is Config.Main -> RootComponent.Child.MainChild(mainComponent(componentContext))
             is Config.NowPlaying -> RootComponent.Child.NowPlayingChild(nowPlayingComponent(componentContext))
+            is Config.Queue -> RootComponent.Child.QueueChild(queueComponent(componentContext))
             is Config.Logs -> RootComponent.Child.LogsChild(logsComponent(componentContext))
             is Config.ServerManagement -> RootComponent.Child.ServerManagementChild(serverManagementComponent(componentContext))
             is Config.AddServer -> RootComponent.Child.AddServerChild(addServerComponent(componentContext))
@@ -116,6 +120,17 @@ class DefaultRootComponent(
             },
             onNavigateToAlbumDetail = { albumId ->
                 nav(Nav.AlbumDetail(albumId))
+            },
+            onNavigateToQueue = {
+                nav(Nav.Queue)
+            }
+        )
+
+    private fun queueComponent(componentContext: ComponentContext): QueueComponent =
+        DefaultQueueComponent(
+            componentContext = componentContext,
+            onNavigateBack = {
+                navigation.pop()
             }
         )
     
@@ -189,6 +204,9 @@ class DefaultRootComponent(
 
         @Serializable
         data object NowPlaying : Config
+
+        @Serializable
+        data object Queue : Config
 
         @Serializable
         data object Logs : Config

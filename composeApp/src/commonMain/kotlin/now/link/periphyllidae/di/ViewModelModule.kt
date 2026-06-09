@@ -68,6 +68,14 @@ val viewModelModule = module {
     }
 
     /**
+     * Queue screen ViewModel for playback queue management.
+     * Depends on MusicStore for queue state and controls.
+     */
+    factory<QueueViewModel> {
+        QueueViewModel(get())
+    }
+
+    /**
      * Settings screen ViewModel managing application preferences and configuration.
      * Depends on AuthStore for authentication, AppStore for theme/settings,
      * and SettingsRepository for persistent preferences.

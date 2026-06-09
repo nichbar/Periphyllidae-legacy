@@ -26,6 +26,7 @@ fun RootContent(
             is RootComponent.Child.LoginChild -> LoginContent(child.component)
             is RootComponent.Child.MainChild -> MainContent(child.component)
             is RootComponent.Child.NowPlayingChild -> NowPlayingContent(child.component)
+            is RootComponent.Child.QueueChild -> QueueContent(child.component)
             is RootComponent.Child.LogsChild -> LogsContent(child.component)
             is RootComponent.Child.ServerManagementChild -> ServerManagementContent(child.component)
             is RootComponent.Child.AddServerChild -> AddServerContent(child.component)
@@ -50,7 +51,16 @@ private fun NowPlayingContent(component: now.link.periphyllidae.components.NowPl
         viewModel = koinInject(),
         onNavigateBack = component::onNavigateBack,
         onNavigateToArtistDetail = component::onNavigateToArtistDetail,
-        onNavigateToAlbumDetail = component::onNavigateToAlbumDetail
+        onNavigateToAlbumDetail = component::onNavigateToAlbumDetail,
+        onNavigateToQueue = component::onNavigateToQueue
+    )
+}
+
+@Composable
+private fun QueueContent(component: now.link.periphyllidae.components.QueueComponent) {
+    QueueScreen(
+        viewModel = koinInject(),
+        onNavigateBack = component::onNavigateBack
     )
 }
 

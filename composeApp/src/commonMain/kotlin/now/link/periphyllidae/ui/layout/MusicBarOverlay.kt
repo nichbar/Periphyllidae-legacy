@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,6 +27,7 @@ fun MusicBarOverlay(
     onBarClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
+    onQueueClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -105,6 +107,17 @@ fun MusicBarOverlay(
                         modifier = Modifier.size(28.dp)
                     )
                 }
+
+                IconButton(
+                    onClick = onQueueClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = "Open queue",
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
         }
     }
@@ -122,6 +135,7 @@ fun LandscapeMusicBarOverlay(
     onShuffleClick: () -> Unit,
     onRepeatClick: () -> Unit,
     onVolumeChange: (Float) -> Unit,
+    onQueueClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -318,6 +332,20 @@ fun LandscapeMusicBarOverlay(
                         imageVector = Icons.Filled.VolumeUp,
                         contentDescription = "Volume Up",
                         modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                IconButton(
+                    onClick = onQueueClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = "Open queue (${musicState.queue.size} songs)",
+                        modifier = Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

@@ -7,20 +7,19 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +60,7 @@ fun NowPlayingScreen(
     onNavigateBack: () -> Unit,
     onNavigateToArtistDetail: (String) -> Unit,
     onNavigateToAlbumDetail: (String) -> Unit,
+    onNavigateToQueue: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -88,14 +88,16 @@ fun NowPlayingScreen(
                             state = state,
                             viewModel = viewModel,
                             onNavigateToArtistDetail = onNavigateToArtistDetail,
-                            onNavigateToAlbumDetail = onNavigateToAlbumDetail
+                            onNavigateToAlbumDetail = onNavigateToAlbumDetail,
+                            onNavigateToQueue = onNavigateToQueue
                         )
 
                         ScreenLayout.PORTRAIT -> DefaultLayoutContent(
                             state = state,
                             viewModel = viewModel,
                             onNavigateToArtistDetail = onNavigateToArtistDetail,
-                            onNavigateToAlbumDetail = onNavigateToAlbumDetail
+                            onNavigateToAlbumDetail = onNavigateToAlbumDetail,
+                            onNavigateToQueue = onNavigateToQueue
                         )
                     }
                 }
@@ -167,6 +169,7 @@ private fun DefaultLayoutContent(
     viewModel: NowPlayingViewModel,
     onNavigateToArtistDetail: (String) -> Unit,
     onNavigateToAlbumDetail: (String) -> Unit,
+    onNavigateToQueue: () -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -222,7 +225,7 @@ private fun DefaultLayoutContent(
             Spacer(modifier = Modifier.height(responsiveSpacing))
             ProgressSection(state, viewModel)
             Spacer(modifier = Modifier.height(responsiveSpacing))
-            PlaybackControlsSection(state, viewModel, showAllControls = true)
+            PlaybackControlsSection(state, viewModel, showAllControls = true, onNavigateToQueue = onNavigateToQueue)
         }
     }
 }
@@ -234,6 +237,7 @@ private fun WideLayoutContent(
     viewModel: NowPlayingViewModel,
     onNavigateToArtistDetail: (String) -> Unit,
     onNavigateToAlbumDetail: (String) -> Unit,
+    onNavigateToQueue: () -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -301,7 +305,7 @@ private fun WideLayoutContent(
                 Spacer(modifier = Modifier.height(controlSpacing))
                 ProgressSection(state, viewModel)
                 Spacer(modifier = Modifier.height(controlSpacing))
-                PlaybackControlsSection(state, viewModel, showAllControls = true)
+                PlaybackControlsSection(state, viewModel, showAllControls = true, onNavigateToQueue = onNavigateToQueue)
             }
         }
     }
@@ -437,6 +441,7 @@ private fun PlaybackControlsSection(
     state: MusicState,
     viewModel: NowPlayingViewModel,
     showAllControls: Boolean = true,
+    onNavigateToQueue: () -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -510,6 +515,17 @@ private fun PlaybackControlsSection(
                     }
                 )
             }
+        }
+
+        IconButton(
+            onClick = onNavigateToQueue,
+            enabled = state.queue.isNotEmpty()
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                contentDescription = "Open queue",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }

@@ -100,6 +100,9 @@ private fun PortraitAppLayout(
                         },
                         onNextClick = {
                             musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.Next)
+                        },
+                        onQueueClick = {
+                            component.onNavigateTo(now.link.periphyllidae.components.Nav.Queue)
                         }
                     )
                 }
@@ -191,6 +194,9 @@ private fun LandscapeAppLayout(
                     },
                     onVolumeChange = { volume ->
                         musicStore.handleIntent(now.link.periphyllidae.mvi.MusicIntent.SetVolume(volume))
+                    },
+                    onQueueClick = {
+                        component.onNavigateTo(now.link.periphyllidae.components.Nav.Queue)
                     },
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

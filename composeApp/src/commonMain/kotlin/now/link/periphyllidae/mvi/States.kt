@@ -109,6 +109,10 @@ sealed interface MusicIntent : Intent {
     data class PlayAlbumFromPosition(val album: Album, val startIndex: Int) : MusicIntent
     data class PlayAllSongsOfArtist(val artist: Artist) : MusicIntent
     data class SetQueue(val songs: List<Song>, val startIndex: Int = 0) : MusicIntent
+    data class PlayQueueItem(val index: Int) : MusicIntent
+    data class MoveQueueItem(val fromIndex: Int, val toIndex: Int) : MusicIntent
+    data class RemoveQueueItem(val index: Int) : MusicIntent
+    object ClearQueue : MusicIntent
     data class GetSongDetails(val songId: String) : MusicIntent
 
     // Server change handling
