@@ -3,12 +3,15 @@ package now.link.periphyllidae.ui.screens
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
@@ -152,6 +155,7 @@ private fun HomeContent(
     onRetryLoad: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberLazyListState()
     val sections = buildList {
         add(HomeSection.AlbumsSection(AlbumSectionData("Recently Added", state.newestAlbums)))
         add(HomeSection.AlbumsSection(AlbumSectionData("Most Played", state.mostPlayedAlbums, maxItems = 10)))
@@ -162,7 +166,8 @@ private fun HomeContent(
     }
 
     LazyColumn(
-        modifier = modifier,
+        state = listState,
+        modifier = modifier.mouseDragScrollable(listState, Orientation.Vertical),
         verticalArrangement = Arrangement.spacedBy(HomeScreenDefaults.getSectionSpacing(isLandscape)),
         contentPadding = PaddingValues(top = HomeScreenDefaults.sectionVerticalSpacing)
     ) {
@@ -279,10 +284,14 @@ private fun AlbumSectionContent(
     onAlbumClick: (Album) -> Unit,
     onAlbumPlay: (Album) -> Unit
 ) {
+    val listState = rememberLazyListState()
+
     Column {
         SectionHeader(title = title)
 
         LazyRow(
+            state = listState,
+            modifier = Modifier.mouseDragScrollable(listState, Orientation.Horizontal),
             horizontalArrangement = Arrangement.spacedBy(HomeScreenDefaults.getItemSpacing(isLandscape)),
             contentPadding = PaddingValues(horizontal = HomeScreenDefaults.horizontalPadding)
         ) {
@@ -299,6 +308,11 @@ private fun AlbumSectionContent(
         }
     }
 }
+
+internal expect fun Modifier.mouseDragScrollable(
+    listState: LazyListState,
+    orientation: Orientation
+): Modifier
 
 @Composable
 private fun PlaylistSectionContent(

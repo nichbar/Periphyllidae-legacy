@@ -61,6 +61,8 @@ Docs files are located in the `docs/` directory.
 
 `CODE_QUALITY_ANALYSIS_REPORT.md` - Code quality report with identified issues and possible improvements.
 
+`docs/mouse-drag-scrolling.md` - Desktop mouse drag scrolling implementation notes for vertical lists and horizontal album rows.
+
 `docs/plans/2026-02-28-replace-vlc-with-mpv-design.md` - Desktop MPV replacement design notes.
 
 `docs/plans/2026-02-28-replace-vlc-with-mpv-benchmark-notes.md` - MPV/VLC benchmark notes and validation status.
