@@ -517,16 +517,6 @@ private fun PlaybackControlsSection(
             }
         }
 
-        IconButton(
-            onClick = onNavigateToQueue,
-            enabled = state.queue.isNotEmpty()
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                contentDescription = "Open queue",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        }
     }
 }
 

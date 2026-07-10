@@ -27,6 +27,7 @@ import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.utils.ApplicationScopeManager
+import now.link.periphyllidae.platform.MacWindowUtils
 
 @OptIn(DelicateCoroutinesApi::class)
 fun main() {
@@ -149,6 +150,12 @@ fun main() {
                 undecorated = true,
                 transparent = true
             ) {
+                // Ensure the native macOS window shadow is enabled — it follows
+                // the transparent window's alpha channel, which is rounded.
+                LaunchedEffect(Unit) {
+                    MacWindowUtils.ensureWindowShadow(window)
+                }
+
                 window.minimumSize = with(LocalDensity.current) {
                     java.awt.Dimension(100.dp.roundToPx(), 100.dp.roundToPx())
                 }

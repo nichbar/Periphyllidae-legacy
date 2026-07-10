@@ -133,8 +133,7 @@ private fun ShuffleFloatingActionButton(
             ),
         shape = FloatingActionButtonDefaults.shape,
         color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        shadowElevation = 6.dp
+        contentColor = MaterialTheme.colorScheme.onPrimary
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
