@@ -7,6 +7,7 @@ data class Album(
     val id: String,
     val name: String,
     val artist: String,
+    val artistId: String? = null,
     val songCount: Int,
     val duration: Int? = null,
     val year: Int? = null,

@@ -67,6 +67,7 @@ fun FindScreen(
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
                     loadMoreError = state.loadMoreError,
+                    hasMore = state.hasMoreSongs,
                     onPlaySong = viewModel::playSong,
                     onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllSongs) },
                     onLoadMore = {
@@ -86,8 +87,12 @@ fun FindScreen(
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
                     loadMoreError = state.loadMoreError,
+                    hasMore = state.hasMoreAlbums,
                     onPlayAlbum = viewModel::handleAlbumPlaybackClick,
                     onAlbumClick = { album -> onNavigateTo.invoke(Nav.AlbumDetail(album.id)) },
+                    onArtistClick = { album ->
+                        album.artistId?.let { onNavigateTo.invoke(Nav.ArtistDetail(it)) }
+                    },
                     onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllAlbums) },
                     onLoadMore = {
                         viewModel.handleIntent(
@@ -104,6 +109,7 @@ fun FindScreen(
                     isLoadingMore = state.isLoadingMore,
                     error = state.error,
                     loadMoreError = state.loadMoreError,
+                    hasMore = state.hasMoreArtists,
                     onArtistClick = { artist -> onNavigateTo.invoke(Nav.ArtistDetail(artist.id)) },
                     onRetry = { viewModel.handleIntent(now.link.periphyllidae.mvi.FindIntent.BrowseAllArtists) },
                     onLoadMore = {

@@ -66,14 +66,15 @@ fun SearchResults(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = if (results.artists.isNotEmpty()) 0.dp else 0.dp)
                 )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    results.albums.forEach { album ->
-                        AlbumListItem(
+                    items(results.albums, key = { it.id }) { album ->
+                        AlbumIconItem(
                             album = album,
                             onPlay = { onPlayAlbum(album) },
-                            onClick = { onAlbumClick(album) }
+                            onAlbumClick = { onAlbumClick(album) }
                         )
                     }
                 }
@@ -151,6 +152,46 @@ fun ArtistIconItem(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun AlbumIconItem(
+    album: Album,
+    onPlay: () -> Unit,
+    onAlbumClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(80.dp)
+    ) {
+        Card(
+            modifier = Modifier
+                .size(64.dp)
+                .clickable { onPlay() },
+            shape = CircleShape
+        ) {
+            CoverArtImage(
+                coverArtUrl = album.coverArt,
+                coverArtId = album.coverArtId,
+                contentDescription = "Play album ${album.name}",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = album.name,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAlbumClick() }
         )
     }
 }

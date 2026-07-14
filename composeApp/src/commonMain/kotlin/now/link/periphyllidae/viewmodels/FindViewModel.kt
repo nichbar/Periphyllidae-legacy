@@ -143,21 +143,26 @@ class FindViewModel(
             _findState.value = _findState.value.copy(
                 currentView = FindView.AllSongs,
                 isLoading = true,
+                isLoadingMore = false,
+                browseSongs = emptyList(),
+                hasMoreSongs = false,
                 error = null,
                 loadMoreError = null
             )
 
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllSongs(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllSongs(DEFAULT_PAGE_SIZE, offset = 0)
 
                 if (result.isSuccess) {
-                    val sortedSongs = result.getOrThrow().sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val sortedSongs = page.sortedWith { a, b ->
                         customAlphabeticalComparator(a.title, b.title)
                     }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
                         browseSongs = sortedSongs,
+                        hasMoreSongs = page.size >= DEFAULT_PAGE_SIZE,
                         error = null,
                         loadMoreError = null
                     )
@@ -165,6 +170,8 @@ class FindViewModel(
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoading = false,
+                        browseSongs = emptyList(),
+                        hasMoreSongs = false,
                         error = "Failed to load songs. Please try again."
                     )
                 }
@@ -172,6 +179,8 @@ class FindViewModel(
                 LogManager.e(TAG, "Error loading songs", e)
                 _findState.value = _findState.value.copy(
                     isLoading = false,
+                    browseSongs = emptyList(),
+                    hasMoreSongs = false,
                     error = "Failed to load songs. Please check your connection."
                 )
             }
@@ -183,21 +192,26 @@ class FindViewModel(
             _findState.value = _findState.value.copy(
                 currentView = FindView.AllAlbums,
                 isLoading = true,
+                isLoadingMore = false,
+                browseAlbums = emptyList(),
+                hasMoreAlbums = false,
                 error = null,
                 loadMoreError = null
             )
 
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllAlbums(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllAlbums(DEFAULT_PAGE_SIZE, offset = 0)
 
                 if (result.isSuccess) {
-                    val sortedAlbums = result.getOrThrow().sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val sortedAlbums = page.sortedWith { a, b ->
                         customAlphabeticalComparator(a.name, b.name)
                     }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
                         browseAlbums = sortedAlbums,
+                        hasMoreAlbums = page.size >= DEFAULT_PAGE_SIZE,
                         error = null,
                         loadMoreError = null
                     )
@@ -205,6 +219,8 @@ class FindViewModel(
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoading = false,
+                        browseAlbums = emptyList(),
+                        hasMoreAlbums = false,
                         error = "Failed to load albums. Please try again."
                     )
                 }
@@ -212,6 +228,8 @@ class FindViewModel(
                 LogManager.e(TAG, "Error loading albums", e)
                 _findState.value = _findState.value.copy(
                     isLoading = false,
+                    browseAlbums = emptyList(),
+                    hasMoreAlbums = false,
                     error = "Failed to load albums. Please check your connection."
                 )
             }
@@ -223,21 +241,26 @@ class FindViewModel(
             _findState.value = _findState.value.copy(
                 currentView = FindView.AllArtists,
                 isLoading = true,
+                isLoadingMore = false,
+                browseArtists = emptyList(),
+                hasMoreArtists = false,
                 error = null,
                 loadMoreError = null
             )
 
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllArtists(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllArtists(DEFAULT_PAGE_SIZE, offset = 0)
 
                 if (result.isSuccess) {
-                    val sortedArtists = result.getOrThrow().sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val sortedArtists = page.sortedWith { a, b ->
                         customAlphabeticalComparator(a.name, b.name)
                     }
                     _findState.value = _findState.value.copy(
                         isLoading = false,
                         browseArtists = sortedArtists,
+                        hasMoreArtists = page.size >= DEFAULT_PAGE_SIZE,
                         error = null,
                         loadMoreError = null
                     )
@@ -245,6 +268,8 @@ class FindViewModel(
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoading = false,
+                        browseArtists = emptyList(),
+                        hasMoreArtists = false,
                         error = "Failed to load artists. Please try again."
                     )
                 }
@@ -252,6 +277,8 @@ class FindViewModel(
                 LogManager.e(TAG, "Error loading artists", e)
                 _findState.value = _findState.value.copy(
                     isLoading = false,
+                    browseArtists = emptyList(),
+                    hasMoreArtists = false,
                     error = "Failed to load artists. Please check your connection."
                 )
             }
@@ -259,24 +286,29 @@ class FindViewModel(
     }
 
     private fun loadMoreSongs(offset: Int) {
-        ApplicationScopeManager.scope.launch {
-            _findState.value = _findState.value.copy(isLoadingMore = true, loadMoreError = null)
+        val currentState = _findState.value
+        if (currentState.isLoadingMore || !currentState.hasMoreSongs) return
 
+        _findState.value = currentState.copy(isLoadingMore = true, loadMoreError = null)
+        ApplicationScopeManager.scope.launch {
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllSongs(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllSongs(DEFAULT_PAGE_SIZE, offset = offset)
 
                 if (result.isSuccess) {
-                    val newSongs = result.getOrThrow()
-                    val allSongsSorted = (_findState.value.browseSongs + newSongs).sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val existingIds = _findState.value.browseSongs.map { it.id }.toHashSet()
+                    val uniqueNewSongs = page.filter { it.id !in existingIds }
+                    val allSongsSorted = (_findState.value.browseSongs + uniqueNewSongs).sortedWith { a, b ->
                         customAlphabeticalComparator(a.title, b.title)
                     }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
                         browseSongs = allSongsSorted,
+                        hasMoreSongs = page.size >= DEFAULT_PAGE_SIZE,
                         loadMoreError = null
                     )
-                    LogManager.i(TAG, "Loaded ${newSongs.size} additional songs")
+                    LogManager.i(TAG, "Loaded ${uniqueNewSongs.size} additional songs (page=${page.size})")
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
@@ -294,24 +326,29 @@ class FindViewModel(
     }
 
     private fun loadMoreAlbums(offset: Int) {
-        ApplicationScopeManager.scope.launch {
-            _findState.value = _findState.value.copy(isLoadingMore = true, loadMoreError = null)
+        val currentState = _findState.value
+        if (currentState.isLoadingMore || !currentState.hasMoreAlbums) return
 
+        _findState.value = currentState.copy(isLoadingMore = true, loadMoreError = null)
+        ApplicationScopeManager.scope.launch {
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllAlbums(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllAlbums(DEFAULT_PAGE_SIZE, offset = offset)
 
                 if (result.isSuccess) {
-                    val newAlbums = result.getOrThrow()
-                    val allAlbumsSorted = (_findState.value.browseAlbums + newAlbums).sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val existingIds = _findState.value.browseAlbums.map { it.id }.toHashSet()
+                    val uniqueNewAlbums = page.filter { it.id !in existingIds }
+                    val allAlbumsSorted = (_findState.value.browseAlbums + uniqueNewAlbums).sortedWith { a, b ->
                         customAlphabeticalComparator(a.name, b.name)
                     }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
                         browseAlbums = allAlbumsSorted,
+                        hasMoreAlbums = page.size >= DEFAULT_PAGE_SIZE,
                         loadMoreError = null
                     )
-                    LogManager.i(TAG, "Loaded ${newAlbums.size} additional albums")
+                    LogManager.i(TAG, "Loaded ${uniqueNewAlbums.size} additional albums (page=${page.size})")
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
@@ -329,24 +366,29 @@ class FindViewModel(
     }
 
     private fun loadMoreArtists(offset: Int) {
-        ApplicationScopeManager.scope.launch {
-            _findState.value = _findState.value.copy(isLoadingMore = true, loadMoreError = null)
+        val currentState = _findState.value
+        if (currentState.isLoadingMore || !currentState.hasMoreArtists) return
 
+        _findState.value = currentState.copy(isLoadingMore = true, loadMoreError = null)
+        ApplicationScopeManager.scope.launch {
             try {
                 val repository = subsonicRepositoryManager.getCurrentRepository()
-                val result = repository.getAllArtists(DEFAULT_PAGE_SIZE)
+                val result = repository.getAllArtists(DEFAULT_PAGE_SIZE, offset = offset)
 
                 if (result.isSuccess) {
-                    val newArtists = result.getOrThrow()
-                    val allArtistsSorted = (_findState.value.browseArtists + newArtists).sortedWith { a, b ->
+                    val page = result.getOrThrow()
+                    val existingIds = _findState.value.browseArtists.map { it.id }.toHashSet()
+                    val uniqueNewArtists = page.filter { it.id !in existingIds }
+                    val allArtistsSorted = (_findState.value.browseArtists + uniqueNewArtists).sortedWith { a, b ->
                         customAlphabeticalComparator(a.name, b.name)
                     }
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,
                         browseArtists = allArtistsSorted,
+                        hasMoreArtists = page.size >= DEFAULT_PAGE_SIZE,
                         loadMoreError = null
                     )
-                    LogManager.i(TAG, "Loaded ${newArtists.size} additional artists")
+                    LogManager.i(TAG, "Loaded ${uniqueNewArtists.size} additional artists (page=${page.size})")
                 } else {
                     _findState.value = _findState.value.copy(
                         isLoadingMore = false,

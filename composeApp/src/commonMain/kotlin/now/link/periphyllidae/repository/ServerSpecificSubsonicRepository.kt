@@ -162,7 +162,7 @@ class ServerSpecificSubsonicRepository(
         return getAlbumList("newest", size)
     }
 
-    private suspend fun getAlbumList(type: String, size: Int): Result<List<Album>> {
+    private suspend fun getAlbumList(type: String, size: Int, offset: Int = 0): Result<List<Album>> {
         return try {
             val response = httpClient.get("${serverConfig.url}/rest/getAlbumList") {
                 authParams.forEach { (key, value) ->
@@ -170,6 +170,7 @@ class ServerSpecificSubsonicRepository(
                 }
                 parameter("type", type)
                 parameter("size", size.toString())
+                parameter("offset", offset.toString())
             }
 
             if (response.status.isSuccess()) {
@@ -437,7 +438,7 @@ class ServerSpecificSubsonicRepository(
         return getAlbum(albumId).map { album -> album.songs }
     }
 
-    override suspend fun getAllArtists(size: Int): Result<List<Artist>> {
+    override suspend fun getAllArtists(size: Int, offset: Int): Result<List<Artist>> {
         return try {
             val response = httpClient.get("${serverConfig.url}/rest/getArtists") {
                 authParams.forEach { (key, value) ->
@@ -453,9 +454,10 @@ class ServerSpecificSubsonicRepository(
 
                 if (subsonicResponse.status == "ok" && subsonicResponse.artists != null) {
                     val allArtists = subsonicResponse.artists.index.flatMap { it.artist }
+                        .drop(offset.coerceAtLeast(0))
                         .take(size)
                         .map { it.toDomainModel(this) }
-                    LogManager.i(TAG, "Fetched ${allArtists.size} artists")
+                    LogManager.i(TAG, "Fetched ${allArtists.size} artists (offset=$offset)")
                     Result.success(allArtists)
                 } else {
                     val error = subsonicResponse.error
@@ -478,15 +480,15 @@ class ServerSpecificSubsonicRepository(
         }
     }
 
-    override suspend fun getAllAlbums(size: Int): Result<List<Album>> {
-        return getAlbumList("alphabeticalByName", size)
+    override suspend fun getAllAlbums(size: Int, offset: Int): Result<List<Album>> {
+        return getAlbumList("alphabeticalByName", size, offset)
     }
 
-    override suspend fun getAllSongs(size: Int): Result<List<Song>> {
+    override suspend fun getAllSongs(size: Int, offset: Int): Result<List<Song>> {
         return try {
             // Use search3 with empty query to get all songs, with pagination
             val allSongs = mutableListOf<Song>()
-            var offset = 0
+            var currentOffset = offset.coerceAtLeast(0)
             val batchSize = 500
 
             while (allSongs.size < size) {
@@ -501,7 +503,7 @@ class ServerSpecificSubsonicRepository(
                     parameter("songCount", currentBatchSize.toString())
                     parameter("artistOffset", "0")
                     parameter("albumOffset", "0")
-                    parameter("songOffset", offset.toString())
+                    parameter("songOffset", currentOffset.toString())
                 }
 
                 if (response.status.isSuccess()) {
@@ -513,7 +515,7 @@ class ServerSpecificSubsonicRepository(
                         val songs = subsonicResponse.searchResult3.song.map { it.toDomainModel(this) }
                         if (songs.isEmpty()) break // No more songs available
                         allSongs.addAll(songs)
-                        offset += songs.size
+                        currentOffset += songs.size
 
                         // If we got fewer songs than requested, we've reached the end
                         if (songs.size < currentBatchSize) break
@@ -534,7 +536,7 @@ class ServerSpecificSubsonicRepository(
                 }
             }
 
-            LogManager.i(TAG, "Fetched ${allSongs.size} songs")
+            LogManager.i(TAG, "Fetched ${allSongs.size} songs (offset=$offset)")
             Result.success(allSongs.take(size))
         } catch (e: Exception) {
             LogManager.e(TAG, "Exception getting all songs", e)

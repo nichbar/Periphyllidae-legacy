@@ -20,6 +20,7 @@ fun SubsonicAlbum.toDomainModel(repository: SubsonicRepository): Album {
         id = this.id,
         name = this.name,
         artist = this.artist ?: "Unknown Artist",
+        artistId = this.artistId,
         songCount = this.songCount ?: this.song.size,
         duration = this.duration ?: 0,
         year = this.year,
