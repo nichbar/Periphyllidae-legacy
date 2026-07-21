@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +40,7 @@ fun ArtistDetailScreen(
     onNavigateTo: (Nav) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val musicState by viewModel.musicState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     LaunchedEffect(artistId) {
@@ -75,7 +77,7 @@ fun ArtistDetailScreen(
                     CircularProgressIndicator()
                 }
             }
-            
+
             state.error != null -> {
                 RetryErrorCard(
                     message = state.error ?: "",
@@ -86,9 +88,17 @@ fun ArtistDetailScreen(
                         .padding(16.dp)
                 )
             }
-            
+
             state.artist != null -> {
                 val currentArtist = state.artist!!
+                val currentSong = musicState.currentSong
+                val currentSongId = currentSong?.id
+                val currentAlbumId = currentSong?.albumId
+                val albumIds = currentArtist.albums.map { it.id }.toSet()
+                val isCurrentArtistPlaying = musicState.isPlaying &&
+                    (currentSong?.artistId == currentArtist.id ||
+                        currentSongId != null && state.topSongs.any { it.id == currentSongId } ||
+                        currentAlbumId != null && currentAlbumId in albumIds)
 
                 Box(
                     modifier = Modifier
@@ -123,7 +133,9 @@ fun ArtistDetailScreen(
                             items(currentArtist.albums) { album ->
                                 ArtistAlbumCard(
                                     album = album,
-                                    onPlayClick = { viewModel.playAlbum(album) },
+                                    isCurrent = album.id == currentAlbumId,
+                                    isPlaying = musicState.isPlaying && album.id == currentAlbumId,
+                                    onPlayClick = { viewModel.handleAlbumPlaybackClick(album) },
                                     onNavigateTo = onNavigateTo
                                 )
                             }
@@ -144,6 +156,7 @@ fun ArtistDetailScreen(
                                 ArtistSongItem(
                                     song = song,
                                     trackNumber = index + 1,
+                                    isCurrent = song.id == currentSongId,
                                     onPlay = { viewModel.playSong(song) }
                                 )
                             }
@@ -178,15 +191,15 @@ fun ArtistDetailScreen(
 
                     // FAB
                     FloatingActionButton(
-                        onClick = { viewModel.playAllSongsOfArtist() },
+                        onClick = { viewModel.handleArtistPlaybackFabClick() },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(16.dp),
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Play all artist songs",
+                            imageVector = if (isCurrentArtistPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isCurrentArtistPlaying) "Pause artist" else "Play all artist songs",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -280,11 +293,25 @@ private fun ArtistHeader(
 @Composable
 private fun ArtistAlbumCard(
     album: Album,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
     onPlayClick: () -> Unit,
     onNavigateTo: (Nav) -> Unit
 ) {
+    val containerColor = if (isCurrent) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (isCurrent) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -319,7 +346,8 @@ private fun ArtistAlbumCard(
                     Text(
                         text = album.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                        color = contentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -329,7 +357,7 @@ private fun ArtistAlbumCard(
                     Text(
                         text = album.artist,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -343,14 +371,14 @@ private fun ArtistAlbumCard(
                         Text(
                             text = album.year?.toString() ?: "Unknown year",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = contentColor.copy(alpha = 0.6f)
                         )
 
                         if (album.songCount > 0) {
                             Text(
                                 text = "• ${album.songCount} songs",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = contentColor.copy(alpha = 0.6f)
                             )
                         }
                     }
@@ -359,7 +387,7 @@ private fun ArtistAlbumCard(
                         Text(
                             text = formatDuration(duration),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            color = contentColor.copy(alpha = 0.5f),
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -370,8 +398,8 @@ private fun ArtistAlbumCard(
 
             IconButton(onClick = onPlayClick) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play album",
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause album" else "Play album",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -401,12 +429,25 @@ private fun CompactInfoChip(
 private fun ArtistSongItem(
     song: Song,
     trackNumber: Int,
+    isCurrent: Boolean,
     onPlay: () -> Unit
 ) {
+    val containerColor = if (isCurrent) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (isCurrent) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPlay() }
+            .clickable { onPlay() },
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -434,7 +475,8 @@ private fun ArtistSongItem(
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                    color = contentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -442,7 +484,7 @@ private fun ArtistSongItem(
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = contentColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp)
@@ -454,7 +496,7 @@ private fun ArtistSongItem(
                 Text(
                     text = formatDuration(duration),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = contentColor.copy(alpha = 0.6f)
                 )
             }
         }
