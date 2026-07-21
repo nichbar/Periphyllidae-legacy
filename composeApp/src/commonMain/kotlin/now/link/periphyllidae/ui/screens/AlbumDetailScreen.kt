@@ -137,6 +137,7 @@ fun AlbumDetailScreen(
                                 AlbumSongItem(
                                     song = song,
                                     trackNumber = index + 1,
+                                    isCurrent = song.id == currentSongId,
                                     onPlay = { viewModel.playAlbumFromSong(song) }
                                 )
                             }
@@ -336,12 +337,25 @@ private fun InfoChip(
 private fun AlbumSongItem(
     song: Song,
     trackNumber: Int,
+    isCurrent: Boolean,
     onPlay: () -> Unit
 ) {
+    val containerColor = if (isCurrent) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (isCurrent) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPlay() }
+            .clickable { onPlay() },
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -369,7 +383,8 @@ private fun AlbumSongItem(
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                    color = contentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -377,7 +392,7 @@ private fun AlbumSongItem(
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = contentColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp)
@@ -389,7 +404,7 @@ private fun AlbumSongItem(
                 Text(
                     text = formatDuration(duration),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = contentColor.copy(alpha = 0.6f)
                 )
             }
         }
