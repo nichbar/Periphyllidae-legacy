@@ -29,12 +29,18 @@ class AlbumDetailViewModel(
     val musicState: StateFlow<MusicState> = musicStore.state
 
     fun loadAlbumDetail(albumId: String) {
+        val current = _state.value
+        // Keep previously loaded content when returning via back navigation.
+        if (current.album?.id == albumId && current.error == null && !current.isLoading) {
+            return
+        }
+
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-            
+
             try {
                 val albumResult = subsonicRepositoryManager.getCurrentRepository().getAlbum(albumId)
-                
+
                 if (albumResult.isSuccess) {
                     _state.value = _state.value.copy(
                         album = albumResult.getOrNull(),

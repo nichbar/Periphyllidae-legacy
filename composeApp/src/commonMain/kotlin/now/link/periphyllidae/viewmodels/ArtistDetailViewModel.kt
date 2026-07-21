@@ -28,6 +28,12 @@ class ArtistDetailViewModel(
     val musicState: StateFlow<MusicState> = musicStore.state
 
     fun loadArtistDetail(artistId: String) {
+        val current = _state.value
+        // Keep previously loaded content when returning via back navigation.
+        if (current.artist?.id == artistId && current.error == null && !current.isLoading) {
+            return
+        }
+
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
 

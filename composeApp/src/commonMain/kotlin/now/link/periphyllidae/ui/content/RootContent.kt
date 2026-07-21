@@ -75,7 +75,7 @@ private fun LogsContent(component: now.link.periphyllidae.components.LogsCompone
 private fun ArtistDetailContent(component: now.link.periphyllidae.components.ArtistDetailComponent) {
     ArtistDetailScreen(
         artistId = component.artistId,
-        viewModel = koinInject(),
+        viewModel = component.viewModel,
         onNavigateBack = component::onNavigateBack,
         onNavigateTo = component::onNavigateTo
     )
@@ -85,7 +85,7 @@ private fun ArtistDetailContent(component: now.link.periphyllidae.components.Art
 private fun AlbumDetailContent(component: AlbumDetailComponent) {
     AlbumDetailScreen(
         albumId = component.albumId,
-        viewModel = koinInject(),
+        viewModel = component.viewModel,
         onNavigateBack = component::onNavigateBack,
         onNavigateTo = component::onNavigateTo
     )
