@@ -19,25 +19,22 @@ import now.link.periphyllidae.di.dataModule
 import now.link.periphyllidae.di.cacheModule
 import now.link.periphyllidae.di.storeModule
 import now.link.periphyllidae.di.viewModelModule
-import now.link.periphyllidae.di.platformModule
 import now.link.periphyllidae.repository.SettingsRepository
 import now.link.periphyllidae.ui.theme.PeriphyllidaeTheme
 import now.link.periphyllidae.components.DefaultRootComponent
 import now.link.periphyllidae.ui.content.RootContent
 import now.link.periphyllidae.mvi.AppTheme
 import now.link.periphyllidae.store.AppStore
-import now.link.periphyllidae.ui.components.DesktopToolbarContent
 import org.koin.compose.koinInject
+import org.koin.core.module.Module
 
 private const val TAG = "App"
 
 @Composable
 fun App(
-    rootComponentContext: ComponentContext? = null,
-    windowScope: Any? = null,
-    windowState: Any? = null,
-    onCloseRequest: (() -> Unit)? = null,
-    showDesktopToolbar: Boolean = false
+    rootComponentContext: ComponentContext,
+    platformModules: List<Module> = emptyList(),
+    desktopToolbar: (@Composable () -> Unit)? = null
 ) {
     KoinApplication(application = {
         modules(
@@ -45,27 +42,21 @@ fun App(
             dataModule,
             cacheModule,
             storeModule,
-            viewModelModule,
-            platformModule
+            viewModelModule
         )
+        modules(platformModules)
     }) {
         AppContent(
             rootComponentContext = rootComponentContext,
-            windowScope = windowScope,
-            windowState = windowState,
-            onCloseRequest = onCloseRequest,
-            showDesktopToolbar = showDesktopToolbar
+            desktopToolbar = desktopToolbar
         )
     }
 }
 
 @Composable
 private fun AppContent(
-    rootComponentContext: ComponentContext? = null,
-    windowScope: Any? = null,
-    windowState: Any? = null,
-    onCloseRequest: (() -> Unit)? = null,
-    showDesktopToolbar: Boolean = false
+    rootComponentContext: ComponentContext,
+    desktopToolbar: (@Composable () -> Unit)? = null
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
     val appStore = koinInject<AppStore>()
@@ -83,7 +74,7 @@ private fun AppContent(
     // Create root component
     val rootComponent = remember {
         DefaultRootComponent(
-            componentContext = rootComponentContext ?: defaultComponentContext(),
+            componentContext = rootComponentContext,
             settingsRepository = settingsRepository
         )
     }
@@ -98,45 +89,19 @@ private fun AppContent(
     }
     
     PeriphyllidaeTheme(darkTheme = isDarkTheme) {
-        val platform = remember { getPlatform() }
-        val isDesktop = !platform.isAndroid
-        
-        if (isDesktop) {
-            // Desktop: Use rounded corners with Card
-            Card(
-                modifier = Modifier
-                    .fillMaxSize(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Show desktop toolbar only on desktop platforms when requested
-                    if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
-                        // Use expect/actual pattern to handle platform-specific toolbar
-                        DesktopToolbarContent(
-                            windowScope = windowScope,
-                            windowState = windowState,
-                            onCloseRequest = onCloseRequest
-                        )
-                    }
-
-                    // Main app content with Decompose
-                    RootContent(component = rootComponent)
-                }
-            }
-        } else {
-            // Android: Use regular Column without padding/rounded corners
+        // Use rounded corners with Card
+        Card(
+            modifier = Modifier
+                .fillMaxSize(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Show desktop toolbar only on desktop platforms when requested
-                if (showDesktopToolbar && windowState != null && onCloseRequest != null) {
-                    // Use expect/actual pattern to handle platform-specific toolbar
-                    DesktopToolbarContent(
-                        windowScope = windowScope,
-                        windowState = windowState,
-                        onCloseRequest = onCloseRequest
-                    )
+                // Desktop-only chrome provided by the platform entry point (window toolbar)
+                if (desktopToolbar != null) {
+                    desktopToolbar()
                 }
 
                 // Main app content with Decompose

@@ -5,6 +5,6 @@ import okio.Path
 /**
  * Platform-specific cache directory provider
  */
-expect class CacheDirectoryProvider() {
+interface CacheDirectoryProvider {
     fun getCacheDirectory(): Path
 }

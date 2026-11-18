@@ -14,7 +14,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.pow
 import now.link.periphyllidae.cache.CacheManager
-import now.link.periphyllidae.getPlatform
 import now.link.periphyllidae.models.Song
 import now.link.periphyllidae.utils.LogManager
 import org.koin.core.component.KoinComponent
@@ -241,12 +240,8 @@ class MusicPlayer(
                     try {
                         LogManager.d(TAG, "Starting playback (attempt ${attempt + 1}/${maxRetries + 1})")
 
-                        // Use cached URL if cache is available, otherwise use original URL, use cache only on Desktop
-                        val playbackUrl = if (getPlatform().isAndroid) {
-                            song.streamUrl
-                        } else {
-                            getPlaybackUrlWithFallback(song.streamUrl, attempt)
-                        }
+                        // Use cached URL if cache is available, otherwise use original URL
+                        val playbackUrl = getPlaybackUrlWithFallback(song.streamUrl, attempt)
 
                         LogManager.d(TAG, "Playback URL (attempt ${attempt + 1}): $playbackUrl")
 

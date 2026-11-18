@@ -14,7 +14,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
 
-internal actual fun Modifier.mouseDragScrollable(
+/**
+ * Enables click-and-drag scrolling with a mouse (desktop) on a lazy list.
+ */
+internal fun Modifier.mouseDragScrollable(
     listState: LazyListState,
     orientation: Orientation
 ): Modifier =

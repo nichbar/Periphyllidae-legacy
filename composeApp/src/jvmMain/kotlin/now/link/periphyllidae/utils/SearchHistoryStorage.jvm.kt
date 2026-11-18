@@ -9,7 +9,7 @@ import java.io.FileOutputStream
 /**
  * JVM implementation of PlatformStorage using local file storage
  */
-actual class PlatformStorage {
+class JvmPlatformStorage : PlatformStorage {
 
     private val historyDir: File by lazy {
         val userHome = System.getProperty("user.home")
@@ -24,7 +24,7 @@ actual class PlatformStorage {
         File(historyDir, "search_history.json")
     }
 
-    actual suspend fun saveString(key: String, value: String) {
+    override suspend fun saveString(key: String, value: String) {
         withContext(Dispatchers.IO) {
             try {
                 FileOutputStream(historyFile).use { output ->
@@ -36,7 +36,7 @@ actual class PlatformStorage {
         }
     }
 
-    actual suspend fun getString(key: String): String? {
+    override suspend fun getString(key: String): String? {
         return withContext(Dispatchers.IO) {
             try {
                 if (!historyFile.exists()) {
@@ -51,7 +51,7 @@ actual class PlatformStorage {
         }
     }
 
-    actual suspend fun remove(key: String) {
+    override suspend fun remove(key: String) {
         withContext(Dispatchers.IO) {
             try {
                 if (historyFile.exists()) {

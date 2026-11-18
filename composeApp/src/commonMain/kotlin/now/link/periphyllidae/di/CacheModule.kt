@@ -1,6 +1,5 @@
 package now.link.periphyllidae.di
 
-import now.link.periphyllidae.cache.CacheDirectoryProvider
 import org.koin.dsl.module
 
 /**
@@ -15,12 +14,5 @@ import org.koin.dsl.module
  * and declared with Koin at runtime, not defined here.
  */
 val cacheModule = module {
-
-    /**
-     * Provider for platform-specific cache directories.
-     * Returns appropriate cache storage locations based on the target platform.
-     */
-    factory<CacheDirectoryProvider> {
-        CacheDirectoryProvider()
-    }
+    // CacheDirectoryProvider is bound by the platform module (see PlatformModule.jvm.kt).
 }

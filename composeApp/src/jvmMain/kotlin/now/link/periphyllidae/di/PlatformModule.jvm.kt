@@ -4,13 +4,16 @@ import org.koin.dsl.module
 import com.russhwolf.settings.Settings
 import now.link.periphyllidae.platform.PlaybackEngineFactory
 import now.link.periphyllidae.platform.JvmPlaybackEngineFactory
+import now.link.periphyllidae.cache.CacheDirectoryProvider
+import now.link.periphyllidae.cache.JvmCacheDirectoryProvider
 import now.link.periphyllidae.utils.PlatformStorage
+import now.link.periphyllidae.utils.JvmPlatformStorage
 import java.util.Properties
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 
-actual val platformModule = module {
+val platformModule = module {
     single<Settings> {
         object : Settings {
             private val settingsFile = File(System.getProperty("user.home"), ".periphyllidae.properties")
@@ -90,7 +93,10 @@ actual val platformModule = module {
     }
 
     // PlatformStorage implementation for JVM
-    single<PlatformStorage> { PlatformStorage() }
+    single<PlatformStorage> { JvmPlatformStorage() }
+
+    // Cache directory provider for JVM
+    factory<CacheDirectoryProvider> { JvmCacheDirectoryProvider() }
 
     // Playback engine factory for JVM
     single<PlaybackEngineFactory> { JvmPlaybackEngineFactory() }

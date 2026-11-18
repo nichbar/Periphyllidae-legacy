@@ -18,9 +18,9 @@ So Periphyllidae was born. It's buggy and incomplete, but it just works for me.
 I will fix bugs and add features when I have time.
 
 Periphyllidae is a Kotlin Multiplatform music client for Subsonic-compatible
-servers such as Navidrome, Airsonic, and Gonic. The app targets Android and
-desktop JVM platforms with a shared Compose Multiplatform UI, server-side music
-library browsing, playback queues, and a disk-backed streaming cache.
+servers such as Navidrome, Airsonic, and Gonic. The app targets the desktop JVM
+with a shared Compose Multiplatform UI, server-side music library browsing,
+playback queues, and a disk-backed streaming cache.
 
 ## Features
 
@@ -32,15 +32,13 @@ library browsing, playback queues, and a disk-backed streaming cache.
 - Cache streamed audio through an embedded local HTTP cache server
 - Configure cache size and clear cached content from the app
 - View in-app logs with level filtering and live updates
-- Use Android background playback and media notifications
 - Use desktop tray/menu bar controls on JVM platforms
 
 ## Technology Stack
 
-- **Kotlin Multiplatform** for shared Android and desktop business logic
+- **Kotlin Multiplatform** (`jvm()` target) for shared business logic
 - **Compose Multiplatform** and **Material 3** for the UI
 - **Decompose** for component-based navigation and lifecycle handling
-- **MediaMP** for Android playback through ExoPlayer
 - **MPV + JNA** for direct desktop playback through packaged native libraries
 - **Ktor** for the Subsonic client and embedded cache server
 - **Koin** for dependency injection
@@ -63,13 +61,6 @@ artist detail, and album detail. `MainComponent` owns the primary app tabs.
 
 ## Platform Notes
 
-### Android
-
-- Uses ExoPlayer through MediaMP
-- Supports background playback with media-style notifications
-- Uses Android-specific cache locations and service lifecycle integration
-- Requires Android SDK 35 for current builds, with `minSdk` 24
-
 ### Desktop JVM
 
 - Uses `MpvPlaybackEngine` through `JnaMpvBridge`
@@ -77,6 +68,7 @@ artist detail, and album detail. `MainComponent` owns the primary app tabs.
 - Supports macOS, Windows, and Linux native distribution targets through
   Compose Desktop (`dmg`, `msi`, and `deb`)
 - Includes desktop tray/menu bar controls where supported by the platform
+- Uses desktop-specific cache locations under the user's home directory
 
 See `composeApp/appResources/mpv/README.md` for the expected native MPV binary
 layout.
@@ -86,7 +78,6 @@ layout.
 ### Prerequisites
 
 - JDK 17 or newer
-- Android SDK 35 when building Android targets
 - A Subsonic-compatible server such as Navidrome, Airsonic, Subsonic, or Gonic
 - Native MPV libraries for the desktop platform you want to run or package
 
@@ -96,14 +87,8 @@ layout.
 # Fast desktop/common compile check
 ./gradlew :composeApp:compileKotlinJvm
 
-# Android compile check
-./gradlew :composeApp:compileDebugKotlinAndroid
-
 # JVM unit tests
 ./gradlew :composeApp:jvmTest
-
-# Android debug APK
-./gradlew :composeApp:assembleDebug
 
 # Desktop application for development
 ./gradlew :composeApp:run
@@ -146,7 +131,6 @@ composeApp/src/
 │   ├── ui/             # Screens, reusable UI, layout, and theme
 │   ├── utils/          # Logging, search history, crypto, and app scope helpers
 │   └── viewmodels/     # Screen-specific presentation logic
-├── androidMain/kotlin/ # Android entry point, service, playback, cache, and DI
 └── jvmMain/kotlin/     # Desktop entry point, MPV bridge, tray, cache, and DI
 ```
 
@@ -162,8 +146,7 @@ report and the desktop VLC-to-MPV replacement design notes.
 - Prefer existing repository, store, component, and platform abstractions before
   adding new ones.
 - Run targeted Gradle checks after changes. Use `:composeApp:compileKotlinJvm`
-  for fast shared/desktop validation and `:composeApp:compileDebugKotlinAndroid`
-  for Android-sensitive changes.
+  for fast shared/desktop validation and `:composeApp:jvmTest` for unit tests.
 
 ## Compatibility
 
@@ -177,5 +160,4 @@ Periphyllidae uses the Subsonic API and is intended to work with:
 
 ## License
 
-No root project license file is currently declared in this repository. The
-included `mediamp` build has its own license files under `mediamp/`.
+No root project license file is currently declared in this repository.

@@ -1,4 +1,0 @@
-[submodule "mediamp"]
-	path = mediamp
-	url = git@github.com:nichbar/mediamp.git
-	branch = master

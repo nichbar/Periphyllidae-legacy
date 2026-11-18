@@ -11,7 +11,7 @@ import javax.swing.SwingUtilities
 /**
  * Desktop implementation of SystemTray using Java AWT
  */
-actual class SystemTrayManager : SystemTray {
+class SystemTrayManager : SystemTray {
     private var systemTray: java.awt.SystemTray? = null
     private var trayIcon: TrayIcon? = null
     private var onActionCallback: ((TrayAction) -> Unit)? = null

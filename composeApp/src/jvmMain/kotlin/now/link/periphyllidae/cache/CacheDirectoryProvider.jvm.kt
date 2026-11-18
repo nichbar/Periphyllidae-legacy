@@ -4,8 +4,8 @@ import okio.Path
 import okio.Path.Companion.toPath
 import java.io.File
 
-actual class CacheDirectoryProvider {
-    actual fun getCacheDirectory(): Path {
+class JvmCacheDirectoryProvider : CacheDirectoryProvider {
+    override fun getCacheDirectory(): Path {
         val userHome = System.getProperty("user.home")
         val appDataDir = when {
             System.getProperty("os.name").lowercase().contains("windows") -> {

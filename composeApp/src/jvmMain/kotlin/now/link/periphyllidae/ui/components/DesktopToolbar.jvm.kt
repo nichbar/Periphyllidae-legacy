@@ -22,17 +22,13 @@ import androidx.compose.ui.window.WindowScope
 import androidx.compose.ui.window.WindowState
 
 @Composable
-actual fun DesktopToolbarContent(
-    windowScope: Any?,
-    windowState: Any?,
+fun DesktopToolbarContent(
+    windowScope: WindowScope,
+    windowState: WindowState,
     onCloseRequest: () -> Unit,
 ) {
-    // Cast to proper types on JVM platform
-    val scope = windowScope as? WindowScope ?: return
-    val state = windowState as? WindowState ?: return
-    
-    with(scope) {
-        DesktopToolbarContentImpl(state, onCloseRequest)
+    with(windowScope) {
+        DesktopToolbarContentImpl(windowState, onCloseRequest)
     }
 }
 

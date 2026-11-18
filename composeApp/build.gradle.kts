@@ -1,11 +1,8 @@
 import org.gradle.kotlin.dsl.libs
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
@@ -14,45 +11,19 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-    
     jvm()
     
     sourceSets {
-        androidMain.dependencies {
-            implementation(compose.preview)
-            implementation(libs.androidx.activity.compose)
-            
-            // Networking - Android
-            implementation(libs.ktor.client.okhttp)
-            
-            // MediaMP - ExoPlayer backend for Android
-            implementation(libs.mediamp.exoplayer)
-            
-            // Media Session & Notifications
-            implementation(libs.androidx.media)
-            implementation(libs.androidx.core.ktx)
-            
-            // Database - Android
-//            implementation(libs.sqldelight.android.driver)
-        }
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-            
-            // Navigation
-//            implementation(libs.navigation.compose)
             
             // Decompose
             implementation(libs.decompose)
@@ -91,10 +62,6 @@ kotlin {
             
             // Settings
             implementation(libs.multiplatform.settings)
-            
-            // MediaMP - Common API
-            implementation(libs.mediamp.api)
-            implementation(libs.mediamp.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -117,37 +84,6 @@ kotlin {
 //            implementation(libs.sqldelight.sqlite.driver)
         }
     }
-}
-
-android {
-    namespace = "now.link.periphyllidae"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        applicationId = "now.link.periphyllidae"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 8
-        versionName = "1.0.7"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
-dependencies {
-    debugImplementation(compose.uiTooling)
 }
 
 compose.desktop {

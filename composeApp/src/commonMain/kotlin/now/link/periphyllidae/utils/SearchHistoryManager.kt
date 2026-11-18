@@ -128,9 +128,9 @@ class SearchHistoryManager(
 
 /**
  * Platform-specific storage interface
- * Implemented separately for Android and JVM platforms
+ * Implemented by the desktop JVM implementation (JvmPlatformStorage)
  */
-expect class PlatformStorage {
+interface PlatformStorage {
     suspend fun saveString(key: String, value: String)
     suspend fun getString(key: String): String?
     suspend fun remove(key: String)

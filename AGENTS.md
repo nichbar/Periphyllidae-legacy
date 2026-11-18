@@ -1,27 +1,25 @@
 # Project Contract
 
-Kotlin Multiplatform (Android + Desktop JVM) Subsonic music client using Compose Multiplatform, Decompose, Koin, Ktor, MediaMP (ExoPlayer on Android), and MPV/JNA (desktop). See `README.md` for feature overview.
+Kotlin Multiplatform (`jvm()` target) Subsonic music client using Compose Multiplatform, Decompose, Koin, Ktor, and MPV/JNA for desktop playback. See `README.md` for feature overview.
 
 ## Build And Test
 
 - Compile shared/desktop JVM: `./gradlew :composeApp:compileKotlinJvm`
-- Compile Android debug: `./gradlew :composeApp:compileDebugKotlinAndroid`
 - Test JVM/common: `./gradlew :composeApp:jvmTest`
 - Test single JVM class: `./gradlew :composeApp:jvmTest --tests "<fqcn>"`
 - Run full checks: `./gradlew :composeApp:check`
 - Run desktop app (manual inspection): `./gradlew :composeApp:run`
-- Build Android debug APK: `./gradlew :composeApp:assembleDebug`
 - Package desktop distributable / DMG / UberJAR: `./gradlew :composeApp:createDistributable`, `./gradlew :composeApp:packageDmg`, `./gradlew :composeApp:packageUberJarForCurrentOS`
 
 ## Architecture Boundaries
 
-- Shared logic and UI live in `composeApp/src/commonMain/kotlin/now/link/periphyllidae/`; platform code lives in `androidMain/` and `jvmMain/`
+- Shared logic and UI live in `composeApp/src/commonMain/kotlin/now/link/periphyllidae/`; desktop/JVM-only code lives in `jvmMain/`
 - Navigation lives in `components/` (`RootComponent.kt` for root stack, `MainComponent.kt` for tabs), routed via `ui/content/` and `ui/layout/`
 - Cross-screen MVI state lives in `store/` (`AuthStore.kt`, `MusicStore.kt`, `AppStore.kt`); screen-scoped logic lives in `viewmodels/`
 - Data access lives in `repository/` (`SubsonicRepository.kt`); do not let new ViewModels call `SubsonicRepository` directly (route via `store/`; `AlbumDetailViewModel.kt` is legacy tech debt)
 - Platform playback differences go behind `platform/PlaybackEngineFactory.kt`, not UI or store code
-- Desktop MPV bridge (`MpvPlaybackEngine.kt`, `JnaMpvBridge.kt`, `MpvNativeLoader.kt`) stays in `jvmMain/.../platform/`; Android ExoPlayer/service stays in `androidMain/.../`
-- DI bindings live in `commonMain/.../di/` and platform `PlatformModule.*.kt`
+- Desktop MPV bridge (`MpvPlaybackEngine.kt`, `JnaMpvBridge.kt`, `MpvNativeLoader.kt`) stays in `jvmMain/.../platform/`
+- DI bindings live in `commonMain/.../di/` and `jvmMain/.../di/PlatformModule.jvm.kt`
 
 ## Coding Conventions
 
@@ -37,19 +35,18 @@ Kotlin Multiplatform (Android + Desktop JVM) Subsonic music client using Compose
 ### NEVER
 
 - Edit `.env`, `local.properties`, or CI/signing secrets without explicit approval
-- Modify the `mediamp/` git submodule or native binaries in `composeApp/appResources/` unless explicitly requested
+- Modify native binaries in `composeApp/appResources/` unless explicitly requested
 - Introduce new global stores/singletons without explicit justification
 - Commit without running targeted compile and test checks
 
 ### ALWAYS
 
 - Show diff before committing
-- Keep `commonMain` free of JVM-only (`java.awt`, JNA, `MpvPlaybackEngine`) or Android-only imports
+- Keep `commonMain` free of JVM-only (`java.awt`, JNA, `MpvPlaybackEngine`) imports
 
 ## Verification
 
 - Shared/common or desktop changes: `./gradlew :composeApp:compileKotlinJvm` + `./gradlew :composeApp:jvmTest`
-- Android-touching changes: `./gradlew :composeApp:compileDebugKotlinAndroid` (+ `./gradlew :composeApp:assembleDebug` if manifest/packaging changed)
 - Playback/MPV changes: `./gradlew :composeApp:jvmTest --tests "now.link.periphyllidae.platform.*"`
 - Broad/cross-layer changes: `./gradlew :composeApp:check`
 

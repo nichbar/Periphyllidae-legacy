@@ -7,7 +7,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -307,11 +306,6 @@ private fun AlbumSectionContent(
         }
     }
 }
-
-internal expect fun Modifier.mouseDragScrollable(
-    listState: LazyListState,
-    orientation: Orientation
-): Modifier
 
 @Composable
 private fun PlaylistSectionContent(

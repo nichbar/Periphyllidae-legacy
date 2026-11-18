@@ -28,6 +28,7 @@ import now.link.periphyllidae.store.MusicStore
 import now.link.periphyllidae.utils.LogManager
 import now.link.periphyllidae.utils.ApplicationScopeManager
 import now.link.periphyllidae.platform.MacWindowUtils
+import now.link.periphyllidae.ui.components.DesktopToolbarContent
 
 @OptIn(DelicateCoroutinesApi::class)
 fun main() {
@@ -160,12 +161,11 @@ fun main() {
                     java.awt.Dimension(100.dp.roundToPx(), 100.dp.roundToPx())
                 }
 
-                // Pass the window state and close request to App()
+                // Pass the platform-provided dependencies and window toolbar to App()
                 App(
-                    windowScope = this,
-                    windowState = windowState,
-                    onCloseRequest = closeRequest,
-                    showDesktopToolbar = true
+                    rootComponentContext = remember { defaultComponentContext() },
+                    platformModules = listOf(platformModule, desktopModule),
+                    desktopToolbar = { DesktopToolbarContent(this, windowState, closeRequest) }
                 )
             }
         }

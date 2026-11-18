@@ -5,7 +5,7 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.statekeeper.StateKeeperDispatcher
 
-actual fun defaultComponentContext(): ComponentContext {
+fun defaultComponentContext(): ComponentContext {
     val lifecycle = LifecycleRegistry()
     val stateKeeper = StateKeeperDispatcher()
     
