@@ -91,7 +91,8 @@ compose.desktop {
         mainClass = "now.link.periphyllidae.MainKt"
 
         buildTypes.release.proguard {
-            isEnabled.set(false)
+            isEnabled.set(true)
+            configurationFiles.from(project.file("proguard-rules.pro"))
         }
 
         nativeDistributions {
