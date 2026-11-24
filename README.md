@@ -22,6 +22,10 @@ servers such as Navidrome, Airsonic, and Gonic. The app targets the desktop JVM
 with a shared Compose Multiplatform UI, server-side music library browsing,
 playback queues, and a disk-backed streaming cache.
 
+## Screenshot
+
+![Periphyllidae Screenshot](screenshots/screenshot.jpg)
+
 ## Features
 
 - Connect to one or more Subsonic-compatible servers
